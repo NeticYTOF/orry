@@ -406,39 +406,39 @@ test("partial answers extract an explicit uncertainty clause and decline only th
     errors: [],
     claims: claims.map(({ claim, evidenceIds }) => ({
       claim,
-      supported: /netic.{0,20}rivet|rivet.{0,20}netic/i.test(claim),
-      evidenceIds: /netic.{0,20}rivet|rivet.{0,20}netic/i.test(claim) ? ["identity-1"] : evidenceIds,
+      supported: /netic.{0,40}orry|orry.{0,40}netic/i.test(claim),
+      evidenceIds: /netic.{0,40}orry|orry.{0,40}netic/i.test(claim) ? ["identity-1"] : evidenceIds,
     })),
   });
   try {
     const result = await lookup.applyPassageCitations(
       {
-        source: "About Rivet",
+        source: "About Orry",
         answer:
-          "Rivet was built by Netic :meffmoney: and honestly no clue on approval status — that's not something i can see :thonk: a maintainer in the program would know better",
+          "Orry the ore Maulwürf was built by Netic :meffmoney: and honestly no clue on approval status — that's not something i can see :thonk: a maintainer in the program would know better",
       },
       [
         {
           id: "identity-1",
           programId: "partial-program",
           kind: "generated",
-          source: "About Rivet",
-          text: "Netic built Rivet.",
+          source: "About Orry",
+          text: "Netic built Orry the ore Maulwürf.",
         },
       ],
       { id: "partial-program", sharedSources: false, sources: [] },
-      "Who built Rivet, and what is my project's approval status?",
+      "Who built Orry the ore Maulwürf, and what is my project's approval status?",
     );
-    assert.match(result.answer, /Rivet was built by Netic/);
+    assert.match(result.answer, /Orry the ore Maulwürf was built by Netic/);
     assert.match(result.answer, /couldn't confirm this part: “what is my project's approval status”/);
     assert.doesNotMatch(result.answer, /honestly no clue|not something i can see/);
     assert.deepEqual(result.passageCitations, ["identity-1"]);
 
     const explicitUnresolved = await lookup.applyPassageCitations(
       {
-        source: "About Rivet",
+        source: "About Orry",
         answer:
-          "Rivet was built by Netic :meffmoney: as for your project's approval status, that's not something i can see from here.",
+          "Orry the ore Maulwürf was built by Netic :meffmoney: as for your project's approval status, that's not something i can see from here.",
         unresolved: ["my project's approval status"],
       },
       [
@@ -446,14 +446,14 @@ test("partial answers extract an explicit uncertainty clause and decline only th
           id: "identity-1",
           programId: "partial-program",
           kind: "generated",
-          source: "About Rivet",
-          text: "Netic built Rivet.",
+          source: "About Orry",
+          text: "Netic built Orry the ore Maulwürf.",
         },
       ],
       { id: "partial-program", sharedSources: false, sources: [] },
-      "Who built Rivet, and what is my project's approval status?",
+      "Who built Orry the ore Maulwürf, and what is my project's approval status?",
     );
-    assert.match(explicitUnresolved.answer, /Rivet was built by Netic/);
+    assert.match(explicitUnresolved.answer, /Orry the ore Maulwürf was built by Netic/);
     assert.match(explicitUnresolved.answer, /couldn't confirm my project's approval status/);
     assert.doesNotMatch(explicitUnresolved.answer, /that's not something i can see/);
   } finally {

@@ -201,7 +201,8 @@ function mentionsRivetByName(text: string): boolean {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const names = [...new Set([brand.name(), brand.slug(), ...customNames])];
+  const legacyName = brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [];
+  const names = [...new Set([brand.name(), brand.slug(), ...legacyName, ...customNames])];
   const pattern = require("./eligibility").botNamePattern(names);
   return new RegExp(`\\b(?:${pattern})\\w*\\b`, "i").test(text || "");
 }
@@ -480,7 +481,7 @@ function checkEligibility({
     text: question,
     userId: event.user,
     botUserId: config.slack.botUserId,
-    botNames: [brand.name(), brand.slug()],
+    botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
     isHelpChannel: channelPolicy.resolve(event.channel, workspaceId).role === "help",
     isTopLevel,
     isDM: isDm,
@@ -543,7 +544,7 @@ async function refuseUnauthorizedCommand({
   const commandRegistry = require("./commandRegistry");
   const hit = commandRegistry.match(question, {
     botUserId: config.slack.botUserId,
-    botNames: [brand.name(), brand.slug()],
+    botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
   });
   if (!hit) return false;
   const verdict = commandRegistry.authorize(hit.command, {
@@ -1240,7 +1241,7 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
       text: event.text,
       userId: event.user,
       botUserId: config.slack.botUserId,
-      botNames: [brand.name(), brand.slug()],
+      botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
       isHelpChannel: policy.role === "help",
       isTopLevel: false,
       posture: prog.posture,

@@ -1,7 +1,8 @@
 const axios = require("axios");
 const { config } = require("./config");
 const { complete } = require("./llm");
-const { normalizeEmoji } = require("./answer");
+const { normalizeEmoji, VOICE } = require("./answer");
+const brand = require("./brand");
 const log = require("./log");
 
 const MAX_TOKENS = 500;
@@ -29,7 +30,8 @@ const SKIP = "SKIP";
 
 function visionSystemPrompt(context: string, docs = "", requireGrounded = false) {
   return [
-    "You are rivet, a helper in a support channel. Someone shared an image.",
+    `You are ${brand.name()}, a helper in a support channel. Someone shared an image.`,
+    ...VOICE,
     "Answer their question or fix the problem the image shows, like a friendly human helper would.",
     "Never describe or summarize the image. Don't list what you see.",
     "Keep it to one to three short, casual sentences. Plain words, no headings or bullet lists.",

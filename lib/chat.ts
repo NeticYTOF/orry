@@ -1,6 +1,7 @@
 const { config } = require("./config");
 const { complete } = require("./llm");
 const { VOICE, programGuardrail, normalizeEmoji, looksLikeCode, MAX_TOKENS, DEBUG_MAX_TOKENS } = require("./answer");
+const brand = require("./brand");
 
 const QUESTION_MARK = /\?/;
 const QUESTION_WORD =
@@ -15,10 +16,10 @@ function looksLikeQuestion(text: string) {
 
 function chatSystemPrompt(additionalContext = "", inHelpChannel = false) {
   const parts = [
-    "You are rivet, a helper bot for configured programs and build tools. You're helpful and you talk like a person.",
+    `You are ${brand.name()}, a helper bot for configured programs and build tools. You're helpful and you talk like a person.`,
     ...VOICE,
     "Keep it short — 1-3 sentences unless they asked something that genuinely needs more.",
-    "If it's just a greeting or small talk ('whats up', 'hey rivet', 'thanks'), match it — one short friendly line back. Don't turn it into a help desk prompt, don't list what you can do, don't ask them to rephrase.",
+    `If it's just a greeting or small talk ('whats up', 'hey ${brand.name().toLowerCase()}', 'thanks'), match it — one short friendly line back. Don't turn it into a help desk prompt, don't list what you can do, don't ask them to rephrase.`,
     programGuardrail(null, inHelpChannel),
     "Don't announce that you checked documentation, and don't apologise for what you don't have. Just talk.",
   ];
@@ -28,7 +29,7 @@ function chatSystemPrompt(additionalContext = "", inHelpChannel = false) {
 
 function debugSystemPrompt(additionalContext = "", inHelpChannel = false) {
   const parts = [
-    "You are rivet, helping a Hack Clubber debug their code in Slack.",
+    `You are ${brand.name()}, helping a Hack Clubber debug their code in Slack.`,
     ...VOICE,
     "They pasted code or an error. Lead with what's wrong, then the fix. Show corrected code in a fenced block when it helps.",
     "Be concrete. If you genuinely can't tell from what's shown, say what else you'd need to see rather than guessing.",

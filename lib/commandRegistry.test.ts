@@ -80,7 +80,7 @@ test("match: mention-form teach fires only after an explicit mention", () => {
     `<@${BOT}> remember that answer`,
     `<@${BOT}> memorize it`,
     `<@${BOT}> !teach x :: y`,
-    `<@${BOT}> /rivet-teach x :: y`,
+    `<@${BOT}> /orry-teach x :: y`,
     `<@${BOT}|rivet> teach x`,
   ];
   for (const text of mentionCases) {
@@ -140,7 +140,7 @@ test("match: mention-form sum parity with handlers.sumPattern(true)", () => {
     `<@${BOT}> summarize thread`,
     `<@${BOT}> summarise it`,
     `<@${BOT}> !sum public`,
-    `<@${BOT}> /rivet-sum`,
+    `<@${BOT}> /orry-sum`,
   ];
   for (const text of cases) {
     const stripped = text.replace(new RegExp(`<@${BOT}(?:\\|[^>]+)?>`, "g"), "").trim();
@@ -162,7 +162,7 @@ test("match: only the explicit !mute/!stfu command spellings route to mute", () 
 });
 
 test("match: every own-slug command_bypass form reaches a registry command", () => {
-  for (const text of ["!teach x :: y", "!sum", "!mute", "!stfu", "/rivet-teach x", "/rivet-sum"]) {
+  for (const text of ["!teach x :: y", "!sum", "!mute", "!stfu", "/orry-teach x", "/orry-sum"]) {
     assert.ok(match(text, { botUserId: BOT }), `bypass form with no registry match: ${text}`);
   }
 });
@@ -246,9 +246,9 @@ test("byHandlerKey resolves the architect's dispatch map", () => {
 
 test("list() renders a usage listing with the bot's own slash names", () => {
   const text = list();
-  assert.match(text, /\/rivet-sources/);
-  assert.match(text, /\/rivet-teach/);
-  assert.match(text, /\/rivet-forget/);
+  assert.match(text, /\/orry-sources/);
+  assert.match(text, /\/orry-teach/);
+  assert.match(text, /\/orry-forget/);
   assert.match(text, /!sum/);
   assert.match(text, /!mute/);
   assert.doesNotMatch(text, /guide|calc|shop/);

@@ -70,12 +70,12 @@ test("no two advertised commands share a name", () => {
   assert.equal(new Set(advertised).size, advertised.length);
 });
 
-test("with nothing set the manifest is rivet's own", () => {
+test("with nothing set the manifest uses Orry's display name and commands", () => {
   withBrand({ RIVET_BOT_NAME: undefined, RIVET_BOT_SLUG: undefined }, () => {
     const advertised = manifest().features.slash_commands.map((c: TestAny) => c.command);
-    assert.equal(manifest().display_information.name, "rivet");
-    assert.ok(advertised.includes("/rivet"));
-    assert.ok(advertised.includes("/rivet-teach"));
+    assert.equal(manifest().display_information.name, "Orry the ore Maulwürf");
+    assert.ok(advertised.includes("/orry"));
+    assert.ok(advertised.includes("/orry-teach"));
   });
 });
 

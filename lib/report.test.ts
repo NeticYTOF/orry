@@ -383,7 +383,7 @@ test("the report shows the week-on-week change in coverage", () => {
 test("the report says so plainly when nothing was asked", () => {
   db.handle().query("DELETE FROM doc_gaps").run();
   db.handle().query("DELETE FROM metrics").run();
-  assert.match(report.reportText(0), /nobody asked rivet anything this week/);
+  assert.match(report.reportText(0), /nobody asked Orry the ore Maulwürf anything this week/);
 });
 
 test("an unjudged backlog is reported as unsorted rather than silently dropped", () => {

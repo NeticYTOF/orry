@@ -36,6 +36,13 @@ function run(f: any) {
   });
 }
 
+test("Orry is recognized in direct and referential name mentions", () => {
+  const options = { botUserId: BOT, botNames: ["Orry the ore Maulwürf", "orry"] };
+  assert.equal(elig.invocationAnalysis("can you ask Orry about this?", options).invocation, false);
+  assert.equal(elig.invocationAnalysis("I think orry is down", options).invocation, true);
+  assert.equal(elig.invocationAnalysis("Orrybot, quick question", options).invocation, true);
+});
+
 const FIXTURES = [
   ["help: deadline ask", { text: "when is the deadline?", help: true }, "reply", "help_channel_ask"],
   ["help: how do i submit", { text: "how do i submit my project", help: true }, "reply", "help_channel_ask"],

@@ -25,6 +25,23 @@ test("mentionsRivetByName matches the name and its suffixes", () => {
   assert.equal(handlers.mentionsRivetByName("rivets are cool"), true);
 });
 
+test("mentionsRivetByName recognizes Orry anywhere in a message", () => {
+  const savedName = process.env.RIVET_BOT_NAME;
+  const savedSlug = process.env.RIVET_BOT_SLUG;
+  process.env.RIVET_BOT_NAME = "Orry the ore Maulwürf";
+  process.env.RIVET_BOT_SLUG = "orry";
+  try {
+    assert.equal(handlers.mentionsRivetByName("hey orry can you check this?"), true);
+    assert.equal(handlers.mentionsRivetByName("Orrybot, quick question"), true);
+    assert.equal(handlers.mentionsRivetByName("sorry, quick question"), false);
+  } finally {
+    if (savedName === undefined) delete process.env.RIVET_BOT_NAME;
+    else process.env.RIVET_BOT_NAME = savedName;
+    if (savedSlug === undefined) delete process.env.RIVET_BOT_SLUG;
+    else process.env.RIVET_BOT_SLUG = savedSlug;
+  }
+});
+
 test("mentionsRivetByName ignores unrelated text", () => {
   assert.equal(handlers.mentionsRivetByName("acme is great"), false);
   assert.equal(handlers.mentionsRivetByName(""), false);

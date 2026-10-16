@@ -1,6 +1,6 @@
-const DEFAULT_NAME = "rivet";
+const DEFAULT_NAME = "Orry the ore Maulwürf";
 
-const DEFAULT_SLUG = "rivet";
+const DEFAULT_SLUG = "orry";
 
 const NON_SLUG_CHARS = /[^a-z0-9-]+/g;
 const EDGE_DASHES = /^-+|-+$/g;
@@ -14,7 +14,10 @@ function name() {
 }
 
 function rawSlug() {
-  return envValue("RIVET_BOT_SLUG") || envValue("RIVET_BOT_NAME") || DEFAULT_SLUG;
+  const configuredSlug = envValue("RIVET_BOT_SLUG");
+  if (configuredSlug) return configuredSlug;
+  const configuredName = envValue("RIVET_BOT_NAME");
+  return configuredName && configuredName !== DEFAULT_NAME ? configuredName : DEFAULT_SLUG;
 }
 
 function slug() {

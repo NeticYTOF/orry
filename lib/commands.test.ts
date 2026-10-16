@@ -222,8 +222,8 @@ test("/rivet help returns the actor's filtered runtime command list", async () =
     respond: async (payload: any) => responses.push(payload),
   });
 
-  assert.match(responses[0].text, /\/rivet-sources/);
-  assert.doesNotMatch(responses[0].text, /\/rivet-teach/);
+  assert.match(responses[0].text, /\/orry-sources/);
+  assert.doesNotMatch(responses[0].text, /\/orry-teach/);
 });
 
 test("REGISTRY: slash defs, CAPABILITIES, and Bolt bindings cover each other", () => {

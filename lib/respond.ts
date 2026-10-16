@@ -315,7 +315,14 @@ function isMuteRequest(text: string) {
     .replace(/[.,!?:;_-]+/g, " ")
     .trim();
 
-  const names = [...new Set([brand.slug(), brand.name().toLowerCase(), brand.DEFAULT_SLUG])]
+  const names = [
+    ...new Set([
+      brand.slug(),
+      brand.name().toLowerCase(),
+      brand.DEFAULT_SLUG,
+      ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : []),
+    ]),
+  ]
     .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
   const shush = "stfu|shut\\s*up|quiet|shutup|silence|mute|stop";

@@ -29,7 +29,7 @@ test("sumPattern matches valid !sum triggers", () => {
   assert.equal(handlers.sumPattern().test("!summary"), true);
   assert.equal(handlers.sumPattern().test("!summarize"), true);
   assert.equal(handlers.sumPattern().test("!summarise"), true);
-  assert.equal(handlers.sumPattern().test("rivet-sum"), true);
+  assert.equal(handlers.sumPattern().test("orry-sum"), true);
   assert.equal(handlers.sumPattern().test("sum this"), true);
   assert.equal(handlers.sumPattern().test("sum thread"), true);
 });

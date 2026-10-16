@@ -22,9 +22,16 @@ function withBrand(name: string | undefined, slug: string | undefined, fn: () =>
 test("default identity is Q/A shaped and describes generic behavior", () => {
   const section = identity.defaultIdentity();
   assert.match(section, /Q: Who are you\?/);
-  assert.match(section, /A: I'm/);
+  assert.match(section, /A: I'm Orry the ore Maulwürf/);
   assert.match(section, /learned answers/);
   assert.match(section, /help channel/);
+});
+
+test("Loadout identity names Orry as the bot Netic built", () => {
+  withBrand("Orry the ore Maulwürf", "rivet", () => {
+    const text = identity.corpusSection({ id: "loadout", name: "Loadout" });
+    assert.match(text, /Orry the ore Maulwürf was built by Netic/);
+  });
 });
 
 test("identity override replaces generated text", () => {

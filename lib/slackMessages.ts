@@ -1,4 +1,5 @@
 import log = require("./log");
+const botBrand = require("./brand");
 import type { Program, SlackClient } from "./types";
 import type { ChatPostMessageArguments } from "@slack/web-api";
 
@@ -137,7 +138,7 @@ async function sendProgramMessage({
           recordSendFailure(program, error);
           throw err;
         }
-        log.warn("slackMessages", `program branding rejected (${code}) — retrying as Rivet`);
+        log.warn("slackMessages", `program branding rejected (${code}) — retrying as ${botBrand.name()}`);
         useBrand = false;
         continue;
       }

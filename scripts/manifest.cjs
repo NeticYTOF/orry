@@ -2,13 +2,13 @@
 // Slack advertises exactly the commands the bot listens for.
 //
 //   bun run manifest
-//   RIVET_BOT_NAME="Rivet" RIVET_BOT_SLUG=rivet bun run manifest
+//   RIVET_BOT_NAME="Orry the ore Maulwürf" RIVET_BOT_SLUG=orry bun run manifest
 //
 // Paste the output into api.slack.com/apps → Create New App → From a manifest.
 //
 // Why generate it rather than write it out once: command names come from
 // RIVET_BOT_SLUG (see lib/brand.js). Hand-editing a manifest is how you end up
-// with an app advertising /pixl-teach while the process listens for /rivet-teach —
+// with an app advertising /pixl-teach while the process listens for /orry-teach —
 // a failure with no error anywhere, the command just silently does nothing.
 const brand = require("../lib/brand");
 
@@ -18,7 +18,7 @@ const BOT_SCOPES = [
   "chat:write",
   // Lets the shared hosted app send as a program's support identity
   // (username/icon_url via lib/slackMessages.js). Without it, branding is
-  // rejected and messages still send as plain Rivet — the fallback path.
+  // rejected and messages still send under the bot's Slack app identity.
   "chat:write.customize",
   "channels:history",
   "groups:history",

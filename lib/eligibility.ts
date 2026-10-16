@@ -75,10 +75,17 @@ function invocationAnalysis(
   if (!mentioned && !named) return { addressed: false, invocation: false, referential: false };
 
   const stripped = body.replace(/^[\s,.;:!?-]+/, "");
+  const namePattern = botNamePattern([...botNames, "rivet"]);
   const referential =
-    /\b(ask|tell|ping|invite|thank|thanks|replace|blame|ignore|listen to)\b[^.!?]{0,40}(?:\brivet|<@)/i.test(body) ||
-    /\brivet\w*\s+(already\s+)?(said|answered|replied|replies|thinks?|knows?|told)\b/i.test(body) ||
-    /\breplace\s+\S+\s+with\s+(?:\brivet|<@)/i.test(body);
+    new RegExp(
+      `\\b(ask|tell|ping|invite|thank|thanks|replace|blame|ignore|listen to)\\b[^.!?]{0,40}(?:\\b(?:${namePattern})\\w*|<@)`,
+      "i",
+    ).test(body) ||
+    new RegExp(
+      `\\b(?:${namePattern})\\w*\\s+(already\\s+)?(said|answered|replied|replies|thinks?|knows?|told)\\b`,
+      "i",
+    ).test(body) ||
+    new RegExp(`\\breplace\\s+\\S+\\s+with\\s+(?:\\b(?:${namePattern})\\w*|<@)`, "i").test(body);
   if (referential) return { addressed: true, invocation: false, referential: true };
   const startsWithMention = !!botUserId && stripped.startsWith(`<@${botUserId}>`);
   const startsWithName = new RegExp(

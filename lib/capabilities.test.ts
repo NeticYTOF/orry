@@ -11,10 +11,10 @@ test("capability help exposes public commands and hides helper commands", () => 
   config.slack.adminUserIds = [];
   const help = capabilities.formatHelp({ actorId: "U-random" });
 
-  assert.match(help, /\/rivet/);
-  assert.match(help, /\/rivet-sources/);
-  assert.doesNotMatch(help, /\/rivet-teach/);
-  assert.doesNotMatch(help, /\/rivet-reload/);
+  assert.match(help, /\/orry/);
+  assert.match(help, /\/orry-sources/);
+  assert.doesNotMatch(help, /\/orry-teach/);
+  assert.doesNotMatch(help, /\/orry-reload/);
 });
 
 test("capability help exposes helper commands for an admin and follows the slug", () => {
@@ -26,7 +26,7 @@ test("capability help exposes helper commands for an admin and follows the slug"
     const help = capabilities.formatHelp({ actorId: "U-admin" });
     assert.match(help, /\/sol-teach/);
     assert.match(help, /\/sol-program/);
-    assert.doesNotMatch(help, /\/rivet-/);
+    assert.doesNotMatch(help, /\/orry-/);
   } finally {
     if (previousSlug === undefined) delete process.env.RIVET_BOT_SLUG;
     else process.env.RIVET_BOT_SLUG = previousSlug;

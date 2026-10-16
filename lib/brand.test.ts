@@ -21,12 +21,12 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
   }
 }
 
-test("with nothing set, the bot is still rivet", () => {
+test("with nothing set, the bot uses Orry's display name and commands", () => {
   withEnv({ RIVET_BOT_NAME: undefined, RIVET_BOT_SLUG: undefined }, () => {
-    assert.equal(brand.name(), "rivet");
-    assert.equal(brand.slug(), "rivet");
-    assert.equal(brand.cmd(), "/rivet");
-    assert.equal(brand.cmd("teach"), "/rivet-teach");
+    assert.equal(brand.name(), "Orry the ore Maulwürf");
+    assert.equal(brand.slug(), "orry");
+    assert.equal(brand.cmd(), "/orry");
+    assert.equal(brand.cmd("teach"), "/orry-teach");
   });
 });
 
@@ -45,6 +45,13 @@ test("the slug is derived from the name when only the name is set", () => {
   });
 });
 
+test("the renamed default uses the orry slash command prefix", () => {
+  withEnv({ RIVET_BOT_NAME: "Orry the ore Maulwürf", RIVET_BOT_SLUG: undefined }, () => {
+    assert.equal(brand.slug(), "orry");
+    assert.equal(brand.cmd(), "/orry");
+  });
+});
+
 test("a display name with spaces or caps is slugified before becoming a command", () => {
   withEnv({ RIVET_BOT_NAME: "Sol Helper Bot", RIVET_BOT_SLUG: undefined }, () => {
     assert.equal(brand.slug(), "sol-helper-bot");
@@ -60,15 +67,15 @@ test("punctuation is stripped rather than passed into a command name", () => {
 
 test("a slug that slugifies to nothing falls back rather than producing '/'", () => {
   withEnv({ RIVET_BOT_SLUG: "!!!" }, () => {
-    assert.equal(brand.slug(), "rivet");
-    assert.equal(brand.cmd(), "/rivet");
+    assert.equal(brand.slug(), "orry");
+    assert.equal(brand.cmd(), "/orry");
   });
 });
 
 test("an empty or whitespace value is treated as unset", () => {
   withEnv({ RIVET_BOT_NAME: "   ", RIVET_BOT_SLUG: "" }, () => {
-    assert.equal(brand.name(), "rivet");
-    assert.equal(brand.slug(), "rivet");
+    assert.equal(brand.name(), "Orry the ore Maulwürf");
+    assert.equal(brand.slug(), "orry");
   });
 });
 
@@ -87,7 +94,7 @@ test("brand values are read per call, not captured at require time", () => {
   });
 });
 
-test("defaults are the rivet identity", () => {
+test("defaults are the Orry identity", () => {
   withEnv({ RIVET_BOT_NAME: undefined, RIVET_BOT_SLUG: undefined }, () => {
     assert.equal(brand.name(), brand.DEFAULT_NAME);
     assert.equal(brand.slug(), brand.DEFAULT_SLUG);
