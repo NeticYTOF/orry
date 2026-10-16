@@ -246,7 +246,7 @@ test("numericClaimsGrounded rejects invented digit-bearing claims and allows one
   assert.equal(lookup.numericClaimsGrounded("80% chance", ""), true, "no corpus supplied is a no-op, not a reject");
 });
 
-test("inline citations resolve to same-program passages and reject claims the evidence judge rejects", async () => {
+test("verified answers keep evidence internally without listing sources", async () => {
   const knowledge = require("./knowledge");
   const answer = require("./answer");
   const original = knowledge.sourceEligibility;
@@ -284,9 +284,14 @@ test("inline citations resolve to same-program passages and reject claims the ev
       passages,
       program,
     );
-    assert.match(partial.answer, /<https:\/\/example\.org\/rules\|Program rules — Track XP>/);
+    assert.equal(
+      partial.answer,
+      "Track XP is permanent.\n\nI couldn't confirm whether it can be spent in the docs, so I can't answer those parts.",
+    );
     assert.match(partial.answer, /couldn't confirm whether it can be spent/);
+    assert.doesNotMatch(partial.answer, /Program rules|example\.org/);
     assert.equal(partial.source, "Program rules");
+    assert.deepEqual(partial.passageCitations, ["passage-1"]);
 
     assert.equal(
       await lookup.applyPassageCitations(
@@ -368,7 +373,9 @@ test("uncited claims get verifier-selected passage IDs and compound omissions fa
       "When do applications close and when do results arrive?",
       "When is the program deadline?",
     );
-    assert.match(result.answer, /Program timeline — Dates/);
+    assert.equal(result.answer, "Applications close June 1.");
+    assert.doesNotMatch(result.answer, /Program timeline|Dates/);
+    assert.deepEqual(result.passageCitations, ["timeline-1"]);
     assert.deepEqual(coverageRequest, {
       question: "When do applications close and when do results arrive?",
       contextQuestion: "When is the program deadline?",

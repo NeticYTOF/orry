@@ -206,21 +206,6 @@ function exactFaqAnswer(question: string, passages: Array<{ source: string; text
   return null;
 }
 
-function citationLabel(passage: { source: string; heading?: string }, url: string | null) {
-  const label = `${passage.source}${passage.heading ? ` — ${passage.heading}` : ""}`
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  if (!url) return `[${label}]`;
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return `[${label}]`;
-    return `<${parsed.href}|${label}>`;
-  } catch (_error: unknown) {
-    return `[${label}]`;
-  }
-}
-
 function separateExplicitUncertainty(answer: string, question: string) {
   const parts = question.split(/\s+(?:and|also|as well as)\s+/i).map((part) => part.trim());
   if (parts.length < 2) return { answer, unresolved: [] as string[] };
@@ -408,15 +393,6 @@ async function applyPassageCitations(
   });
   if (!validity.supported) return null;
   const cited = new Map([...usedIds].map((id) => [String(id), eligible.get(String(id))!]));
-  const sourceLabels = supportedClaims.map((claim) =>
-    claim.evidenceIds.map((id) => {
-      const passage = eligible.get(id)!;
-      const configured = sources.find((source) => source.name?.toLowerCase() === passage.source.toLowerCase());
-      const sourceUrl =
-        configured?.siteUrl || (configured?.url && /^https?:\/\//i.test(configured.url) ? configured.url : null);
-      return citationLabel(passage, sourceUrl);
-    }),
-  );
   result.answer = supportedSentences
     .map((sentence, index) => {
       const claim = claims[supportedIndexes[index]].claim;
@@ -424,7 +400,7 @@ async function applyPassageCitations(
         !numericClaimsGrounded(claim, supportedClaims[index].evidenceIds.map((id) => eligible.get(id)!.text).join("\n"))
       )
         return "";
-      return `${claim} ${sourceLabels[index].join(" ")}`;
+      return claim;
     })
     .join(" ");
   if (!result.answer) return null;
