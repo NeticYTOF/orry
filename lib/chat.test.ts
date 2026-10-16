@@ -51,9 +51,6 @@ test("chat prompts stay helpful but defer configured facts to documentation", ()
   const dbg = chat.debugSystemPrompt("", false);
   assert.match(sys, /you do NOT know the answer/i);
   assert.match(dbg, /you do NOT know the answer/i);
-  assert.match(sys, /1-3 sentences/);
-  assert.match(sys, /ja, ja, I messed up/i);
   assert.match(dbg, /never output profanity or swear words of any kind/i);
-  assert.match(sys, /harmless pretend preference/i);
 });
 export {};

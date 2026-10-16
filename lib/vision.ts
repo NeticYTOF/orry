@@ -34,7 +34,7 @@ function visionSystemPrompt(context: string, docs = "", requireGrounded = false)
     ...VOICE,
     "Answer their question or fix the problem the image shows, like a friendly human helper would.",
     "Never describe or summarize the image. Don't list what you see.",
-    "Keep it to one to three short, casual sentences. Plain words, no headings or bullet lists.",
+    "Use plain words, usually one or two short sentences. Include short steps or code when needed to explain the fix clearly, without unrelated detail.",
     "If it's an error, say what's wrong and the fix. If they asked something, answer it.",
     "Program facts (deadlines, rules, prices, how things work) come only from the docs below. Never invent them.",
     `If there's no clear question or problem, or you aren't confident you know the answer, reply with exactly ${SKIP}.`,
