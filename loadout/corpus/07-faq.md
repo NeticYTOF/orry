@@ -6,6 +6,8 @@
 
 **Who made Loadout?** Loadout was built by Netic, Wind, and Jerry, who are also the org behind it.
 
+**Who is the org of this YSWS?** Jerry is Loadout's lead organizer. Fazin / Wind and Netic are co-organizers; Netic built Rivet, Loadout's Slack bot.
+
 **Are there levels and what do they do?** Each track has 15 lifetime levels. Level determines pricing advantage, unlocks, and Requisition milestones. Levels are permanent and never reset between seasons.
 
 **What currency do I earn?** Bolts. Bolts are global and spendable; Track XP is separate, non-spendable, and stays in its field forever. Spending Bolts never weakens your Builder Profile.

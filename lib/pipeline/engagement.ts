@@ -42,6 +42,14 @@ function isIdentityOrSmalltalk(text: string) {
   return false;
 }
 
+function isProgramPeopleQuestion(text: string) {
+  return /\bwho\b[^.!?\n]{0,60}\b(?:org(?:anizers?|anisation|anization)?|organis(?:er|ers|e|es|ing)|organizes?|leads?|runs?|behind|made|built|created)\b/i.test(
+    String(text || "")
+      .replace(/^<@[^>]+>\s*/, "")
+      .trim(),
+  );
+}
+
 function postureFor(role: ChannelRole) {
   if (role === "help") return "help";
   if (role === "dm") return "dm";
@@ -138,6 +146,9 @@ async function classify({
 }: ClassifyOptions) {
   if (addressed && isIdentityOrSmalltalk(message)) {
     return { engage: true, intent: "addressed_smalltalk", error: null, source: "heuristic" };
+  }
+  if (isProgramPeopleQuestion(message)) {
+    return { engage: true, intent: "program_people_question", error: null, source: "heuristic" };
   }
   if (veyDecision.isEnabled()) {
     try {

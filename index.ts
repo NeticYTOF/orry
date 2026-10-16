@@ -164,7 +164,7 @@ async function runAskCli(question: string, programId: string | null): Promise<vo
   console.log(`[rivet] program: ${program ? program.id : "(shared)"}`);
 
   const result = await respond.answerOrChat(question, "", {
-    program: program ? { id: program.id, name: program.name } : null,
+    program,
     inHelpChannel: Boolean(program),
   });
   if (result?.answer) {
