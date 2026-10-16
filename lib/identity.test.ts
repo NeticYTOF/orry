@@ -31,6 +31,7 @@ test("Loadout identity names Orry as the bot Netic built", () => {
   withBrand("Orry the ore Maulwürf", "rivet", () => {
     const text = identity.corpusSection({ id: "loadout", name: "Loadout" });
     assert.match(text, /Orry the ore Maulwürf was built by Netic/);
+    assert.match(text, /Netic also built Rivet, Loadout's Slack bot/);
   });
 });
 
