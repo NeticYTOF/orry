@@ -1,39 +1,41 @@
-# Rivet — handoff
+# Orry the ore Maulwürf — Rivet handoff
 
 Everything another agent needs to pick this repo up cold. For rules and
 architecture, read `AGENTS.md` first; this file is state, not policy.
 
 ## Where things stand
 
-Rivet is a Slack help-channel bot (Bun + TS, Socket Mode) serving **Loadout**,
-a Hack Club YSWS. It answers from a program documentation corpus, escalates
-what it can't answer to human helpers, and learns from resolutions.
+Orry the ore Maulwürf is the public identity of Rivet, a Slack help-channel
+bot (Bun + TS, Socket Mode) serving **Loadout**, a Hack Club YSWS. It answers
+from a program documentation corpus, escalates what it can't answer to human
+helpers, and learns from resolutions.
 
 - Repo: `https://github.com/NeticYTOF/rivet` (public), branch `main`
 - Local: `C:\Users\aarav\Projects\Rivet`
 - Serving `#loadout` (main/ambient), `#loadout-help` (help/tickets),
   `#loadout-development` (weekly report + `@`-mentions only)
-- Suite: **100/100 core + 19/19 wizard green**, typecheck + prettier clean
+- Suite: **101/101 core + 20/20 wizard green**, typecheck + prettier clean
 - Model: answers `deepseek/deepseek-v4-flash-0731`, intent
   `openai/gpt-4.1-nano`, both via Hack Club AI (`HCAI_API_KEY`)
 
-## Live processes (supervised)
+## Local process state
 
-| Name | What | Notes |
+| Process | What | Notes |
 |---|---|---|
-| `rivet` | `bun index.ts`, PTY off, restart on-failure | The bot. Dies if this machine sleeps. |
-| `autosync` | `node scripts/autosync.mjs --watch`, 120s poll | One-way remote→local, never pushes. |
+| `orry` | `bun index.ts`, detached | Running locally at last check; no service or scheduled-task supervisor was found. Stops if the process exits or the machine sleeps/restarts. |
 
-If either dies with the parent shell, restart both. Exit 58 on both at once
-means the supervisor lost them (sleep/parent death), not a code crash —
-check logs before assuming a bug.
+The code and generated Slack manifest use Orry's name and `/orry` commands.
+The installed bot profile still reported `rivet`; updating it through the
+connected Slack profile tool returned `not_admin`. A workspace admin must
+apply the new manifest or update the Slack bot profile.
 
 ## Credentials and local-only state
 
 - `.env` — all keys. **Gitignored. Never commit, never print values.**
   Key names (values stay in the file): `HCAI_API_KEY`, `OPENCODE_API_KEY`
   (required by `validate()`; same credential), `HCAI_MODEL`,
-  `SLACK_BOT_TOKEN` (`xoxb-`, Hack Club workspace, bot user `rivet`),
+  `SLACK_BOT_TOKEN` (`xoxb-`, Hack Club workspace, Slack profile still named
+  `rivet` until its admin applies the new name),
   `SLACK_APP_TOKEN` (`xapp-`, `connections:write`), `SLACK_CLIENT_ID` /
   `SLACK_CLIENT_SECRET` (dashboard OpenID only), `RIVET_DASHBOARD_PASSCODE`,
   `RIVET_ANSWER_API_KEY` / `RIVET_ANSWER_BASE_URL` / `RIVET_MODEL` (route the
@@ -68,8 +70,11 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
   and state unresolved parts. Follow-up retrieval uses thread context while
   checking coverage against the current question; clarification keeps the
   requester's reply.
-- Voice/branding: `:yuh:` retired (was every reply's ending); 1–3 emoji
-  matched to mood, anywhere they fit. Bot posts as `Rivet`, no signature.
+- Voice/branding: public name is **Orry the ore Maulwürf**, prefix `/orry`;
+  legacy “Rivet” remains a spoken alias. Gentle German slang and mine-mole
+  humor are prompt-guided; no profanity/controversy rule is deterministic.
+  Generated Slack manifest has the new name, but the installed Slack profile
+  still needs an admin update (`users.profile.set` returned `not_admin`).
   Makers grounded (identity + FAQ + pinned rule).
 - `#loadout-development`: report target + `@`-mentions answered from the
   Loadout corpus; stays unclaimed otherwise. Mentions bypass the role gate.
