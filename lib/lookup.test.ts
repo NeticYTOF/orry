@@ -251,14 +251,18 @@ test("verified answers keep evidence internally without listing sources", async 
   const answer = require("./answer");
   const original = knowledge.sourceEligibility;
   const originalVerify = answer.verifyGrounding;
+  let verifiedClaims: string[] = [];
   knowledge.sourceEligibility = () => ({ exactClaimsAllowed: true, authority: "static" });
-  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => ({
-    ok: true,
-    verdict: claims.some(({ claim }) => /Track XP is capped/i.test(claim)) ? "unsupported" : "supported",
-    coverage: true,
-    errors: [],
-    claims: claims.map((claim) => ({ ...claim, supported: !/Track XP is capped/i.test(claim.claim) })),
-  });
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => {
+    verifiedClaims = claims.map(({ claim }) => claim);
+    return {
+      ok: true,
+      verdict: claims.some(({ claim }) => /Track XP is capped/i.test(claim)) ? "unsupported" : "supported",
+      coverage: true,
+      errors: [],
+      claims: claims.map((claim) => ({ ...claim, supported: !/Track XP is capped/i.test(claim.claim) })),
+    };
+  };
   const program = {
     id: "citing-acme",
     sharedSources: false,
@@ -271,14 +275,15 @@ test("verified answers keep evidence internally without listing sources", async 
       kind: "source",
       source: "Program rules",
       heading: "Track XP",
-      text: "Track XP is permanent and cannot be spent.",
+      text: "Track XP is permanent and cannot be spent. Each track records its own progress.",
     },
   ];
   try {
     const partial = await lookup.applyPassageCitations(
       {
         source: "Program rules",
-        answer: "Track XP is permanent. [E1]",
+        answer: "Track XP is permanent. [E1] Each track records its own progress. [E1]",
+        personality: "Ja, ja, that's a gem of an answer!",
         unresolved: ["whether it can be spent"],
       },
       passages,
@@ -286,8 +291,9 @@ test("verified answers keep evidence internally without listing sources", async 
     );
     assert.equal(
       partial.answer,
-      "Track XP is permanent.\n\nI couldn't confirm whether it can be spent in the docs, so I can't answer those parts.",
+      "Track XP is permanent. Each track records its own progress.\n\nI couldn't confirm whether it can be spent in the docs, so I can't answer those parts.\n\nJa, ja, that's a gem of an answer!",
     );
+    assert.deepEqual(verifiedClaims, ["Track XP is permanent.", "Each track records its own progress."]);
     assert.match(partial.answer, /couldn't confirm whether it can be spent/);
     assert.doesNotMatch(partial.answer, /Program rules|example\.org/);
     assert.equal(partial.source, "Program rules");

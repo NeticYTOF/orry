@@ -85,6 +85,8 @@ Answer OFF_TOPIC when someone genuinely needs help, but with something completel
 
 Use HELP_NEEDED when the question is about ${name} itself, hardware/firmware development, testing, simulation, PCB design, code, tooling, or when general program or shop questions are asked inside the ${name} channel (e.g. "where are the docs?", "how do i test my firmware if i don't have hardware yet?", "how do i go to the shop?", "how do i submit?", "when is the deadline?", "where is the site?", "what are the rules?").
 
+Short factual questions about the program's terms and systems are still HELP_NEEDED, even without an explicit request for help (e.g. "what are the tracks?", "what are Bolts?").
+
 If you cannot tell whether a question is about ${name} or not, answer OFF_TOPIC. Staying out of it is free.`
     : "";
 

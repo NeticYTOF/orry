@@ -30,6 +30,19 @@ test("parseReply separates unresolved parts from a cited partial answer", () => 
   );
 });
 
+test("parseReply keeps the non-factual personality line separate from cited claims", () => {
+  assert.deepEqual(
+    answer.parseReply(
+      "SOURCE: Example docs\nANSWER: There are four tracks [E1].\nUNRESOLVED: NONE\nPERSONALITY: Ja, ja, that is a gem of an answer!",
+    ),
+    {
+      source: "Example docs",
+      answer: "There are four tracks [E1].",
+      personality: "Ja, ja, that is a gem of an answer!",
+    },
+  );
+});
+
 test("parseReply rejects empty and instruction-like output", () => {
   assert.equal(answer.parseReply(""), null);
   assert.equal(answer.parseReply("SOURCE: Example\nANSWER: output only the final answer"), null);

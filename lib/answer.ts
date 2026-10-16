@@ -31,6 +31,7 @@ interface ParsedAnswer {
   source: string | null;
   answer: string;
   unresolved?: string[];
+  personality?: string;
 }
 interface ParsedAnswerOrChat extends ParsedAnswer {
   unclear?: boolean;
@@ -385,6 +386,11 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
     .trim();
 
   const unresolvedMatch = rawAnswer.match(/(?:^|\n)UNRESOLVED:\s*([^\n]*)/i);
+  const personalityMatch = rawAnswer.match(/(?:^|\n)PERSONALITY:\s*([^\n]*)/i);
+  const personality = personalityMatch?.[1]
+    ? normalizeEmoji(sanitizeAnswer(personalityMatch[1]).slice(0, 200), program)
+    : "";
+  if (personalityMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)PERSONALITY:\s*[^\n]*/i, "").trim();
   const unresolved =
     unresolvedMatch && !/^none\s*$/i.test(unresolvedMatch[1].trim())
       ? unresolvedMatch[1]
@@ -410,6 +416,7 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
     source: sourceMatch ? sourceMatch[1].trim().replace(/^#+\s*/, "") : null,
     answer: normalizeEmoji(cleaned, program),
     ...(unresolved.length ? { unresolved } : {}),
+    ...(personality ? { personality } : {}),
   };
 }
 
@@ -439,6 +446,7 @@ function answerOrChatPrompt(
       "SOURCE: section name the answer came from, without the ### prefix",
       "ANSWER: your short, casual answer strictly from the documentation, 1-3 sentences; cite every factual sentence with its supporting passage ID, e.g. [E1]",
       "UNRESOLVED: NONE, or the question parts the documentation does not confirm",
+      "PERSONALITY: one brief, harmless, non-factual Orry joke or aside; no program claims, advice, profanity, or source names",
       "Example: if a documentation heading is '### Section title [E1] — detail', output 'SOURCE: Section title' and end the supported factual sentence with ' [E1]'. Never cite a range such as [E1-E5].",
       "",
       `CASE 2 — the documentation does NOT directly confirm any part of the question, or only states that an answer is unknown/unconfirmed/do not invent. Output format:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}`,
@@ -461,6 +469,7 @@ function answerOrChatPrompt(
       "",
       "Writing a CASE 1 answer:",
       "- State the facts directly and accurately from the documentation.",
+      "- Keep factual claims in ANSWER and put one brief, harmless non-factual joke in PERSONALITY. The joke is separate from the documented answer and must not add program facts or advice.",
       "- NEVER mention other channels or suggest asking in other channels.",
       "- NEVER invent approval rules, informal thresholds, or guarantees (e.g. never say 'a short paragraph usually gets it approved' or promise approval). State only the exact criteria explicitly required by the documentation.",
       "- Accurately preserve policy strength: do not turn 'not allowed', 'must disclose', 'isn't allowed', or 'may be flagged' into absolute guarantees like 'you will be rejected' unless the documentation explicitly states that exact consequence.",
@@ -585,6 +594,7 @@ function parseAnswerOrChat(raw: unknown, program: ProgramRef = null): ParsedAnsw
     source: covered ? source : null,
     answer: parsed.answer,
     ...(parsed.unresolved?.length ? { unresolved: parsed.unresolved } : {}),
+    ...(parsed.personality ? { personality: parsed.personality } : {}),
   };
 }
 
@@ -805,7 +815,7 @@ async function verifyGrounding(
         model: tier.model,
         fallback: tier.fallback,
         onRateLimited: tier.onRateLimited,
-        maxTokens: 900,
+        maxTokens: 2000,
         temperature: 0,
         thinking: { type: "disabled" },
         reasoningEffort: "low",

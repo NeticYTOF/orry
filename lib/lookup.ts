@@ -22,6 +22,7 @@ type SourceLike = Partial<ProgramSource> & {
 interface AnswerResult {
   source?: string | null;
   answer?: string;
+  personality?: string;
   direct?: boolean;
   groundingVerdict?: unknown;
   evidence?: unknown[];
@@ -314,7 +315,7 @@ async function applyPassageCitations(
     const id = aliases.get(alias);
     if (!id) return null;
   }
-  const sentenceParts = answerText.split(/(?<=[.!?])\s+(?!\[E\d+\])|\n+/).filter(Boolean);
+  const sentenceParts = answerText.split(/(?<=[.!?])\s+(?!\[E\d+\])|(?<=\])\s+(?!\[E\d+\])|\n+/).filter(Boolean);
   const claims = sentenceParts.map((sentence) => {
     const claim = sentence
       .replace(/\[E\d+\]/g, "")
@@ -410,6 +411,7 @@ async function applyPassageCitations(
   if (result.unresolved?.length) {
     result.answer += `\n\nI couldn't confirm ${result.unresolved.join("; ")} in the docs, so I can't answer those parts.`;
   }
+  if (result.personality) result.answer += `\n\n${result.personality}`;
   return result;
 }
 

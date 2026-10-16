@@ -48,6 +48,7 @@ test("worthClassifying keeps a real message that opens with a reaction word", ()
 test("a scoped program gets the OFF_TOPIC verdict offered", () => {
   const prompt = intent.intentSystemPrompt({ name: "Acme" }, { scoped: true });
   assert.match(prompt, /OFF_TOPIC/);
+  assert.match(prompt, /Short factual questions about the program's terms and systems are still HELP_NEEDED/);
   assert.match(prompt, /HELP_NEEDED\|CASUAL_CHAT\|OFF_TOPIC/);
   assert.match(prompt, /only wants Acme answers/);
   assert.match(prompt, /asking about the shop, catalogue, items/);
