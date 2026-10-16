@@ -148,7 +148,7 @@ async function classify({
     return { engage: true, intent: "addressed_smalltalk", error: null, source: "heuristic" };
   }
   if (isProgramPeopleQuestion(message)) {
-    return { engage: true, intent: "program_people_question", error: null, source: "heuristic" };
+    return { engage: true, intent: "support_question", error: null, source: "heuristic" };
   }
   if (veyDecision.isEnabled()) {
     try {
