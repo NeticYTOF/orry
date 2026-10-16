@@ -2,6 +2,8 @@
 
 **What is Loadout?** A technical builder YSWS where shipped projects become a persistent Digital Loadout and rewards build your Physical Loadout. The tagline is "build your own technical stack."
 
+**What is a YSWS?** YSWS means "You Ship, We Ship": a family of teen-led programs that encourage teens to learn and build by offering rewards for shipped projects.
+
 **How many tracks are there?** Four: Tools, Systems, Compute, and Hardware. Research Mode is a modifier you apply to a project, not a fifth track. Each track records its own progress and caps at LV.15.
 
 **Who made Loadout?** Loadout was built by Netic, Wind, and Jerry, who are also the org behind it.

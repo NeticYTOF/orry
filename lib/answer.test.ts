@@ -106,4 +106,18 @@ test("stream parsing emits only answer text", async () => {
   }
 });
 
+test("addressed chat still answers when retrieval has no documentation passages", async () => {
+  const original = llm.complete;
+  llm.complete = async () => ({ text: "Ja, ja, not much—keeping the tunnels tidy!" });
+  try {
+    assert.deepEqual(await answer.getAnswerOrChat("what's up?", "", "", false, null, null, { isPing: true }), {
+      source: null,
+      answer: "Ja, ja, not much—keeping the tunnels tidy!",
+    });
+    assert.equal(await answer.getAnswerOrChat("what's up?", ""), null);
+  } finally {
+    llm.complete = original;
+  }
+});
+
 export {};

@@ -90,6 +90,11 @@ test("the corpus states the canonical tracks and level cap in prose, not only in
   expect(corpus).toContain("not a fifth track");
 });
 
+test("the FAQ defines the YSWS acronym for short ambient questions", () => {
+  const faq = fs.readFileSync(path.join(ROOT, "loadout", "corpus", "07-faq.md"), "utf8");
+  expect(faq).toContain('YSWS means "You Ship, We Ship"');
+});
+
 test("the corpus never reintroduces the superseded Cores model", () => {
   const corpusDir = path.join(ROOT, "loadout", "corpus");
   const offenders = fs

@@ -665,7 +665,7 @@ async function getAnswerOrChat(
   channel: string | null = null,
   { isPing = false }: AnswerOptions = {},
 ) {
-  if (!corpus || !corpus.trim()) return null;
+  if ((!corpus || !corpus.trim()) && !isPing) return null;
 
   const req = answerRequest(question, corpus, additionalContext, inHelpChannel, program, channel, { isPing });
   const { text } = await llm.complete(req, "answer");
@@ -680,7 +680,7 @@ async function getAnswerOrChatStream(
   additionalContext = "",
   { onText, inHelpChannel = false, program = null, channel = null, isPing = false }: AnswerOptions = {},
 ) {
-  if (!corpus || !corpus.trim()) return null;
+  if ((!corpus || !corpus.trim()) && !isPing) return null;
 
   let sent = "";
   let leakedPlaceholder = false;
