@@ -22,6 +22,8 @@ type SourceLike = Partial<ProgramSource> & {
 interface AnswerResult {
   source?: string | null;
   answer?: string;
+  unclear?: boolean;
+  silent?: boolean;
   personality?: string;
   direct?: boolean;
   groundingVerdict?: unknown;
@@ -30,6 +32,8 @@ interface AnswerResult {
   unresolved?: string[];
   citationEvidence?: unknown[];
   passageCitations?: unknown[];
+  uncertaintyReply?: string;
+  suggestedSource?: { name: string; url?: string | null } | null;
 }
 interface AnswerOptions {
   onText?: ((text: string) => void) | null;
@@ -40,6 +44,7 @@ interface AnswerOptions {
   isPing?: boolean;
   skipCache?: boolean;
   previousQuestion?: string | null;
+  answerMode?: "program" | "general";
 }
 interface WebResult {
   title?: string;
@@ -65,6 +70,31 @@ function programSources(record: ProgramLike | string | null | undefined): Source
     (typeof record === "string" ? (programs.get(record) as ProgramLike) : record) || null;
   const shared = resolved && resolved.sharedSources === false ? [] : programs.shared().sources || [];
   return [...(resolved?.sources || []), ...shared];
+}
+
+function likelySource(passages: Array<{ source: string; kind?: string }>, prog: ProgramLike | string | null) {
+  for (const passage of passages) {
+    if (passage.kind !== "source") continue;
+    const source = programSources(prog).find(
+      (candidate) => candidate.name?.toLowerCase() === passage.source.toLowerCase() && !candidate.hidden,
+    );
+    if (!source?.name) continue;
+    const possibleUrl = source.siteUrl || knowledge.getSourceUrl(source.name);
+    let url: string | null = null;
+    try {
+      const parsed = possibleUrl ? new URL(possibleUrl) : null;
+      if (parsed && (parsed.protocol === "http:" || parsed.protocol === "https:")) url = parsed.href;
+    } catch (_error: unknown) {
+      url = null;
+    }
+    return { name: source.name, url };
+  }
+  return null;
+}
+
+function suggestedSourceForQuestion(question: string, prog: ProgramLike | string | null = null) {
+  const { passages } = knowledge.getEvidenceContext(retrievalQuery(question, "", prog), idOf(prog));
+  return likelySource(passages, prog);
 }
 
 function cacheHit(question: string, contextPrompt: string, programId: string | null = null, skipCache = false) {
@@ -475,6 +505,7 @@ function applyGroundingBoundary(
   corpus = "",
 ) {
   if (!result) return result;
+  if (result.unclear) return result;
   const allowed = exactClaimAllowed(result, prog, question, corpus);
   if (!allowed) {
     log.warn(
@@ -556,6 +587,7 @@ async function answerOrChat(
     isPing = false,
     skipCache = false,
     previousQuestion = null,
+    answerMode = "program",
   }: AnswerOptions = {},
 ) {
   const programId = idOf(prog);
@@ -580,11 +612,15 @@ async function answerOrChat(
             program: prog,
             channel,
             isPing,
+            answerMode,
           })
-        : await answer.getAnswerOrChat(question, corpus, contextPrompt, inHelpChannel, prog, channel, { isPing });
+        : await answer.getAnswerOrChat(question, corpus, contextPrompt, inHelpChannel, prog, channel, {
+            isPing,
+            answerMode,
+          });
   }
 
-  if (!result?.source) {
+  if (!result?.source && !result?.unclear && result?.answer?.trim().toUpperCase() !== answer.UNCLEAR_MARKER) {
     const direct = dateFallback(question, contextPrompt, prog);
     if (direct) return await citeTimelineFallback(direct, passages, prog, question);
 
@@ -604,6 +640,10 @@ async function answerOrChat(
 
   result = await applyPassageCitations(result, passages, prog, question, previousQuestion);
   result = applyGroundingBoundary(result, prog, question, corpus);
+  if (!result && answerMode === "general" && isAuthoritativeOnlyTopic(question, null)) {
+    result = { source: null, answer: "", unclear: true };
+  }
+  if (result?.unclear && !result.silent) result.suggestedSource = likelySource(passages, prog);
   if (result?.source && !contextPrompt && !previousQuestion && !result.citationEvidence)
     cache.put(question, result, cacheScope(prog));
   return result;
@@ -673,6 +713,7 @@ export = {
   knownAnswer,
   exactClaimAllowed,
   applyGroundingBoundary,
+  suggestedSourceForQuestion,
   applyPassageCitations,
   citeTimelineFallback,
   isAuthoritativeOnlyTopic,

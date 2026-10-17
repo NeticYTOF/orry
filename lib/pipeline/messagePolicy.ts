@@ -109,7 +109,7 @@ function finalAction({
     const s = settings || {};
     if (s.escalateUnknown !== false) {
       if (talk) return "escalate_and_reply_chat";
-      return addressed ? "escalate_and_uncertain" : "escalate";
+      return "escalate_and_uncertain";
     }
     if (talk) return "reply_chat";
     return addressed ? "uncertain" : "silence";

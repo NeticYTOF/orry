@@ -344,6 +344,32 @@ test("program source corpora remain isolated", async () => {
   }
 });
 
+test("personal questions retrieve the matching parts of Orry's full canon", () => {
+  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedBotName = process.env.RIVET_BOT_NAME;
+  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+    { id: "loadout", name: "Loadout", supportName: "Orry the ore Maulwürf", sharedSources: false, sources: [] },
+  ]);
+  process.env.RIVET_BOT_NAME = "Orry the ore Maulwürf";
+  programs.invalidate();
+  knowledge.invalidate();
+  try {
+    const accident = knowledge.getEvidenceContext("what happened in the mine accident?", "loadout").context;
+    const treasure = knowledge.getEvidenceContext("what is the treasure hunt with Goose?", "loadout").context;
+    assert.match(accident, /serious mistake that caused a fatal mine accident/i);
+    assert.match(accident, /I saved him/i);
+    assert.match(treasure, /Goose wants the risk and adventure; I want the treasure/i);
+    assert.doesNotMatch(treasure, /Goose sees their rivalry as playful/i);
+  } finally {
+    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
+    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedBotName === undefined) delete process.env.RIVET_BOT_NAME;
+    else process.env.RIVET_BOT_NAME = savedBotName;
+    programs.invalidate();
+    knowledge.invalidate();
+  }
+});
+
 test("refreshSource invalidates cached source sections", async () => {
   const saved = process.env.RIVET_PROGRAMS_JSON;
   process.env.RIVET_PROGRAMS_JSON = JSON.stringify([

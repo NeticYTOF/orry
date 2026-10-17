@@ -32,9 +32,11 @@ interface ParsedAnswer {
   answer: string;
   unresolved?: string[];
   personality?: string;
+  uncertaintyReply?: string;
 }
 interface ParsedAnswerOrChat extends ParsedAnswer {
   unclear?: boolean;
+  silent?: boolean;
 }
 interface AnswerOptions {
   isPing?: boolean;
@@ -43,6 +45,7 @@ interface AnswerOptions {
   onText?: ((text: string) => void) | null;
   program?: ProgramRef;
   channel?: string | null;
+  answerMode?: "program" | "general";
 }
 
 function errorMessage(error: unknown) {
@@ -174,16 +177,26 @@ function whereYouAre(program: ProgramRef = null, channel: string | null = null) 
   return lines.join("\n");
 }
 
-function programGuardrail(program: ProgramRef = null, inHelpChannel = false) {
+function programGuardrail(
+  program: ProgramRef = null,
+  inHelpChannel = false,
+  {
+    allowGeneralChat = false,
+    allowUncertainty = false,
+  }: { allowGeneralChat?: boolean; allowUncertainty?: boolean } = {},
+) {
   const p = resolveProgram(program);
   const name = programName(program);
   const helpChan = helpChannelRef(program);
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer;
+  const requireGrounded =
+    !allowGeneralChat && (process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer);
 
   if (requireGrounded) {
     return [
       `HARD RULE: you have documentation for the ${name} program. If none of the requested parts is covered, you do NOT know the answer.`,
-      `If no requested part is covered, reply with exactly: SOURCE: NONE and ANSWER: UNCLEAR.`,
+      allowUncertainty
+        ? `If no requested part is covered, reply with SOURCE: NONE, ANSWER: ${UNCLEAR_MARKER}, and one UNCERTAINTY line. If the subject itself is missing and conversation context cannot resolve it, set the line to SILENT. Otherwise write a brief natural acknowledgement tailored to the exact question. Do not try to answer or invent facts.`
+        : `If no requested part is covered, reply with exactly: SOURCE: NONE and ANSWER: UNCLEAR.`,
       `Never invent a ${name} fact, number, date, or rule. Never guess, and NEVER mention or redirect to any Slack channel.`,
     ].join("\n");
   }
@@ -398,10 +411,15 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
 
   const unresolvedMatch = rawAnswer.match(/(?:^|\n)UNRESOLVED:\s*([^\n]*)/i);
   const personalityMatch = rawAnswer.match(/(?:^|\n)PERSONALITY:\s*([^\n]*)/i);
+  const uncertaintyMatch = rawAnswer.match(/(?:^|\n)UNCERTAINTY:\s*([^\n]*)/i);
   const personality = personalityMatch?.[1]
     ? normalizeEmoji(sanitizeAnswer(personalityMatch[1]).slice(0, 200), program)
     : "";
+  const uncertaintyReply = uncertaintyMatch?.[1]
+    ? normalizeEmoji(sanitizeAnswer(uncertaintyMatch[1]).slice(0, 240), program)
+    : "";
   if (personalityMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)PERSONALITY:\s*[^\n]*/i, "").trim();
+  if (uncertaintyMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)UNCERTAINTY:\s*[^\n]*/i, "").trim();
   const unresolved =
     unresolvedMatch && !/^none\s*$/i.test(unresolvedMatch[1].trim())
       ? unresolvedMatch[1]
@@ -428,6 +446,7 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
     answer: normalizeEmoji(cleaned, program),
     ...(unresolved.length ? { unresolved } : {}),
     ...(personality ? { personality } : {}),
+    ...(uncertaintyReply ? { uncertaintyReply } : {}),
   };
 }
 
@@ -437,17 +456,25 @@ function answerOrChatPrompt(
   inHelpChannel = false,
   program: ProgramRef = null,
   channel: string | null = null,
+  answerMode: "program" | "general" = "program",
 ) {
   const p = resolveProgram(program);
   const name = programName(program);
   const helpChan = helpChannelRef(program);
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer;
+  const requireGrounded =
+    answerMode !== "general" && (process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer);
 
   const parts = [
     `You are ${brand.name()}, a helper bot for configured programs and build tools.`,
     whereYouAre(program, channel),
     ...VOICE,
   ];
+
+  if (answerMode === "general") {
+    parts.push(
+      "ROUTING: this message was addressed as a personal or general request, so answer it normally instead of treating every word as a Loadout policy question. Use Orry's identity and lore as the canon for questions about Orry; if a personal detail is missing from that canon, say you don't know rather than borrowing from the web or inventing it. Loadout-specific claims still require support from the supplied Loadout sources.",
+    );
+  }
 
   if (requireGrounded) {
     parts.push(
@@ -490,8 +517,8 @@ function answerOrChatPrompt(
       "- Answer the specific question directly without dumping unrelated requirements or volunteering neighboring policies.",
       "",
       "Writing a CASE 2 answer:",
-      `Output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}`,
-      programGuardrail(program, inHelpChannel),
+      `Output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: one short, natural sentence tailored to the question, or SILENT if the question's subject is missing and context cannot resolve it. For a sentence, acknowledge that you cannot confirm the requested fact without guessing. Do not include new facts, jokes about serious topics, channel names, or claims that a helper has been notified.`,
+      programGuardrail(program, inHelpChannel, { allowUncertainty: true }),
     );
   } else {
     parts.push(
@@ -537,10 +564,10 @@ function answerOrChatPrompt(
       "",
       "Writing a CASE 2 answer:",
       `- If it's a greeting or small talk ('whats up', 'hey ${brand.name().toLowerCase()}', 'thanks'), match it — one short friendly line back. Don't turn it into a help desk prompt, don't list what you can do, don't ask them to rephrase.`,
-      `- If you genuinely cannot tell what they're asking about — the message points at something ('how do i do this', 'is it working yet', 'why wont it') and there is nothing in the conversation above for it to be pointing AT — output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nThen say nothing at all; that's the right answer to a message nobody could have answered. Do NOT guess a subject, do NOT ask them what they mean, do NOT list the things you could help with, and do NOT explain how to ask you better. Use this only when the subject is genuinely missing — if you can tell what they mean and simply don't know the answer, that's an ordinary CASE 2 reply.`,
-      `- For anything that is NOT ${name}-specific — general coding, tools, git, math, life — just answer normally and helpfully like you would anywhere else.`,
-      "- In casual or personal CASE 2 replies, let one core Orry trait show briefly when it fits; never force a money boast into code, safety, or factual help.",
-      programGuardrail(program, inHelpChannel),
+      `- If you genuinely cannot tell what they're asking about — the message points at something ('how do i do this', 'is it working yet', 'why wont it') and there is nothing in the conversation above for it to be pointing AT — output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: SILENT. Do NOT guess a subject, ask what they mean, list what you can do, or explain how to ask better. Use this only when the subject is genuinely missing; if you can tell what they mean and simply don't know the answer, write an ordinary CASE 2 reply.`,
+      `- For anything that is NOT ${name}-specific — general coding, tools, git, math, life — answer normally and helpfully. Use Orry's identity and lore for personal questions about Orry. Solve general tech questions first, with Orry's personality as a light touch when it fits.`,
+      `- ${name}-specific facts must still come from the supplied ${name} sources, even in general chat; never turn an unsupported program fact into an opinion. If a program fact is not confirmed, say so rather than guessing.`,
+      programGuardrail(program, inHelpChannel, { allowGeneralChat: answerMode === "general" }),
       "- Don't announce that you checked documentation, and don't apologise for what you don't have. Just talk.",
     );
   }
@@ -600,7 +627,13 @@ function parseAnswerOrChat(raw: unknown, program: ProgramRef = null): ParsedAnsw
   const covered = source && source.trim().toUpperCase() !== NONE_MARKER;
 
   if (parsed.answer.trim().toUpperCase() === UNCLEAR_MARKER) {
-    return { source: null, answer: "", unclear: true };
+    const silent = parsed.uncertaintyReply?.trim().toUpperCase() === "SILENT";
+    return {
+      source: null,
+      answer: "",
+      unclear: true,
+      ...(silent ? { silent: true } : parsed.uncertaintyReply ? { uncertaintyReply: parsed.uncertaintyReply } : {}),
+    };
   }
 
   return {
@@ -643,7 +676,7 @@ function answerRequest(
   inHelpChannel = false,
   program: ProgramRef = null,
   channel: string | null = null,
-  { isPing = false }: AnswerOptions = {},
+  { isPing = false, answerMode = "program" }: AnswerOptions = {},
 ): AnswerRequest {
   const tier = selectAnswerTier({ isPing, inHelpChannel });
   const fallbackWithHeadroom = tier.fallback ? { ...tier.fallback, maxTokens: FALLBACK_MAX_TOKENS } : null;
@@ -662,7 +695,10 @@ function answerRequest(
     // paying for depth the grounded-answer format cannot use.
     reasoningEffort: "minimal",
     messages: [
-      { role: "system", content: answerOrChatPrompt(corpus, additionalContext, inHelpChannel, program, channel) },
+      {
+        role: "system",
+        content: answerOrChatPrompt(corpus, additionalContext, inHelpChannel, program, channel, answerMode),
+      },
       { role: "user", content: question },
     ],
     telemetry: { operation: "answer", programId: resolveProgram(program)?.id || null, channel },
@@ -676,11 +712,14 @@ async function getAnswerOrChat(
   inHelpChannel = false,
   program: ProgramRef = null,
   channel: string | null = null,
-  { isPing = false }: AnswerOptions = {},
+  { isPing = false, answerMode = "program" }: AnswerOptions = {},
 ) {
   if ((!corpus || !corpus.trim()) && !isPing) return null;
 
-  const req = answerRequest(question, corpus, additionalContext, inHelpChannel, program, channel, { isPing });
+  const req = answerRequest(question, corpus, additionalContext, inHelpChannel, program, channel, {
+    isPing,
+    answerMode,
+  });
   const { text } = await llm.complete(req, "answer");
 
   const parsed = parseAnswerOrChat(text, program);
@@ -691,7 +730,14 @@ async function getAnswerOrChatStream(
   question: string,
   corpus: string,
   additionalContext = "",
-  { onText, inHelpChannel = false, program = null, channel = null, isPing = false }: AnswerOptions = {},
+  {
+    onText,
+    inHelpChannel = false,
+    program = null,
+    channel = null,
+    isPing = false,
+    answerMode = "program",
+  }: AnswerOptions = {},
 ) {
   if ((!corpus || !corpus.trim()) && !isPing) return null;
 
@@ -744,7 +790,10 @@ async function getAnswerOrChatStream(
     return undefined;
   };
 
-  const req = answerRequest(question, corpus, additionalContext, inHelpChannel, program, channel, { isPing });
+  const req = answerRequest(question, corpus, additionalContext, inHelpChannel, program, channel, {
+    isPing,
+    answerMode,
+  });
   const { text } = await llm.completeStream(req, emit, "answer");
 
   const parsed = parseAnswerOrChat(text, program);

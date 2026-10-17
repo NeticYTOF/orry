@@ -86,6 +86,141 @@ test("answerOrChat uses a preceding answered question for retrieval, not the ans
   }
 });
 
+test("answerOrChat forwards the explicit general-answer mode", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = { evidence: knowledge.getEvidenceContext, answer: answer.getAnswerOrChat };
+  let received: Record<string, unknown> | null = null;
+  knowledge.getEvidenceContext = () => ({ passages: [] });
+  answer.getAnswerOrChat = async (
+    _question: string,
+    _corpus: string,
+    _context: string,
+    _help: boolean,
+    _program: unknown,
+    _channel: string,
+    options: Record<string, unknown>,
+  ) => {
+    received = options;
+    return { source: null, answer: "Use the project-local TypeScript compiler." };
+  };
+  try {
+    await lookup.answerOrChat("how do I typecheck this?", "", {
+      program: { id: "loadout", name: "Loadout", requireGroundedAnswer: true },
+      answerMode: "general",
+      skipCache: true,
+    });
+    assert.equal(received?.answerMode, "general");
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    answer.getAnswerOrChat = original.answer;
+  }
+});
+
+test("an unclear answer carries the closest retrieved program source for the helper reply", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = {
+    evidence: knowledge.getEvidenceContext,
+    sourceUrl: knowledge.getSourceUrl,
+    answer: answer.getAnswerOrChat,
+  };
+  knowledge.getEvidenceContext = () => ({
+    passages: [
+      { id: "p1", source: "Loadout — rewards", text: "Reward details", kind: "source" },
+      { id: "p2", source: "About Orry", text: "Orry lore", kind: "generated" },
+    ],
+  });
+  knowledge.getSourceUrl = (name: string) => (name === "Loadout — rewards" ? "https://example.org/rewards" : null);
+  answer.getAnswerOrChat = async () => ({ source: null, answer: "", unclear: true });
+  try {
+    const result = await lookup.answerOrChat("what is the prize amount?", "", {
+      program: {
+        id: "loadout",
+        name: "Loadout",
+        requireGroundedAnswer: true,
+        sources: [{ name: "Loadout — rewards", siteUrl: "https://example.org/rewards" }],
+      },
+      skipCache: true,
+    });
+    assert.deepEqual(result?.suggestedSource, {
+      name: "Loadout — rewards",
+      url: "https://example.org/rewards",
+    });
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    knowledge.getSourceUrl = original.sourceUrl;
+    answer.getAnswerOrChat = original.answer;
+  }
+});
+
+test("helper source suggestions never reveal a hidden document", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = { evidence: knowledge.getEvidenceContext, answer: answer.getAnswerOrChat };
+  knowledge.getEvidenceContext = () => ({
+    passages: [{ id: "p-hidden", source: "Private organizer notes", text: "internal", kind: "source" }],
+  });
+  answer.getAnswerOrChat = async () => ({ source: null, answer: "", unclear: true });
+  try {
+    const result = await lookup.answerOrChat("what is the exact award?", "", {
+      program: {
+        id: "loadout",
+        name: "Loadout",
+        requireGroundedAnswer: true,
+        sources: [{ name: "Private organizer notes", hidden: true, siteUrl: "https://example.org/private" }],
+      },
+      skipCache: true,
+    });
+    assert.equal(result?.suggestedSource, null);
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    answer.getAnswerOrChat = original.answer;
+  }
+});
+
+test("general mode still rejects an unsupported authoritative Loadout fact", async () => {
+  assert.equal(
+    lookup.applyGroundingBoundary(
+      { source: null, answer: "The grant is $1,000." },
+      { id: "loadout", name: "Loadout", requireGroundedAnswer: true, sources: [] },
+      "how much is the grant amount?",
+    ),
+    null,
+  );
+});
+
+test("a rejected program fact in general mode becomes a useful uncertainty handoff", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = { evidence: knowledge.getEvidenceContext, answer: answer.getAnswerOrChat };
+  knowledge.getEvidenceContext = () => ({
+    passages: [{ id: "p-grant", source: "Loadout — rewards", text: "Grant details vary.", kind: "source" }],
+  });
+  answer.getAnswerOrChat = async () => ({ source: null, answer: "The grant is $1,000." });
+  try {
+    const result = await lookup.answerOrChat("how much is the grant amount?", "", {
+      answerMode: "general",
+      program: {
+        id: "loadout",
+        name: "Loadout",
+        requireGroundedAnswer: true,
+        sources: [{ name: "Loadout — rewards", siteUrl: "https://example.org/rewards" }],
+      },
+      skipCache: true,
+    });
+    assert.equal(result?.unclear, true);
+    assert.equal(result?.answer, "");
+    assert.deepEqual(result?.suggestedSource, {
+      name: "Loadout — rewards",
+      url: "https://example.org/rewards",
+    });
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    answer.getAnswerOrChat = original.answer;
+  }
+});
+
 test("stale dynamic sources cannot authorize an exact answer", () => {
   const knowledge = require("./knowledge");
   const original = knowledge.sourceEligibility;

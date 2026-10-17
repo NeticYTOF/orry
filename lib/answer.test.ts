@@ -29,7 +29,10 @@ test("Orry's greed, competitive streak, and hesitant generosity guide his voice"
   assert.match(voice, /don't claim to know what Goose knew or thought/i);
   assert.match(voice, /If asked what Goose thinks, say you can't know his private thoughts/i);
   assert.match(voice, /short confident boast or competitive joke instead of a backstory/i);
-  assert.doesNotMatch(voice, /Goose turned her down|Goose was shocked by your strength|he respects that you set grief aside/i);
+  assert.doesNotMatch(
+    voice,
+    /Goose turned her down|Goose was shocked by your strength|he respects that you set grief aside/i,
+  );
 });
 
 test("parseReply extracts a source and answer", () => {
@@ -84,13 +87,46 @@ test("the unclear marker produces no answer", () => {
   });
 });
 
+test("the unclear marker preserves a question-specific handoff sentence", () => {
+  assert.deepEqual(
+    answer.parseAnswerOrChat(
+      "SOURCE: NONE\nANSWER: UNCLEAR\nUNCERTAINTY: I can't verify the prize amount from my notes, and I won't guess.",
+    ),
+    {
+      source: null,
+      answer: "",
+      unclear: true,
+      uncertaintyReply: "I can't verify the prize amount from my notes, and I won't guess.",
+    },
+  );
+});
+
+test("the model can mark a subjectless follow-up for silence", () => {
+  assert.deepEqual(answer.parseAnswerOrChat("SOURCE: NONE\nANSWER: UNCLEAR\nUNCERTAINTY: SILENT"), {
+    source: null,
+    answer: "",
+    unclear: true,
+    silent: true,
+  });
+});
+
 test("program prompts use configured identity and timeline metadata", () => {
   const program = { id: "demo", name: "Demo", helpChannel: "C_HELP", scope: "program" };
   const prompt = answer.answerOrChatPrompt("### Demo docs\nA rule", "", false, program, "C_HELP");
   assert.match(prompt, /WHERE YOU ARE: <#C_HELP>/);
   assert.match(prompt, /Demo/);
   assert.match(prompt, /Program timeline/);
-  assert.match(prompt, /In casual or personal CASE 2 replies, let one core Orry trait show briefly/i);
+  assert.match(prompt, /In casual, personal chat, let one core trait show naturally/i);
+});
+
+test("general addressed questions can use general knowledge without weakening program grounding", () => {
+  const program = { id: "loadout", name: "Loadout", requireGroundedAnswer: true };
+  const prompt = answer.answerOrChatPrompt("### About Orry\nOrry is a mole.", "", false, program, "C_MAIN", "general");
+  assert.doesNotMatch(prompt, /CASE 2[\s\S]{0,160}ANSWER: UNCLEAR/);
+  assert.match(prompt, /Loadout-specific facts must still come from the supplied Loadout sources/i);
+  assert.match(prompt, /Use Orry's identity and lore for personal questions about Orry/i);
+  assert.match(prompt, /addressed as a personal or general request/i);
+  assert.match(prompt, /For anything that is NOT Loadout-specific.*answer normally and helpfully/i);
 });
 
 test("generic guardrails point to configured help without inventing program facts", () => {
