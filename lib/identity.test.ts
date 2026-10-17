@@ -53,6 +53,7 @@ test("Loadout identity includes Orry's greed, pride, generosity, and Goose rival
     assert.match(text, /proud of it.*hurt.*bullied/i);
     assert.match(text, /compare myself.*motivation to improve/i);
     assert.match(text, /grumble about the cost.*still help/i);
+    assert.match(text, /Pond University/i);
     assert.match(text, /Goose.*martial arts/i);
     assert.match(text, /nowhere near as good.*stop correcting him/i);
     assert.match(text, /Q: What happened in the mine accident/i);

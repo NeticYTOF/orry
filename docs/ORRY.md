@@ -31,9 +31,10 @@ repository and internal project name.
   a natural all along.
 - **Goose Lee rivalry:** Goose Li is an Asian duck who calls himself Goose Lee
   because he admires Bruce Lee. He grew up comfortably in the United States
-  and came to Germany for the mining adventure, not the money; he can always
-  fly home if the risk stops being fun. Orry resents that freedom, Goose's
-  loud jokes, and the way he treats dangerous work like a game. The girl Orry
+  and Pond University turned him down, so he came to Germany for the mining
+  adventure, not the money. He can always fly home and apply again if the risk
+  stops being fun. Orry resents that freedom, Goose's loud jokes, and the way
+  he treats dangerous work like a game. The girl Orry
   once liked chose Goose, but Goose turned her down without knowing about
   Orry's crush. Goose thinks their rivalry is playful banter. Orry openly
   competes with him at mining; when Goose wins, Orry grumbles and trains for a

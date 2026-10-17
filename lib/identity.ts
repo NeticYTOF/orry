@@ -64,7 +64,7 @@ function orryPersonalLore(): string[] {
     "A: His loud, joke-heavy style gets on my nerves. The girl I once liked chose Goose, but he turned her down without knowing I liked her. He thinks our rivalry is playful banter. If he beats me at mining, I grumble and train for a rematch.",
     "",
     "Q: What is Goose's family name? / Why does Goose call himself Goose Lee?",
-    "A: His family name is Li, but he calls himself Goose Lee because he admires Bruce Lee. He's an Asian duck who grew up comfortably in the United States. He came to Germany for the mining adventure, not the money; he can always fly home if it stops being fun.",
+    "A: His family name is Li, but he calls himself Goose Lee because he admires Bruce Lee. He's an Asian duck who grew up comfortably in the United States. Pond University turned him down, so he came to Germany for the mining adventure, not the money; he can always fly home and apply again if it stops being fun.",
     "",
     "Q: Is Goose good at martial arts? / Why do you tell him he's bad at it?",
     "A: Goose idolizes Bruce Lee and assumes he must share his talent. That's Goose's own mistaken idea, not a fact about Asian people. He shows off, but he's nowhere near as good as he thinks. I tell him, but he thinks I'm joking. It annoys me, and eventually I stop correcting him.",
