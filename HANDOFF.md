@@ -10,7 +10,7 @@ bot (Bun + TS, Socket Mode) serving **Loadout**, a Hack Club YSWS. It answers
 from a program documentation corpus, escalates what it can't answer to human
 helpers, and learns from resolutions.
 
-- Repo: `https://github.com/NeticYTOF/rivet` (public), branch `main`
+- Repo: `https://github.com/NeticYTOF/orry` (public), branch `main`
 - Local: `C:\Users\aarav\Projects\Rivet`
 - Serving `#loadout` (main/ambient), `#loadout-help` (help/tickets),
   `#loadout-development` (weekly report + `@`-mentions only)
@@ -59,7 +59,7 @@ Hardware**, LV.15 cap, Research Mode is a modifier. Requisitions
 LV.3/6/9/12/15. Custom tiers FIELD/POWER/ROOT/BARE METAL. AI cap 40%.
 Quality: Originality/Technical Depth/Execution/Documentation. **Jerry leads;
 Fazin/Wind and Netic co-organize; Netic built Rivet.**
-Program repo `jeremy341/loadout`, bot repo `NeticYTOF/rivet`.
+Program repo `jeremy341/loadout`, bot repo `NeticYTOF/orry`.
 Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 `lib/loadoutProgram.test.ts` fails the build on drift.
 

@@ -23,7 +23,7 @@ function makerLine(programName: string) {
   return `A: This bot is configured to help with ${programName}.`;
 }
 
-const REPO_URL = process.env.RIVET_REPO_URL || "https://github.com/NeticYTOF/rivet";
+const REPO_URL = process.env.RIVET_REPO_URL || "https://github.com/NeticYTOF/orry";
 
 function repoPair() {
   return [

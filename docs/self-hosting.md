@@ -204,7 +204,7 @@ A fork doesn't follow upstream. GitHub's **Sync fork** button handles it while
 you haven't touched the code; once you have, it's a merge like any other.
 
 The alternative, if you don't intend to modify anything: point Railway at
-`NeticYTOF/rivet` directly instead of a fork. Every push here then
+`NeticYTOF/orry` directly instead of a fork. Every push here then
 redeploys your bot automatically. You get fixes for free and give up the ability
 to change the code — a reasonable trade if configuration is all you need, which
 for most programs it is.

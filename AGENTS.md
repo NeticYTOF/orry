@@ -143,7 +143,7 @@ LV.3/6/9/12/15. Custom Order tiers FIELD LV.4, POWER LV.8, ROOT LV.12,
 BARE METAL LV.15. AI cap 40%. Quality: Originality / Technical Depth /
 Execution / Documentation. Jerry leads; Fazin/Wind and Netic co-organize;
 **Netic built Rivet**. Program repo `jeremy341/loadout`, bot repo
-`NeticYTOF/rivet`. Write `Loadout`, `Hack Club`, `YSWS` — never
+`NeticYTOF/orry`. Write `Loadout`, `Hack Club`, `YSWS` — never
 `LOADOUT`/`Cores`/`yswe`/`YSWSes`. An earlier 5-track/Cores draft is
 superseded; `lib/loadoutProgram.test.ts` fails the build if it returns.
 
