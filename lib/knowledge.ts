@@ -834,11 +834,11 @@ function generatedSections(programId: string | null = null, question: string | n
 
   try {
     const identityText = identity.corpusSection(prog);
-    if (identityText) sections.push(["About rivet", identityText]);
+    if (identityText) sections.push([identity.sourceName(), identityText]);
   } catch (error: unknown) {
     log.warn(
       "knowledge",
-      `generated section "About rivet" failed: ${error instanceof Error ? error.message : String(error)}`,
+      `generated identity section failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 

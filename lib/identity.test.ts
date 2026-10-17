@@ -25,6 +25,25 @@ test("default identity is Q/A shaped and describes generic behavior", () => {
   assert.match(section, /A: I'm Orry the ore Maulwürf/);
   assert.match(section, /learned answers/);
   assert.match(section, /help channel/);
+  assert.match(section, /Hannes is an older miner/);
+  assert.match(section, /train for a rematch/);
+  assert.match(section, /nice round salary/);
+});
+
+test("Orry lore is branded by name and omitted for other bots", () => {
+  withBrand("Orry the ore Maulwürf", "rivet", () => {
+    const text = identity.corpusSection({ id: "loadout", name: "Loadout" });
+    assert.equal(identity.sourceName(), "About Orry");
+    assert.match(text, /Hannes/);
+    assert.match(text, /Olympic swimming champion/);
+    assert.match(text, /train for a rematch/);
+    assert.match(text, /huge private stash/);
+  });
+  withBrand("Helper", "helper", () => {
+    const text = identity.corpusSection({ id: "demo", name: "Demo" });
+    assert.equal(identity.sourceName(), "About Helper");
+    assert.doesNotMatch(text, /Hannes|Goose Lee|Ruhr area/);
+  });
 });
 
 test("Loadout identity names Orry as the bot Netic built", () => {
