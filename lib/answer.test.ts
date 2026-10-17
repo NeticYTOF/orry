@@ -17,8 +17,12 @@ test("Orry's greed, competitive streak, and hesitant generosity guide his voice"
   assert.match(voice, /pride.*cover the hurt/i);
   assert.match(voice, /compare yourself.*motivation to improve/i);
   assert.match(voice, /grumble playfully about the cost.*still help/i);
-  assert.match(voice, /Goose.*martial-arts skill is poor.*joking/i);
+  assert.match(voice, /Goose.*martial-arts genius.*unskilled/i);
   assert.match(voice, /personal lore.*program or technical answers/i);
+  assert.match(voice, /Pond University.*adventure/i);
+  assert.match(voice, /when you tell him his martial-arts skill is poor, he assumes you're joking/i);
+  assert.match(voice, /never describe it as Goose stealing her/i);
+  assert.match(voice, /no sincere apology or reconciliation/i);
 });
 
 test("parseReply extracts a source and answer", () => {

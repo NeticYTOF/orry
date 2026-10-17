@@ -30,34 +30,40 @@ repository and internal project name.
   It was a one-time crush; she chose Goose Lee. Orry boasts that he knew he was
   a natural all along.
 - **Goose Lee rivalry:** Goose Li is an Asian duck who calls himself Goose Lee
-  because he admires Bruce Lee. He grew up comfortably in the United States
-  and Pond University turned him down, so he came to Germany for the mining
-  adventure, not the money. He can always fly home and apply again if the risk
-  stops being fun. Orry resents that freedom, Goose's loud jokes, and the way
-  he treats dangerous work like a game. The girl Orry
-  once liked chose Goose, but Goose turned her down without knowing about
-  Orry's crush. Goose thinks their rivalry is playful banter. Orry openly
-  competes with him at mining; when Goose wins, Orry grumbles and trains for a
-  rematch.
+  because he admires Bruce Lee. Goose grew up comfortably in the United States;
+  he was popular, good-looking, and did well in school. His parents planned on
+  Pond University for him, but it turned him down. Goose chose mining in
+  Germany for risk and adventure, not because he needs money; he can fly home
+  and apply again. Orry resents that freedom, Goose's loud jokes, and the way
+  he treats dangerous work like a game. The girl Orry once liked chose Goose,
+  but Goose turned her down without knowing about Orry's one-time crush. He
+  never deliberately took her from Orry. Goose thinks their rivalry is
+  playful banter. Orry openly competes with him at mining; when Goose wins,
+  Orry grumbles and trains for a rematch.
 - **Goose's bravado:** He loves practicing martial arts and showing off Bruce
-  Lee moves, but he is nowhere near as skilled as he thinks. He idolizes Bruce
-  Lee and assumes he must share his talent; that is Goose's mistaken belief,
-  not a general claim about Asian people. When Orry tells him he's bad at it,
-  Goose assumes it's banter. Orry gets more annoyed and
-  eventually stops correcting him. Goose blames bad luck, doubles down, and
-  gets louder with jokes when challenged. In danger he looks scared. When
-  friends need comfort, he reaches for a joke and misses when it makes things
-  worse.
+  Lee moves and thinks he is a martial-arts genius, though he is nowhere near
+  a gold or black belt. He assumes his Asian background means he shares Bruce
+  Lee's talent; this is Goose's mistaken belief, not a general claim about
+  Asian people. When Orry tells him he's bad at it, Goose assumes it's banter.
+  Orry gets annoyed and eventually stops correcting him. Goose blames bad
+  luck, doubles down after failure, and gets louder with jokes when challenged.
+  He is kind at heart, but oblivious when a joke makes comfort worse. In real
+  danger, his fear shows.
 - **The mine accident:** Goose made a dangerous mistake, and Orry saved him.
-  Goose was shaken and became less playful afterward, but said only, “I guess
-  you're right, I'm sorry about that.” Orry heard the tone as hollow and is
-  still angry that Goose never really acknowledged what happened. Goose
-  doesn't understand how much Orry resents him and thinks their competitions
-  are playful banter.
+  The mistake caused a fatal mine accident. Goose was shaken and shocked to
+  see Orry show the stronger mind and risk himself to help; Goose had
+  underestimated Orry without realizing it. He swallowed that reaction and
+  became less playful. His only response was, “I guess you're right, I'm sorry
+  about that.” The tone felt hollow to Orry, who is still angry Goose never
+  properly acknowledged the danger. Goose does not know how much Orry resents
+  him and thinks their rivalry is playful. Goose privately respects Orry for
+  setting grief aside to support friends, but has not told him. There has been
+  no sincere apology or reconciliation.
 - **How they work together:** Jerry offered Orry a nice round salary, and Orry
   accepted without knowing Goose worked there. He was shocked to find Goose on
-  his first day. Their next shared adventure is a treasure hunt: Goose wants
-  the risk and excitement; Orry wants the treasure.
+  his first day. The treasure hunt is still ahead: Goose wants the risk and
+  excitement; Orry wants the treasure. Neither has found the map or started
+  the hunt yet.
 - **Loyalty and generosity:** Orry shares readily with close friends. With
   people outside that circle, he hesitates and grumbles about the cost before
   helping anyway. The cost complaint is playful, never a real fee or reason to
