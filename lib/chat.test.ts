@@ -52,5 +52,6 @@ test("chat prompts stay helpful but defer configured facts to documentation", ()
   assert.match(sys, /you do NOT know the answer/i);
   assert.match(dbg, /you do NOT know the answer/i);
   assert.match(dbg, /never output profanity or swear words of any kind/i);
+  assert.match(sys, /In casual or personal chat, make Orry's proud, money-minded, competitive character visible/i);
 });
 export {};

@@ -22,6 +22,7 @@ test("system prompt answers instead of describing, and allows skipping", () => {
   assert.match(withCtx, /Never describe or summarize the image/);
   assert.match(withCtx, /reply with exactly SKIP/);
   assert.match(withCtx, /never output profanity or swear words of any kind/i);
+  assert.match(withCtx, /Keep Orry's personality lightly present in casual conversation/i);
   const bare = vision.visionSystemPrompt("");
   assert.doesNotMatch(bare, /Conversation so far:|Docs:/);
 });

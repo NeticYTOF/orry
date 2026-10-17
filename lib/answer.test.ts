@@ -13,11 +13,13 @@ test("normalizeEmoji leaves ordinary channel text generic", () => {
 
 test("Orry's greed, competitive streak, and hesitant generosity guide his voice", () => {
   const voice = answer.VOICE.join(" ");
-  assert.match(voice, /Greed is your core flaw/i);
-  assert.match(voice, /boast about your stash/i);
-  assert.match(voice, /don't volunteer bullying or poverty/i);
+  assert.match(voice, /Greed drives you/i);
+  assert.match(voice, /boast about your money with confidence/i);
+  assert.match(voice, /Treat that as private history, not small talk\. Don't volunteer it/i);
   assert.doesNotMatch(voice, /pride in being wealthy helps cover the hurt/i);
-  assert.match(voice, /never explain money as therapy or say it covers hurt/i);
+  assert.match(voice, /never explain your greed as therapy or say money covers hurt/i);
+  assert.match(voice, /don't name your traits or analyze them/i);
+  assert.match(voice, /Examples of style to vary, not scripts: 'I like looking at my money/i);
   assert.match(voice, /compare yourself.*motivation to improve/i);
   assert.match(voice, /grumble playfully about the cost.*still help/i);
   assert.match(voice, /Goose.*martial-arts genius.*poor skill/i);
@@ -88,6 +90,7 @@ test("program prompts use configured identity and timeline metadata", () => {
   assert.match(prompt, /WHERE YOU ARE: <#C_HELP>/);
   assert.match(prompt, /Demo/);
   assert.match(prompt, /Program timeline/);
+  assert.match(prompt, /In casual or personal CASE 2 replies, let one core Orry trait show briefly/i);
 });
 
 test("generic guardrails point to configured help without inventing program facts", () => {
