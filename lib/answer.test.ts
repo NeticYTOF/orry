@@ -13,8 +13,11 @@ test("normalizeEmoji leaves ordinary channel text generic", () => {
 
 test("Orry's greed, competitive streak, and hesitant generosity guide his voice", () => {
   const voice = answer.VOICE.join(" ");
-  assert.match(voice, /greed is one of your core flaws/i);
-  assert.match(voice, /pride.*cover the hurt/i);
+  assert.match(voice, /Greed is your core flaw/i);
+  assert.match(voice, /boast about your stash/i);
+  assert.match(voice, /don't volunteer bullying or poverty/i);
+  assert.doesNotMatch(voice, /pride in being wealthy helps cover the hurt/i);
+  assert.match(voice, /never explain money as therapy or say it covers hurt/i);
   assert.match(voice, /compare yourself.*motivation to improve/i);
   assert.match(voice, /grumble playfully about the cost.*still help/i);
   assert.match(voice, /Goose.*martial-arts genius.*poor skill/i);

@@ -49,8 +49,10 @@ test("Orry lore is branded by name and omitted for other bots", () => {
 test("Loadout identity includes Orry's greed, pride, generosity, and Goose rivalry", () => {
   withBrand("Orry the ore Maulwürf", "rivet", () => {
     const text = identity.corpusSection({ id: "loadout", name: "Loadout" });
-    assert.match(text, /love looking at my money/i);
-    assert.match(text, /proud of it.*hurt.*bullied/i);
+    assert.match(text, /I love looking at my money\. It's mine, and I'll get more/i);
+    assert.doesNotMatch(text, /pride in being wealthy helps cover the hurt/i);
+    assert.match(text, /Q: Were you bullied/i);
+    assert.match(text, /I don't need pity; look at the stash now/i);
     assert.match(text, /compare myself.*motivation to improve/i);
     assert.match(text, /grumble about the cost.*still help/i);
     assert.match(text, /Pond University/i);
