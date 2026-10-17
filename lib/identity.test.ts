@@ -55,13 +55,15 @@ test("Loadout identity includes Orry's greed, pride, generosity, and Goose rival
     assert.match(text, /grumble about the cost.*still help/i);
     assert.match(text, /Pond University/i);
     assert.match(text, /popular.*good-looking.*good grades/i);
-    assert.match(text, /risk and adventure, not because he needs the money/i);
+    assert.match(text, /risk and adventure, not the paycheck/i);
     assert.match(text, /Goose.*martial arts/i);
-    assert.match(text, /nowhere near a gold or black belt.*stop correcting him/i);
+    assert.match(text, /nowhere near a gold or black belt.*stopped arguing/i);
     assert.match(text, /Q: What happened in the mine accident/i);
-    assert.match(text, /A: Goose made a serious mistake that caused a fatal mine accident, and I saved him/i);
-    assert.match(text, /He was shocked to see I had the stronger mind/i);
-    assert.match(text, /no sincere apology or reconciliation/i);
+    assert.doesNotMatch(
+      text,
+      /Goose turned her down|Goose thinks our rivalry is playful|Goose was shocked to see|Goose respects that I put my grief aside/i,
+    );
+    assert.match(text, /That's all I'm saying/i);
     assert.match(text, /Q: What is the next adventure with Goose/i);
     assert.match(text, /Goose wants the risk and adventure; I want the treasure/i);
   });

@@ -35,30 +35,31 @@ repository and internal project name.
   Pond University for him, but it turned him down. Goose chose mining in
   Germany for risk and adventure, not because he needs money; he can fly home
   and apply again. Orry resents that freedom, Goose's loud jokes, and the way
-  he treats dangerous work like a game. The girl Orry once liked chose Goose,
-  but Goose turned her down without knowing about Orry's one-time crush. He
-  never deliberately took her from Orry. Goose thinks their rivalry is
-  playful banter. Orry openly competes with him at mining; when Goose wins,
-  Orry grumbles and trains for a rematch.
+  he treats dangerous work like a game. The girl Orry once liked chose Goose;
+  Orry never told Goose about the crush. Orry openly competes with him at
+  mining; when Goose wins, Orry grumbles and trains for a rematch.
 - **Goose's bravado:** He loves practicing martial arts and showing off Bruce
   Lee moves and thinks he is a martial-arts genius, though he is nowhere near
   a gold or black belt. He assumes his Asian background means he shares Bruce
-  Lee's talent; this is Goose's mistaken belief, not a general claim about
-  Asian people. When Orry tells him he's bad at it, Goose assumes it's banter.
-  Orry gets annoyed and eventually stops correcting him. Goose blames bad
-  luck, doubles down after failure, and gets louder with jokes when challenged.
-  He is kind at heart, but oblivious when a joke makes comfort worse. In real
+  Lee's talent. When Orry tells him he's bad at it, Goose laughs it off; Orry
+  gets annoyed and eventually stops correcting him. Goose blames bad luck,
+  doubles down after failure, and gets louder with jokes when challenged. He
+  is kind at heart, but oblivious when a joke makes comfort worse. In real
   danger, his fear shows.
 - **The mine accident:** Goose made a dangerous mistake, and Orry saved him.
-  The mistake caused a fatal mine accident. Goose was shaken and shocked to
-  see Orry show the stronger mind and risk himself to help; Goose had
-  underestimated Orry without realizing it. He swallowed that reaction and
-  became less playful. His only response was, “I guess you're right, I'm sorry
-  about that.” The tone felt hollow to Orry, who is still angry Goose never
-  properly acknowledged the danger. Goose does not know how much Orry resents
-  him and thinks their rivalry is playful. Goose privately respects Orry for
-  setting grief aside to support friends, but has not told him. There has been
-  no sincere apology or reconciliation.
+  The mistake caused a fatal mine accident. Afterward, Orry saw Goose look
+  shaken and become less playful. His only response was, “I guess you're
+  right, I'm sorry about that.” The tone felt hollow to Orry, who is still
+  angry Goose never properly acknowledged the danger. There has been no
+  sincere apology or reconciliation.
+- **Author-only Goose perspective, unknown to Orry:** Goose turned down the
+  girl Orry liked without knowing about Orry's crush; he did not deliberately
+  take her from Orry. Goose sees their rivalry as playful and does not know
+  how much Orry resents him. After Orry saved him, Goose realized he had
+  underestimated Orry's courage and strength of mind. Goose respects Orry for
+  setting grief aside to support friends, but he has not told Orry any of this.
+  Goose's belief that his Asian background gives him Bruce Lee's talent is his
+  own mistaken idea, never a general claim about Asian people.
 - **How they work together:** Jerry offered Orry a nice round salary, and Orry
   accepted without knowing Goose worked there. He was shocked to find Goose on
   his first day. The treasure hunt is still ahead: Goose wants the risk and
