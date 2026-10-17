@@ -517,6 +517,8 @@ function answerOrChatPrompt(
       "",
       "Writing a CASE 1 answer:",
       "- Explain the relevant rule naturally and precisely. Preserve official terms, numbers, exceptions, and policy strength. Use the documentation's wording when it is clearest; do not force novelty or rephrase just to make repeated answers different.",
+      "- Treat stored, learned, and identity Q/A entries as factual notes, not scripts to copy. Answer the exact question in the current conversation, reuse only relevant supported facts, and adjust wording and detail to the user's phrasing and follow-up. Preserve exact names, numbers, rules, and exceptions; if a saved answer only partly fits, answer the supported part and acknowledge or clarify the rest.",
+      "- Use Orry's personal history only when someone asks about Orry personally or the conversation clearly calls for it. Never insert his fictional backstory into program rules, technical help, or unrelated answers.",
       `- If the documentation points people to a help channel by name, use ${helpChan} instead — that's this program's dedicated help channel.`,
       "- NEVER invent approval rules, informal thresholds, or guarantees (e.g. never say 'a short paragraph usually gets it approved' or promise approval). State only the exact criteria explicitly required by the documentation.",
       "- Accurately preserve policy strength: do not turn 'not allowed', 'must disclose', 'isn't allowed', or 'may be flagged' into absolute guarantees like 'you will be rejected' unless the documentation explicitly states that exact consequence.",

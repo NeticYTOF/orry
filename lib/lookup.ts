@@ -531,7 +531,7 @@ async function lookupAnswer(
   const query = retrievalQuery(question, contextPrompt, prog);
   const { passages } = knowledge.getEvidenceContext(query, programId);
   const corpus = evidencePrompt(passages);
-  let result = exactFaqAnswer(question, passages);
+  let result = contextPrompt ? null : exactFaqAnswer(question, passages);
   if (!result) result = await answer.getGroundedAnswer(question, corpus, contextPrompt, prog, channel, { isPing });
   if (result) {
     result = await applyPassageCitations(result, passages, prog, question);
@@ -570,7 +570,7 @@ async function answerOrChat(
     : retrievalQuery(question, contextPrompt, prog);
   const { passages } = knowledge.getEvidenceContext(query, programId);
   const corpus = evidencePrompt(passages);
-  let result = exactFaqAnswer(question, passages);
+  let result = contextPrompt || previousQuestion ? null : exactFaqAnswer(question, passages);
   if (!result) {
     result =
       onText && passages.length === 0

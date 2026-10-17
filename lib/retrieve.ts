@@ -417,7 +417,7 @@ function selectContext({
   const kept = ([name]: Section) => !dropped.has(name);
 
   const budgetFor = (name: string) => {
-    if (name === "About rivet") return IDENTITY_BUDGET;
+    if (name.toLowerCase().startsWith("about ")) return IDENTITY_BUDGET;
     if (name === "Program timeline") return TIMELINE_BUDGET;
     if (name === "Learned answers") return LEARNED_BUDGET;
     return TIMELINE_BUDGET;
