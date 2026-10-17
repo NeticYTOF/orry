@@ -11,6 +11,16 @@ test("normalizeEmoji leaves ordinary channel text generic", () => {
   assert.equal(answer.normalizeEmoji("ask in the help channel"), "ask in the help channel");
 });
 
+test("Orry's greed, competitive streak, and hesitant generosity guide his voice", () => {
+  const voice = answer.VOICE.join(" ");
+  assert.match(voice, /greed is one of your core flaws/i);
+  assert.match(voice, /pride.*cover the hurt/i);
+  assert.match(voice, /compare yourself.*motivation to improve/i);
+  assert.match(voice, /grumble playfully about the cost.*still help/i);
+  assert.match(voice, /Goose.*martial-arts skill is poor.*joking/i);
+  assert.match(voice, /personal lore.*program or technical answers/i);
+});
+
 test("parseReply extracts a source and answer", () => {
   assert.deepEqual(answer.parseReply("SOURCE: Example docs\nANSWER: follow the setup steps"), {
     source: "Example docs",
