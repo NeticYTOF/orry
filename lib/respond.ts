@@ -22,8 +22,11 @@ interface AnswerResult {
   answer: string;
   direct?: boolean;
   unclear?: boolean;
+  silent?: boolean;
   passageCitations?: string[];
   citationEvidence?: Array<{ id: string; programId: string; source: string; text: string }>;
+  uncertaintyReply?: string;
+  suggestedSource?: { name: string; url?: string | null } | null;
 }
 interface UserContext {
   recentTopics?: string[];
@@ -479,6 +482,7 @@ async function handleLookupFailure({
 }: LookupFailureArgs) {
   if (inHelpChannel) {
     db.recordGap(question, userId, channel, threadTs, programId);
+    let handedOff = false;
     try {
       const tickets = require("./tickets");
       const ticket = await tickets.ensureSupportTicket({
@@ -490,22 +494,41 @@ async function handleLookupFailure({
         client: seedClient || client,
         workspaceId,
       });
-      await tickets.handOffToHelper({
-        ticket,
-        client: seedClient || client,
-        program: prog,
-        channel,
-        threadTs,
-        question,
-        requesterId: userId,
-      });
-      await reply.discardPlaceholder(client, channel, placeholder());
+      if (ticket) {
+        await tickets.handOffToHelper({
+          ticket,
+          client: seedClient || client,
+          program: prog,
+          channel,
+          threadTs,
+          question,
+          requesterId: userId,
+        });
+        handedOff = true;
+      }
     } catch (error: unknown) {
       log.warn("respond", `support ticket during outage failed: ${errorMessage(error)}`);
-      await reply.discardPlaceholder(client, channel, placeholder());
     }
+    let suggestedSource: AnswerResult["suggestedSource"] = null;
+    try {
+      suggestedSource = lookup.suggestedSourceForQuestion(question, prog);
+    } catch (error: unknown) {
+      log.debug("respond", `source suggestion unavailable during answer outage: ${errorMessage(error)}`);
+    }
+    const text = uncertaintyText(prog, {
+      escalated: handedOff,
+      result: {
+        source: null,
+        answer: "",
+        uncertaintyReply: "My answer gears slipped on this one, so I won't guess.",
+        suggestedSource,
+      },
+      personalLore: isOrryLoreQuestion(question),
+    });
+    await reply.finalize(client, channel, threadTs, placeholder(), text, { program: prog, silencedBefore });
+    context.addToThread(threadTs, "assistant", text, null, channel, workspaceId);
     db.recordMetric("error", Date.now() - startedAt, "help_channel_escalated", programId);
-    return false;
+    return true;
   }
 
   if (mayChat) {
@@ -520,15 +543,71 @@ async function handleLookupFailure({
   return false;
 }
 
-function uncertaintyText(prog: ProgramLike | null, { escalated = false }: { escalated?: boolean } = {}) {
+function uncertaintyText(
+  prog: ProgramLike | null,
+  {
+    escalated = false,
+    result = null,
+    personalLore = false,
+    general = false,
+    programFact = false,
+  }: {
+    escalated?: boolean;
+    result?: AnswerResult | null;
+    personalLore?: boolean;
+    general?: boolean;
+    programFact?: boolean;
+  } = {},
+) {
   const name = prog?.name ? `the ${prog.name} docs` : "the program docs";
-  return escalated
-    ? `I couldn't verify that from ${name}, so I won't guess — I've flagged it for a helper :oke:`
-    : `I couldn't verify that from ${name}, so I won't guess. A helper or organizer can confirm it :oke:`;
+  const candidate = String(result?.uncertaintyReply || "").trim();
+  const opener =
+    candidate &&
+    candidate.length <= 240 &&
+    /\b(?:can't|cannot|couldn't|don't know|do not know|not sure|unsure|won't guess|will not guess|can't confirm|cannot confirm|couldn't verify)\b/i.test(
+      candidate,
+    ) &&
+    !/\d|https?:\/\/|<#[A-Z0-9]+|\b(?:the docs|documentation|sources?|channels?|helpers?|organizers?|officially|you are eligible|you will receive|the grant is|the deadline is|the amount is)\b/i.test(
+      candidate,
+    )
+      ? candidate
+      : personalLore
+        ? "I don't know that part of my story, and I won't invent it."
+        : general
+          ? "I don't know that one well enough to give you a solid answer."
+          : `I couldn't verify that from ${name}, so I won't guess.`;
+  const source = personalLore ? null : result?.suggestedSource;
+  const sourceName = source?.name
+    ?.replace(/[<>|\r\n]/g, " ")
+    .trim()
+    .slice(0, 80);
+  let sourceUrl: string | null = null;
+  try {
+    const parsed = source?.url ? new URL(source.url) : null;
+    if (parsed && (parsed.protocol === "http:" || parsed.protocol === "https:")) sourceUrl = parsed.href;
+  } catch (_error: unknown) {
+    sourceUrl = null;
+  }
+  const sourceRef = sourceName ? (sourceUrl ? `<${sourceUrl}|${sourceName}>` : sourceName) : null;
+  const nextStep = sourceRef ? `The closest loaded doc is ${sourceRef}; it may be a useful place to check.` : null;
+  const helper = escalated
+    ? "I've flagged it for a helper :oke:"
+    : programFact
+      ? "A helper or organizer can confirm it :oke:"
+      : personalLore || general
+        ? null
+        : "A helper or organizer can confirm it :oke:";
+  return [opener, nextStep, helper].filter(Boolean).join(" ");
 }
 
 function isDeterministicAnswer(result: AnswerResult | null) {
   return Boolean(result && result.direct === true && result.answer);
+}
+
+function isOrryLoreQuestion(question: string) {
+  return /\b(?:who are you|what are you|tell me about yourself|your (?:backstory|childhood|story|mentor|stash|money|past)|hannes|goose(?:\s+(?:lee|li))?|ruhrgebiet|mine accident|treasure hunt|pond university|swimming champion|olympic swimmer|swimming|swim|pool|the girl from the pool|pool crush)\b/i.test(
+    String(question || ""),
+  );
 }
 
 const RECENT_CHANNEL_CONTEXT = 5;
@@ -787,6 +866,9 @@ async function respond({
     return false;
   }
   const kind = plan.kind;
+  const answerMode = kind === "general" && role !== "dm" ? "general" : "program";
+  const personalLore = isOrryLoreQuestion(`${trimmed}\n${threadContext}`);
+  const programFact = answerMode === "general" && lookup.isAuthoritativeOnlyTopic(trimmed, null);
   const previousQuestion =
     kind === "program" &&
     !pendingQuestion &&
@@ -977,10 +1059,11 @@ async function respond({
       inHelpChannel,
       program: prog,
       channel,
-      allowWebSearch: isAddressed && kind === "general",
+      allowWebSearch: isAddressed && kind === "general" && !personalLore,
       isPing: isAddressed,
       skipCache: requireGrounded,
       previousQuestion,
+      answerMode,
     });
   } catch (error: unknown) {
     if (placeholderTimer) {
@@ -1163,7 +1246,19 @@ async function respond({
   if (action === "escalate" || action === "escalate_and_uncertain") {
     await handOff();
     if (action === "escalate_and_uncertain") {
-      const text = uncertaintyText(prog, { escalated: true });
+      const text = uncertaintyText(prog, {
+        escalated: true,
+        result,
+        personalLore,
+        general: answerMode === "general",
+        programFact,
+      });
+      if (result?.silent) {
+        await reply.discardPlaceholder(client, channel, placeholder());
+        db.recordMetric("silent", Date.now() - startedAt, "subjectless", programId);
+        trace.finish({ finalAction: "silence", reason: "subjectless" });
+        return true;
+      }
       await waitForSeed();
       await publishReply({
         silencedBefore,
@@ -1194,7 +1289,13 @@ async function respond({
   }
 
   if (action === "uncertain") {
-    const text = uncertaintyText(prog);
+    if (result?.silent) {
+      await reply.discardPlaceholder(client, channel, placeholder());
+      db.recordMetric("silent", Date.now() - startedAt, "subjectless", programId);
+      trace.finish({ finalAction: "silence", reason: "subjectless" });
+      return false;
+    }
+    const text = uncertaintyText(prog, { result, personalLore, general: answerMode === "general", programFact });
     await waitForSeed();
     await publishReply({
       silencedBefore,
@@ -1231,6 +1332,7 @@ export = {
   buildChatContext,
   isRecallQuestion,
   isClarifyingQuestion,
+  isOrryLoreQuestion,
   isMuteRequest,
   handleMute,
   handleSensitiveMatch,

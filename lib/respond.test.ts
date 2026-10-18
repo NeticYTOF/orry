@@ -82,6 +82,33 @@ test("isClarifyingQuestion ignores a real answer that ends in a question", () =>
   );
 });
 
+test("Orry personal lore questions stay on his canon instead of public web search", () => {
+  assert.equal(respond.isOrryLoreQuestion("what is your backstory?"), true);
+  assert.equal(respond.isOrryLoreQuestion("what does Goose Lee think of me?"), true);
+  assert.equal(respond.isOrryLoreQuestion("what happened in the mine accident?"), true);
+  assert.equal(respond.isOrryLoreQuestion("how do i install Godot?"), false);
+});
+
+test("uncertainty for personal lore does not point people to Loadout docs or helpers", () => {
+  const text = respond.uncertaintyText({ id: "loadout", name: "Loadout" }, { personalLore: true });
+  assert.match(text, /part of my story/i);
+  assert.doesNotMatch(text, /Loadout docs|helper|organizer/i);
+});
+
+test("a declined Loadout fact still points to a human when general chat lacks a source", () => {
+  const text = respond.uncertaintyText({ id: "loadout", name: "Loadout" }, { general: true, programFact: true });
+  assert.match(text, /helper or organizer can confirm/i);
+});
+
+test("uncertainty wording drops an unsupported numeric claim from the model", () => {
+  const text = respond.uncertaintyText(
+    { id: "loadout", name: "Loadout" },
+    { result: { source: null, answer: "", uncertaintyReply: "The grant is $1,000, but I won't guess." } },
+  );
+  assert.doesNotMatch(text, /1,000/);
+  assert.match(text, /couldn't verify that from the Loadout docs/i);
+});
+
 test("gap recording is gated on engagement: chatter records nothing, an engaged miss records a gap", async () => {
   let escalateAdded = false;
   const mockClient = {
@@ -1059,7 +1086,13 @@ test("every documented stop/leave phrasing is recognized, and 'stop' alone is an
 test("help channel hands an unclear question to a helper with the escalated uncertainty text", async () => {
   const originalIntent = intent.classifyIntent;
 
-  const restoreAnswers = stubAnswers(async () => ({ source: null, answer: "", unclear: true }));
+  const restoreAnswers = stubAnswers(async () => ({
+    source: null,
+    answer: "",
+    unclear: true,
+    uncertaintyReply: "I can't verify the prize amount yet, so I won't dig up a guess.",
+    suggestedSource: { name: "Loadout — rewards", url: "https://docs.example.org/rewards" },
+  }));
   const restoreCache = stubNoCache();
   intent.classifyIntent = async () => intent.HELP_NEEDED;
 
@@ -1077,7 +1110,8 @@ test("help channel hands an unclear question to a helper with the escalated unce
 
       assert.equal(replied, true);
       const said = client.posts.map((p: SlackPost) => p.text || "").join(" ");
-      assert.match(said, /couldn't verify/);
+      assert.match(said, /can't verify the prize amount yet/);
+      assert.match(said, /<https:\/\/docs\.example\.org\/rewards\|Loadout, rewards>/);
       assert.match(said, /flagged it for a helper/);
       const ticket = db.getTicketByThreadTs("t-help-unclear");
       assert.ok(ticket, "the support request still lands with humans");
@@ -1346,7 +1380,8 @@ test("a classifier outage in a help channel preserves the support path (ticket +
     const ticket = db.getTicketByThreadTs("t-outage-1");
     assert.ok(ticket, "the outage must not swallow the support request");
     assert.equal(ticket.status, "waiting_for_helper");
-    assert.ok(client.calls.posts.every((t: string) => /Someone will be here to help you soon!/.test(t)));
+    assert.ok(client.calls.posts.some((t: string) => /couldn't verify|can't confirm/i.test(t)));
+    assert.ok(client.calls.posts.some((t: string) => /helper/i.test(t)));
   } finally {
     config.slack.helpChannel = savedHelp;
   }
@@ -2514,10 +2549,11 @@ test("sensitive match escalates with zero model calls", async () => {
   }
 });
 
-test("accepted support with model outage files a ticket and stays quiet", async () => {
+test("accepted support with model outage gets a helper handoff acknowledgement", async () => {
   await withHelpProgram({ id: "charoutage" }, async (programId: string, channel: string) => {
     const original = answer.getAnswerOrChatStream;
     const originalLookup = lookup.answerOrChat;
+    const originalSuggestion = lookup.suggestedSourceForQuestion;
     const originalIntent = intent.classifyIntent;
     answer.getAnswerOrChatStream = async () => {
       throw new Error("every provider is down");
@@ -2525,6 +2561,10 @@ test("accepted support with model outage files a ticket and stays quiet", async 
     lookup.answerOrChat = async () => {
       throw new Error("every provider is down");
     };
+    lookup.suggestedSourceForQuestion = () => ({
+      name: "Setup docs",
+      url: "https://docs.example.org/setup",
+    });
     intent.classifyIntent = async () => intent.HELP_NEEDED;
     try {
       const client = richClient();
@@ -2536,11 +2576,16 @@ test("accepted support with model outage files a ticket and stays quiet", async 
         question: "how do i submit my project",
         mode: respond.HELP_ONLY,
       });
-      assert.equal(handled, false, "outage in help: ticket filed, no AI reply");
+      assert.equal(handled, true, "outage in help: ticket filed and the requester gets an acknowledgement");
       assert.ok(db.getTicketByThreadTs("t-char-outage-1"), "outage must not swallow the support request");
+      const said = client.posts.map((post: SlackPost) => post.text || "").join(" ");
+      assert.match(said, /answer gears slipped|answer service hit a snag/i);
+      assert.match(said, /<https:\/\/docs\.example\.org\/setup\|Setup docs>/);
+      assert.match(said, /helper/i);
     } finally {
       answer.getAnswerOrChatStream = original;
       lookup.answerOrChat = originalLookup;
+      lookup.suggestedSourceForQuestion = originalSuggestion;
       intent.classifyIntent = originalIntent;
     }
   });

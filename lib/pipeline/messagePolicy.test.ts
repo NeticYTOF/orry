@@ -97,7 +97,12 @@ test("an ungrounded program question is declined out loud, not silently", () => 
   // "not confirmed yet" rather than silence, which reads as a broken bot.
   const base = { settings, addressed: false, kind: "program", grounded: false, hasAnswer: true };
   assert.equal(finalAction({ ...base, role: "main" }), "uncertain");
-  assert.equal(finalAction({ ...base, role: "help" }), "escalate");
+  assert.equal(finalAction({ ...base, role: "help" }), "escalate_and_uncertain");
+});
+
+test("an unaddressed unanswered help request gets both a helper handoff and a visible response", () => {
+  const base = { settings, addressed: false, kind: "program", grounded: false, hasAnswer: false };
+  assert.equal(finalAction({ ...base, role: "help" }), "escalate_and_uncertain");
 });
 
 test("ungrounded chatter is still silenced, not answered", () => {

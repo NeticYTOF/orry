@@ -46,6 +46,32 @@ test("Orry lore is branded by name and omitted for other bots", () => {
   });
 });
 
+test("Loadout identity includes Orry's greed, pride, generosity, and Goose rivalry", () => {
+  withBrand("Orry the ore Maulwürf", "rivet", () => {
+    const text = identity.corpusSection({ id: "loadout", name: "Loadout" });
+    assert.match(text, /I love looking at my money\. It's mine, and I'll get more/i);
+    assert.doesNotMatch(text, /pride in being wealthy helps cover the hurt/i);
+    assert.match(text, /Germany's Ruhrgebiet\. It wasn't easy, but I came out ahead\. I don't need to catalogue the details/i);
+    assert.match(text, /Q: Were you bullied/i);
+    assert.match(text, /I don't need pity; look at the stash now/i);
+    assert.match(text, /compare myself.*motivation to improve/i);
+    assert.match(text, /grumble about the cost.*still help/i);
+    assert.match(text, /Pond University/i);
+    assert.match(text, /popular.*good-looking.*good grades/i);
+    assert.match(text, /risk and adventure, not the paycheck/i);
+    assert.match(text, /Goose.*martial arts/i);
+    assert.match(text, /nowhere near a gold or black belt.*stopped arguing/i);
+    assert.match(text, /Q: What happened in the mine accident/i);
+    assert.doesNotMatch(
+      text,
+      /Goose turned her down|Goose thinks our rivalry is playful|Goose was shocked to see|Goose respects that I put my grief aside/i,
+    );
+    assert.match(text, /That's all I'm saying/i);
+    assert.match(text, /Q: What is the next adventure with Goose/i);
+    assert.match(text, /Goose wants the risk and adventure; I want the treasure/i);
+  });
+});
+
 test("Loadout identity names Orry as the bot Netic built", () => {
   withBrand("Orry the ore Maulwürf", "rivet", () => {
     const text = identity.corpusSection({ id: "loadout", name: "Loadout" });

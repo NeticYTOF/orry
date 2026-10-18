@@ -101,6 +101,7 @@ function fakeAnswer(question: string, program: { id?: string } | null | undefine
     return groundedFixture("Fix the notes and resubmit from your dashboard.", "Acme Docs", program.id);
   if (q.includes("pixorpheus")) return { answer: "Me, obviously. Pixorpheus can swim.", source: "NONE" };
   if (q.includes("cookie")) return { answer: "Cream butter and sugar, add chips, bake at 180C.", source: "NONE" };
+  if (q === "how do i do this") return { answer: null, source: null, unclear: true, silent: true };
   return { answer: null, source: null, unclear: true };
 }
 
@@ -652,7 +653,9 @@ test("help: an unknown personal question opens a ticket and hands to a helper wi
   expect(ticketCalls).toHaveLength(1);
   expect(handOffs).toHaveLength(1);
   expect(handOffs[0].requesterId).toMatch(/^U_REQ_/);
-  expect(posts).toHaveLength(0);
+  expect(posts).toHaveLength(1);
+  expect(posts[0].text).toMatch(/couldn't verify|can't confirm|helper/i);
+  expect(posts[0].text).not.toMatch(/your personal grant code is/i);
 });
 
 test("help: chatter creates no ticket and pings nobody", async () => {
