@@ -446,6 +446,40 @@ test("POST /internal/v1/programs/:id/incidents/manual creates only for a program
     else process.env.RIVET_INTERNAL_TOKEN = saved;
   }
 });
+test("web bind: RIVET_WEB_PORT beats PORT, host defaults to 0.0.0.0, an empty host is refused", () => {
+  const serve = require("./serve");
+  assert.deepEqual(serve.resolveWebBind({}), { host: "0.0.0.0", port: 4100, error: null });
+  assert.equal(serve.resolveWebBind({ PORT: "3000", RIVET_WEB_PORT: "4100" }).port, 4100);
+  assert.equal(serve.resolveWebBind({ PORT: "3000" }).port, 3000, "PORT is still honoured when it is the only one");
+  assert.equal(serve.resolveWebBind({ RIVET_WEB_PORT: "nope", PORT: "8080" }).port, 8080);
+  assert.equal(serve.resolveWebBind({ RIVET_WEB_HOST: "127.0.0.1" }).host, "127.0.0.1");
+  const empty = serve.resolveWebBind({ RIVET_WEB_HOST: "  " });
+  assert.equal(empty.host, null);
+  assert.match(empty.error, /empty/);
+});
+
+test("web start: a port already in use returns null instead of throwing into the bot", () => {
+  const serve = require("./serve");
+  const holder = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("held") });
+  const saved = { host: process.env.RIVET_WEB_HOST, port: process.env.RIVET_WEB_PORT };
+  try {
+    process.env.RIVET_WEB_HOST = "127.0.0.1";
+    process.env.RIVET_WEB_PORT = String(holder.port);
+    assert.equal(serve.start(), null);
+    process.env.RIVET_WEB_HOST = "";
+    assert.equal(serve.start(), null, "an empty host never binds");
+  } finally {
+    holder.stop(true);
+    for (const [key, value] of [
+      ["RIVET_WEB_HOST", saved.host],
+      ["RIVET_WEB_PORT", saved.port],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("no RIVET_DASHBOARD_PASSCODE → passcode login refuses instead of accepting a guessable default", async () => {
   const serve = require("./serve");
   const saved = process.env.RIVET_DASHBOARD_PASSCODE;

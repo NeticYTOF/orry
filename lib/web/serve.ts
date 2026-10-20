@@ -1093,25 +1093,64 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
+const DEFAULT_WEB_HOST = "0.0.0.0";
+const DEFAULT_WEB_PORT = 4100;
+
+// RIVET_WEB_PORT wins over PORT so a co-located process that sets PORT for
+// itself cannot move Core's bridge. PORT stays as a fallback for Railway and
+// Docker, which inject it. RIVET_WEB_HOST defaults to 0.0.0.0 for the same
+// hosts; an explicitly empty value is refused because Bun would bind every
+// interface (dual-stack) instead of the one the operator meant.
+function resolveWebBind(env: Record<string, string | undefined> = process.env): {
+  host: string | null;
+  port: number;
+  error: string | null;
+} {
+  const port = validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
+  if (env.RIVET_WEB_HOST === undefined) return { host: DEFAULT_WEB_HOST, port, error: null };
+  const host = env.RIVET_WEB_HOST.trim();
+  if (!host) return { host: null, port, error: "RIVET_WEB_HOST is set but empty" };
+  return { host, port, error: null };
+}
+
+function validPort(value: string | undefined): number | null {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 && n < 65536 ? n : null;
+}
+
+// Never throws: a bad host or a port already in use leaves the console off
+// and returns null, so the Slack bot keeps running without its web server.
 function start() {
   const clientId = process.env.SLACK_CLIENT_ID;
   if (!clientId) {
     log.info("web", "SLACK_CLIENT_ID not set — passcode auth & screenshot serving enabled");
   }
 
-  const port = Number(process.env.PORT) || Number(process.env.RIVET_WEB_PORT) || 4100;
+  const bind = resolveWebBind();
+  if (bind.error || !bind.host) {
+    log.error("web", `console not started: ${bind.error}`);
+    return null;
+  }
+
+  let server;
+  try {
+    server = Bun.serve({
+      port: bind.port,
+      hostname: bind.host,
+      fetch: handleRequest,
+    });
+  } catch (e) {
+    log.error(
+      "web",
+      `console not started on ${bind.host}:${bind.port}: ${e instanceof Error ? e.message : String(e)} — the bot keeps running without it`,
+    );
+    return null;
+  }
 
   startLogFeed();
   startMetricTicks();
-
-  const server = Bun.serve({
-    port,
-    hostname: "0.0.0.0",
-    fetch: handleRequest,
-  });
-
-  log.info("web", `console running on http://0.0.0.0:${port}`);
+  log.info("web", `console running on http://${bind.host}:${bind.port}`);
   return server;
 }
 
-export = { start, broadcastSSE, handleRequest, sseStream, sseClientCount: () => sseClients.size };
+export = { start, resolveWebBind, broadcastSSE, handleRequest, sseStream, sseClientCount: () => sseClients.size };
