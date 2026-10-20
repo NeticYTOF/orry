@@ -639,8 +639,6 @@ test("dev-testing auto-signin needs NODE_ENV=development, not just the sentinel 
   }
 });
 
-export {};
-
 test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400 without a userId", async () => {
   const saved = process.env.RIVET_INTERNAL_TOKEN;
   process.env.RIVET_INTERNAL_TOKEN = "access-route-token";
@@ -668,3 +666,52 @@ test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400
     else process.env.RIVET_INTERNAL_TOKEN = saved;
   }
 });
+
+test("GET /internal/v1/programs/:id/audit filters by action, action prefix, since/until and pages with offset", async () => {
+  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  process.env.RIVET_INTERNAL_TOKEN = "audit-route-token";
+  const serve = require("./serve");
+  const db = require("../db");
+  const H = withToken("audit-route-token");
+  const get = async (query: string) => {
+    const res = await serve.handleRequest(
+      new Request(`http://localhost/internal/v1/programs/audit-route/audit?${query}`, { headers: H }),
+    );
+    assert.equal(res.status, 200);
+    return (await res.json()) as Array<{ action: string; created_at: number }>;
+  };
+  try {
+    const at = (id: number | null, t: number) =>
+      db.handle().query("UPDATE audit_events SET created_at = ? WHERE id = ?").run(t, id);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "sla.notified" }), 1000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket.resolved" }), 2000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket.claimed" }), 3000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "sla.notified" }), 4000);
+    at(db.recordAuditEvent({ programId: "audit-other", action: "sla.notified" }), 4500);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket_x" }), 5000);
+
+    assert.deepEqual(
+      (await get("action=sla.notified")).map((r) => r.created_at),
+      [4000, 1000],
+      "exact action, this program only",
+    );
+    assert.deepEqual(
+      (await get("action=ticket.*")).map((r) => r.action),
+      ["ticket.claimed", "ticket.resolved"],
+      "prefix match; the dot is literal, so ticket_x is not a ticket.* row",
+    );
+    assert.deepEqual(
+      (await get("since=1000&until=3000")).map((r) => r.created_at),
+      [3000, 2000],
+    );
+    assert.deepEqual(
+      (await get("limit=2&offset=1")).map((r) => r.created_at),
+      [4000, 3000],
+    );
+  } finally {
+    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
+    else process.env.RIVET_INTERNAL_TOKEN = saved;
+  }
+});
+
+export {};

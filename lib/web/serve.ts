@@ -702,7 +702,18 @@ async function handleApi(req: Request): Promise<Response | null> {
     const auditRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/audit$/);
     if (auditRoute && method === "GET") {
       const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 100, 1), 500);
-      return json(require("../db").listAuditEvents({ programId: auditRoute[1], limit }));
+      const offset = Math.min(Math.max(Math.trunc(Number(url.searchParams.get("offset"))) || 0, 0), 100000);
+      const action = (url.searchParams.get("action") || "").trim().slice(0, 80) || null;
+      return json(
+        require("../db").listAuditEvents({
+          programId: auditRoute[1],
+          limit,
+          offset,
+          action,
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+        }),
+      );
     }
     if (url.pathname === "/internal/v1/slack/channels" && method === "GET") {
       return json(await api.slackChannels());

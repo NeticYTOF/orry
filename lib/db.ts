@@ -1830,14 +1830,43 @@ function recordAuditEvent({
   return res.changes > 0 ? Number(res.lastInsertRowid) : null;
 }
 
-function listAuditEvents({ programId = null, limit = 100 }: Record<string, unknown> = {}): AuditEventRow[] {
+// action matches exactly, or as a prefix when it ends in "*" ("ticket.*").
+// since/until bound created_at (since exclusive, until inclusive).
+function listAuditEvents({
+  programId = null,
+  limit = 100,
+  offset = 0,
+  action = null,
+  since = null,
+  until = null,
+}: Record<string, unknown> = {}): AuditEventRow[] {
+  const clauses: string[] = [];
+  const params: DbValue[] = [];
   if (programId) {
-    return query<AuditEventRow>("SELECT * FROM audit_events WHERE program_id = ? ORDER BY created_at DESC LIMIT ?").all(
-      programId,
-      limit,
-    );
+    clauses.push("program_id = ?");
+    params.push(String(programId));
   }
-  return query<AuditEventRow>("SELECT * FROM audit_events ORDER BY created_at DESC LIMIT ?").all(limit);
+  if (typeof action === "string" && action) {
+    if (action.endsWith("*")) {
+      clauses.push("action LIKE ? ESCAPE '\\'");
+      params.push(`${action.slice(0, -1).replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+    } else {
+      clauses.push("action = ?");
+      params.push(action);
+    }
+  }
+  if (since !== null && since !== undefined && Number.isFinite(Number(since))) {
+    clauses.push("created_at > ?");
+    params.push(Number(since));
+  }
+  if (until !== null && until !== undefined && Number.isFinite(Number(until))) {
+    clauses.push("created_at <= ?");
+    params.push(Number(until));
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  return query<AuditEventRow>(
+    `SELECT * FROM audit_events ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+  ).all(...params, Number(limit) || 100, Math.max(Number(offset) || 0, 0));
 }
 
 function syncHelper({ programId, userId, source = "manual", role = "helper" }: Record<string, unknown>) {
