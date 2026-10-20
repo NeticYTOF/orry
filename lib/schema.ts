@@ -451,6 +451,15 @@ const MIGRATIONS = [
 
   ["tickets", "text_redacted_at", "ALTER TABLE tickets ADD COLUMN text_redacted_at INTEGER"],
   ["tickets", "text_redaction", "ALTER TABLE tickets ADD COLUMN text_redaction TEXT"],
+
+  // One row per message Orry put in Slack, updated in place on edits and
+  // deletes. text is NULL for DMs, private rows, deleted messages and after
+  // the 30-day purge (lib/outboundLog.ts).
+  [
+    "outbound_messages",
+    "table",
+    "CREATE TABLE IF NOT EXISTS outbound_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT NOT NULL, thread_ts TEXT, message_ts TEXT, surface TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, error TEXT, private INTEGER NOT NULL DEFAULT 0, text TEXT, blocks_json TEXT, text_chars INTEGER, edit_count INTEGER NOT NULL DEFAULT 0, text_purged_at INTEGER, deleted_at INTEGER, delete_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  ],
 ];
 
 const POST_MIGRATION_SCHEMA = `
@@ -490,6 +499,9 @@ CREATE INDEX IF NOT EXISTS idx_radar_program_status ON radar_signals(program_id,
 CREATE INDEX IF NOT EXISTS idx_incident_reports_incident ON incident_reports(incident_id, notified_at);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_program_time ON llm_usage(program_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_request ON llm_usage(request_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_program_created ON outbound_messages(program_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_message ON outbound_messages(channel, message_ts);
+CREATE INDEX IF NOT EXISTS idx_outbound_created ON outbound_messages(created_at);
 `;
 
 export = { SCHEMA, MIGRATIONS, POST_MIGRATION_SCHEMA };

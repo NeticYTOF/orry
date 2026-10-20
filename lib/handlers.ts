@@ -431,6 +431,9 @@ async function escalateSensitive({
     channel: event.channel,
     threadTs,
     text: replyText.plainDashes(text),
+    // The log must not become a list of sensitive threads with their text.
+    logSource: "sensitive_reply",
+    logPrivate: true,
   });
   context.addToThread(threadTs, "assistant", text, null, event.channel);
   db.recordMetric("fallback", null, "sensitive_unticketed", prog.id);
