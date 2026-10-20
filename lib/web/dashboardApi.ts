@@ -478,6 +478,19 @@ function helperRoster(programId: string) {
   return { programId, categories: program.categories || null, helpers };
 }
 
+const USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+// One access rule for neighbours (a status site, the Wizard): the same
+// admin list and active helper roster Core itself checks. Booleans only.
+function userAccess(programId: string, userId: unknown) {
+  const missing = needProgram(programId);
+  if (missing) return missing;
+  const id = typeof userId === "string" ? userId.trim() : "";
+  if (!USER_ID_PATTERN.test(id)) return { error: "userId required" };
+  const { isAdmin } = require("../config");
+  return { programId, userId: id, admin: Boolean(isAdmin(id)), helper: Boolean(db.isHelper(programId, id)) };
+}
+
 function helperSetActive(programId: string, body: DashboardParams = {}) {
   const missing = needProgram(programId);
   if (missing) return missing;
@@ -538,4 +551,5 @@ export = {
   knowledgeRefresh,
   helperRoster,
   helperSetActive,
+  userAccess,
 };

@@ -640,3 +640,31 @@ test("dev-testing auto-signin needs NODE_ENV=development, not just the sentinel 
 });
 
 export {};
+
+test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400 without a userId", async () => {
+  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  process.env.RIVET_INTERNAL_TOKEN = "access-route-token";
+  const serve = require("./serve");
+  const api = require("./api");
+  const H = withToken("access-route-token");
+  try {
+    api.internalProgramSync("access-route", { name: "Access", workspaceId: "TW-AC", programChannels: [] });
+    require("../db").syncHelper({ programId: "access-route", userId: "U-ac-helper" });
+    const ok = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/access-route/access?userId=U-ac-helper", { headers: H }),
+    );
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).helper, true);
+    const missing = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/no-such-access/access?userId=U-ac-helper", { headers: H }),
+    );
+    assert.equal(missing.status, 404);
+    const noUser = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/access-route/access", { headers: H }),
+    );
+    assert.equal(noUser.status, 400);
+  } finally {
+    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
+    else process.env.RIVET_INTERNAL_TOKEN = saved;
+  }
+});

@@ -312,3 +312,31 @@ test("helper roster and availability toggle are program-scoped", () => {
   assert.equal(dash.helperRoster("dash-roster").helpers.find((h: TestRow) => h.userId === "U-R1").active, true);
 });
 export {};
+
+test("access answers admin and active-helper flags for one program only", () => {
+  seedProgram("dash-access-a");
+  seedProgram("dash-access-b");
+  db.syncHelper({ programId: "dash-access-a", userId: "U-acc-helper" });
+  db.syncHelper({ programId: "dash-access-a", userId: "U-acc-gone" });
+  db.removeHelper({ programId: "dash-access-a", userId: "U-acc-gone" });
+  const { config } = require("../config");
+  config.slack.adminUserIds.push("U-acc-admin");
+  try {
+    assert.deepEqual(dash.userAccess("dash-access-a", "U-acc-helper"), {
+      programId: "dash-access-a",
+      userId: "U-acc-helper",
+      admin: false,
+      helper: true,
+    });
+    assert.equal(dash.userAccess("dash-access-b", "U-acc-helper").helper, false, "helper of A is not a helper of B");
+    assert.equal(dash.userAccess("dash-access-a", "U-acc-gone").helper, false, "a removed helper loses access");
+    const admin = dash.userAccess("dash-access-b", "U-acc-admin");
+    assert.equal(admin.admin, true);
+    assert.equal(admin.helper, false);
+    assert.equal(dash.userAccess("dash-access-a", "").error, "userId required");
+    assert.equal(dash.userAccess("dash-access-a", "U x' OR 1=1").error, "userId required");
+    assert.equal(dash.userAccess("dash-access-missing", "U-acc-helper").error, "unknown program");
+  } finally {
+    config.slack.adminUserIds.splice(config.slack.adminUserIds.indexOf("U-acc-admin"), 1);
+  }
+});

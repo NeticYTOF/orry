@@ -1045,6 +1045,12 @@ async function handleApi(req: Request): Promise<Response | null> {
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
+      const dashAccess = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/access$/);
+      if (dashAccess && method === "GET") {
+        const res = dashboardApi.userAccess(decodeURIComponent(dashAccess[1]), url.searchParams.get("userId"));
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
       const dashHelperActive = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/helpers\/active$/);
       if (dashHelperActive && (method === "PATCH" || method === "PUT")) {
         const res = dashboardApi.helperSetActive(decodeURIComponent(dashHelperActive[1]), body);
