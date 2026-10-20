@@ -78,6 +78,7 @@ interface TicketDbModule {
   markTakeover(...args: unknown[]): unknown;
   markTicketWaitingForHelper(...args: unknown[]): boolean;
   recordFirstResponse(...args: unknown[]): unknown;
+  recordHumanReply(...args: unknown[]): boolean;
   recordMetric(...args: unknown[]): unknown;
   reopenResolvedTicket(...args: unknown[]): boolean;
   reopenTicket(...args: unknown[]): boolean;
@@ -1516,6 +1517,11 @@ function getOrCreateOpenTicket({
 
 function creditThreadReply(ticket: Ticket, userId: string): void {
   try {
+    db.recordHumanReply(ticket.id);
+  } catch (e) {
+    log.debug("tickets", `last human reply record failed for #${ticket.id}: ${errorMessage(e)}`);
+  }
+  try {
     const already = db
       .listTicketEvents(ticket.id)
       .some((event) => event.event_type === "helper_reply" && event.actor_id === userId);
@@ -2148,6 +2154,11 @@ async function replyToTicket({
     return { error: errorMessage(e) };
   }
   db.recordFirstResponse(ticketId, true);
+  try {
+    db.recordHumanReply(ticketId);
+  } catch (e) {
+    log.debug("tickets", `last human reply record failed for #${ticketId}: ${errorMessage(e)}`);
+  }
   try {
     helperRoute.recordReply({ programId: ticket.program_id, userId: authorId, category: ticket.category });
   } catch (e) {

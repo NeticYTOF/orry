@@ -231,6 +231,7 @@ interface ClosingTicketRow {
   resolved_at: number;
   first_response_at: number | null;
   first_human_response_at: number | null;
+  last_human_reply_at: number | null;
   reopen_count: number | null;
 }
 interface ClosingEventRow {
@@ -293,7 +294,7 @@ function ticketClosing(programId: string, params: DashboardParams = {}) {
     .handle()
     .query(
       `SELECT id, status, category, visibility, assignee_id, resolved_credit_id, requester_id, created_at, resolved_at,
-              first_response_at, first_human_response_at, reopen_count
+              first_response_at, first_human_response_at, last_human_reply_at, reopen_count
        FROM tickets WHERE ${where} ORDER BY resolved_at ASC, id ASC LIMIT ? OFFSET ?`,
     )
     .all(programId, since, until, limit, offset) as ClosingTicketRow[];
@@ -387,6 +388,7 @@ function ticketClosing(programId: string, params: DashboardParams = {}) {
       resolvedAt: ticket.resolved_at,
       firstResponseAt: ticket.first_response_at,
       firstHumanResponseAt: ticket.first_human_response_at,
+      lastHumanReplyAt: ticket.last_human_reply_at,
       reopenCount: ticket.reopen_count || 0,
       closing,
       firstEscalatedAt: firstEscalated ? firstEscalated.created_at : null,

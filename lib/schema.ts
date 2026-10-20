@@ -446,6 +446,8 @@ const MIGRATIONS = [
     "table",
     "CREATE TABLE IF NOT EXISTS ticket_metrics_migrations (version TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)",
   ],
+
+  ["tickets", "last_human_reply_at", "ALTER TABLE tickets ADD COLUMN last_human_reply_at INTEGER"],
 ];
 
 const POST_MIGRATION_SCHEMA = `

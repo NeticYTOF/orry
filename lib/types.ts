@@ -99,6 +99,7 @@ export interface Ticket {
   duplicate_of?: number | null;
   first_response_at?: number | null;
   first_human_response_at?: number | null;
+  last_human_reply_at?: number | null;
   visibility?: TicketVisibility | null;
   assigned_at?: number | null;
   reopened_at?: number | null;

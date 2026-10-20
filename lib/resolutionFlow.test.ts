@@ -138,5 +138,30 @@ test("a reopened ticket resolved again still reaches the learning step", async (
     restore();
   }
 });
+
+test("last_human_reply_at moves on every helper reply, not on the requester's, and never backwards", () => {
+  const programId = "flow-last-reply";
+  setup(programId);
+  const ticket = openTicket(programId, "lr", "Where do I upload my build?");
+  const lastReply = () => db.getTicket(ticket.id).last_human_reply_at;
+  assert.equal(lastReply() ?? null, null);
+
+  tickets.noteThreadActivity({ channel: `C-${programId}`, threadTs: ticket.thread_ts, userId: "U-requester" });
+  assert.equal(lastReply() ?? null, null, "the requester's own message is not a human reply");
+
+  tickets.noteThreadActivity({ channel: `C-${programId}`, threadTs: ticket.thread_ts, userId: "U-bob" });
+  const first = lastReply();
+  assert.ok(first && first > 0);
+
+  // A repeat reply by the same helper records no second helper_reply event,
+  // but must still move the time forward.
+  db.handle().query("UPDATE tickets SET last_human_reply_at = 1000 WHERE id = ?").run(ticket.id);
+  tickets.noteThreadActivity({ channel: `C-${programId}`, threadTs: ticket.thread_ts, userId: "U-bob" });
+  assert.ok(lastReply() >= first);
+  assert.equal(db.listTicketEvents(ticket.id).filter((e) => e.event_type === "helper_reply").length, 1);
+
+  assert.equal(db.recordHumanReply(ticket.id, 5), false, "an older (backfilled) reply never moves it back");
+  assert.ok(lastReply() >= first);
+});
 export {};
 import type { TestDb, TestLlm, TestResolutionPipeline, TestTickets } from "./test.types";

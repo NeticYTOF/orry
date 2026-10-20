@@ -286,6 +286,21 @@ function backfillResolvedCredits(database: DatabaseType) {
   database.query("INSERT INTO ticket_metrics_migrations (version, applied_at) VALUES (?, ?)").run(version, now());
 }
 
+// Tickets from before last_human_reply_at existed get the newest recorded
+// helper_reply event. That is a lower bound: thread replies used to record
+// one event per helper per ticket, so later repeat replies are not known.
+function backfillLastHumanReply(database: DatabaseType) {
+  const version = "last_human_reply_v1";
+  if (database.query("SELECT 1 FROM ticket_metrics_migrations WHERE version = ?").get(version)) return;
+  database.exec(`
+    UPDATE tickets AS t SET last_human_reply_at = (
+      SELECT MAX(e.created_at) FROM ticket_events e
+      WHERE e.ticket_id = t.id AND e.program_id = t.program_id AND e.event_type = 'helper_reply'
+    ) WHERE t.last_human_reply_at IS NULL;
+  `);
+  database.query("INSERT INTO ticket_metrics_migrations (version, applied_at) VALUES (?, ?)").run(version, now());
+}
+
 function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
   if (db) return db;
   db = new Database(filename, { create: true });
@@ -295,6 +310,7 @@ function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
   db.exec(SCHEMA);
   migrate(db);
   backfillResolvedCredits(db);
+  backfillLastHumanReply(db);
   db.exec(POST_MIGRATION_SCHEMA);
   log.info("db", `opened ${filename}`);
   return db;
@@ -308,6 +324,7 @@ function ensureSchema(filename: string | null = null) {
   database.exec(SCHEMA);
   migrate(database);
   backfillResolvedCredits(database);
+  backfillLastHumanReply(database);
   database.exec(POST_MIGRATION_SCHEMA);
   database.close();
 }
@@ -1530,6 +1547,19 @@ function recordFirstResponse(id: number, human = false, at = null) {
   );
 }
 
+// Every human (helper or admin) reply moves this forward, including repeat
+// replies in the same thread. updated_at is left alone on purpose: the SLA
+// loop reads it, and a reply must not change what Orry posts.
+function recordHumanReply(id: number, at: number | null = null) {
+  const t = at === null || at === undefined ? now() : Number(at);
+  if (!Number.isFinite(t)) return false;
+  return (
+    query(
+      "UPDATE tickets SET last_human_reply_at = ? WHERE id = ? AND (last_human_reply_at IS NULL OR last_human_reply_at < ?)",
+    ).run(t, id, t).changes > 0
+  );
+}
+
 function getTicketsForProgram(programId: string, status = null): TicketRow[] {
   if (status) {
     return query<TicketRow>("SELECT * FROM tickets WHERE program_id = ? AND status = ? ORDER BY created_at DESC").all(
@@ -1986,6 +2016,7 @@ export = {
   setResolutionSummary,
   getResolutionSummary,
   recordFirstResponse,
+  recordHumanReply,
   getTicketsForProgram,
   searchTickets,
   claimProgramChannel,

@@ -334,6 +334,9 @@ function addReplyEvents(
       helperMessages.push(message);
       const recordFirstResponse = db.recordFirstResponse as (...args: unknown[]) => unknown;
       recordFirstResponse(ticket.id, true, tsMs(message.ts));
+      try {
+        db.recordHumanReply(Number(ticket.id), tsMs(message.ts));
+      } catch (_) {}
       if (recorded) {
         try {
           require("./helperRoute").recordReply({ programId: ticket.program_id, userId, category: ticket.category });
