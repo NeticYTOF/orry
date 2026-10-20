@@ -23,6 +23,8 @@ interface DashboardParams {
   userId?: string;
   active?: boolean;
   pingEligible?: boolean;
+  eventsLimit?: string | number | null;
+  eventsOffset?: string | number | null;
 }
 interface SearchTicket extends Ticket {
   first_responder_id?: string | null;
@@ -183,7 +185,27 @@ function ticketSearchScoped(programId: string, params: DashboardParams = {}) {
   return { total, rows };
 }
 
-function ticketDetailScoped(programId: string, ticketId: number) {
+const EVENTS_PAGE_DEFAULT = 100;
+const EVENTS_PAGE_MAX = 200;
+
+// The newest events of a ticket (a long ticket's latest close, reopen or
+// reply must not fall off the page), oldest-first within the page, with the
+// total and whether older events remain for eventsOffset paging.
+function ticketEventsPage(ticketId: number, params: DashboardParams = {}) {
+  const limit = Math.min(Math.max(Math.trunc(Number(params.eventsLimit)) || EVENTS_PAGE_DEFAULT, 1), EVENTS_PAGE_MAX);
+  const offset = Math.max(Math.trunc(Number(params.eventsOffset)) || 0, 0);
+  const events = db.listRecentTicketEvents(ticketId, { limit, offset });
+  const eventsTotal = db.countTicketEvents(ticketId);
+  return {
+    events,
+    eventsTotal,
+    eventsOffset: offset,
+    eventsLimit: limit,
+    eventsHasOlder: offset + events.length < eventsTotal,
+  };
+}
+
+function ticketDetailScoped(programId: string, ticketId: number, params: DashboardParams = {}) {
   const missing = needProgram(programId);
   if (missing) return missing;
   const ticket = db.getTicket(Number(ticketId));
@@ -192,7 +214,7 @@ function ticketDetailScoped(programId: string, ticketId: number) {
   return {
     ticket: { ...ticket, resolutionSummary },
     resolutionSummary,
-    events: db.listTicketEvents(ticket.id),
+    ...ticketEventsPage(ticket.id, params),
     notes: db.listTicketNotes(ticket.id),
   };
 }
@@ -731,6 +753,7 @@ export = {
   RESOLVED_GROUP,
   ticketSearchScoped,
   ticketDetailScoped,
+  ticketEventsPage,
   ticketClosing,
   metricsOverview,
   knowledgeStatus,

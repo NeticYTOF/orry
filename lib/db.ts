@@ -1688,6 +1688,23 @@ function listTicketEvents(ticketId: number, limit = 100): TicketEventRow[] {
   );
 }
 
+// Newest events first for timelines: skip `offset` of the newest, take
+// `limit`, and return them oldest-first so a page reads top to bottom.
+// listTicketEvents (oldest 100) stays as it is for its existing callers.
+function listRecentTicketEvents(
+  ticketId: number,
+  { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+) {
+  const rows = query<TicketEventRow>(
+    "SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+  ).all(ticketId, limit, offset);
+  return rows.reverse();
+}
+
+function countTicketEvents(ticketId: number): number {
+  return Number(query("SELECT COUNT(*) AS n FROM ticket_events WHERE ticket_id = ?").get(ticketId)?.n || 0);
+}
+
 function getHistoryImportProgress(programId: string, channelId: string): HistoryImportRow | null;
 function getHistoryImportProgress(programId: string, channelId?: null): HistoryImportRow[];
 function getHistoryImportProgress(
@@ -1980,6 +1997,8 @@ export = {
   assignUnownedLearnedFacts,
   addTicketEvent,
   listTicketEvents,
+  listRecentTicketEvents,
+  countTicketEvents,
   getHistoryImportProgress,
   upsertHistoryImportProgress,
   addTicketNote,

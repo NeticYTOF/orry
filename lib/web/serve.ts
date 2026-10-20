@@ -734,7 +734,10 @@ async function handleApi(req: Request): Promise<Response | null> {
     }
     const ticketRoute = url.pathname.match(/^\/internal\/v1\/tickets\/(\d+)$/);
     if (ticketRoute && method === "GET") {
-      const detail = api.ticketDetail(Number(ticketRoute[1]));
+      const detail = api.ticketDetail(Number(ticketRoute[1]), {
+        eventsLimit: url.searchParams.get("eventsLimit"),
+        eventsOffset: url.searchParams.get("eventsOffset"),
+      });
       if (!detail) return json({ error: "ticket not found" }, 404);
       if (url.searchParams.get("programId") && url.searchParams.get("programId") !== detail.ticket.program_id) {
         return json({ error: "program mismatch" }, 403);
@@ -1024,6 +1027,7 @@ async function handleApi(req: Request): Promise<Response | null> {
         const res = dashboardApi.ticketDetailScoped(
           decodeURIComponent(dashTicketDetail[1]),
           Number(dashTicketDetail[2]),
+          { eventsLimit: url.searchParams.get("eventsLimit"), eventsOffset: url.searchParams.get("eventsOffset") },
         );
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));

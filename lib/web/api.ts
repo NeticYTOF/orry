@@ -890,14 +890,17 @@ function ticketTenantError(ticket: Ticket, body: TicketActionBody = {}): string 
   return null;
 }
 
-function ticketDetail(id: number): ApiResponse | null {
+function ticketDetail(
+  id: number,
+  page: { eventsLimit?: string | null; eventsOffset?: string | null } = {},
+): ApiResponse | null {
   const ticket = db.getTicket(id);
   if (!ticket) return null;
   const resolutionSummary = ticket.resolution_summary || null;
   return {
     ticket: { ...ticket, resolutionSummary },
     resolutionSummary,
-    events: db.listTicketEvents(id),
+    ...require("./dashboardApi").ticketEventsPage(id, page),
     notes: db.listTicketNotes(id),
   };
 }

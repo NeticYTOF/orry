@@ -447,4 +447,22 @@ test("closing route labels the latest close, hides requester ids and text, and p
   assert.equal(dash.ticketClosing("dash-closing-missing", {}).error, "unknown program");
 });
 
+test("ticket detail returns the newest events of a long ticket and pages older ones", () => {
+  seedProgram("dash-long");
+  const { id, createdAt } = seedTicket("dash-long", { status: "resolved" });
+  for (let i = 0; i < 130; i += 1) seedEvent(id, "dash-long", "helper_reply", "U-long", { n: i }, createdAt + i * 1000);
+  seedEvent(id, "dash-long", "resolved", "U-long", null, createdAt + 200000);
+  const first = dash.ticketDetailScoped("dash-long", id);
+  assert.equal(first.events.length, 100);
+  assert.equal(first.eventsTotal, 131);
+  assert.equal(first.eventsHasOlder, true);
+  assert.equal(first.events[first.events.length - 1].event_type, "resolved", "the latest close is on the first page");
+  assert.ok(first.events[0].created_at < first.events[99].created_at, "oldest-first within the page");
+  const older = dash.ticketDetailScoped("dash-long", id, { eventsOffset: 100 });
+  assert.equal(older.events.length, 31);
+  assert.equal(older.eventsHasOlder, false);
+  assert.equal(JSON.parse(older.events[0].detail).n, 0);
+  assert.equal(dash.ticketDetailScoped("dash-long", id, { eventsLimit: 9999 }).events.length, 131, "limit caps at 200");
+});
+
 export {};
