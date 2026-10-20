@@ -7,6 +7,7 @@
     "start": "bun index.ts",
     "ask": "bun index.ts --ask",
     "manifest": "bun scripts/manifest.cjs",
+    "dev:bridge": "bun scripts/dev-bridge.ts",
     "migrate:check": "bun scripts/migrate-railway.mjs --check",
     "migrate:write": "bun scripts/migrate-railway.mjs --write",
     "migrate:dump": "bun scripts/migrate-railway.mjs --dump-expected",
