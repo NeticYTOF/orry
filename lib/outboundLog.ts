@@ -239,12 +239,121 @@ function recordEdited(payload: RawPayload, source: string, programId: string | n
   } catch (_) {}
 }
 
+interface OutboundRow {
+  id: number;
+  channel: string;
+  thread_ts: string | null;
+  message_ts: string | null;
+  surface: string;
+  source: string;
+  status: string;
+  error: string | null;
+  private: number;
+  text: string | null;
+  blocks_json: string | null;
+  text_chars: number | null;
+  edit_count: number;
+  text_purged_at: number | null;
+  deleted_at: number | null;
+  delete_reason: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface ListParams {
+  since?: string | number | null;
+  until?: string | number | null;
+  limit?: string | number | null;
+  offset?: string | number | null;
+  source?: string | null;
+  channel?: string | null;
+  includeBlocks?: string | boolean | null;
+}
+
+const LIST_DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function present(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== "";
+}
+
+// Program-scoped read of the log, newest first. Text (and blocks, when
+// asked for) is returned only for channel and thread messages that are not
+// private; DM rows and private rows are metadata only even if a future
+// write path ever stored text for them.
+function listForProgram(programId: string, params: ListParams = {}) {
+  if (!programId || !require("./programs").get(programId)) return { error: "unknown program" };
+  const until = present(params.until) ? Number(params.until) : Date.now();
+  const since = present(params.since) ? Number(params.since) : until - LIST_DEFAULT_WINDOW_MS;
+  if (!Number.isFinite(since) || !Number.isFinite(until))
+    return { error: "since and until must be epoch milliseconds" };
+  if (since >= until) return { error: "since must be before until" };
+  const limit = Math.min(Math.max(Math.trunc(Number(params.limit)) || 100, 1), 500);
+  const offset = Math.max(Math.trunc(Number(params.offset)) || 0, 0);
+  const clauses = ["program_id = ?", "created_at > ?", "created_at <= ?"];
+  const values: Array<string | number> = [programId, since, until];
+  if (present(params.source)) {
+    clauses.push("source = ?");
+    values.push(String(params.source).slice(0, 40));
+  }
+  if (present(params.channel)) {
+    clauses.push("channel = ?");
+    values.push(String(params.channel).slice(0, 40));
+  }
+  const where = clauses.join(" AND ");
+  const total = Number(
+    (
+      db
+        .handle()
+        .query(`SELECT COUNT(*) AS n FROM outbound_messages WHERE ${where}`)
+        .get(...values) as { n: number }
+    )?.n || 0,
+  );
+  const found = db
+    .handle()
+    .query(`SELECT * FROM outbound_messages WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`)
+    .all(...values, limit, offset) as OutboundRow[];
+  const withBlocks = params.includeBlocks === true || params.includeBlocks === "1" || params.includeBlocks === "true";
+  const rows = found.map((row) => {
+    const textAllowed = !row.private && row.surface !== "dm" && !isDm(row.channel) && !row.deleted_at;
+    let blocks: unknown = undefined;
+    if (withBlocks) {
+      try {
+        blocks = textAllowed && row.blocks_json ? JSON.parse(row.blocks_json) : null;
+      } catch (_) {
+        blocks = null;
+      }
+    }
+    return {
+      id: row.id,
+      channel: row.channel,
+      threadTs: row.thread_ts,
+      messageTs: row.message_ts,
+      surface: row.surface,
+      source: row.source,
+      status: row.status,
+      error: row.error,
+      private: Boolean(row.private),
+      text: textAllowed ? row.text : null,
+      ...(withBlocks ? { blocks } : {}),
+      textChars: row.text_chars,
+      editCount: row.edit_count,
+      textPurgedAt: row.text_purged_at,
+      deletedAt: row.deleted_at,
+      deleteReason: row.delete_reason,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  });
+  return { programId, since, until, total, limit, offset, rows };
+}
+
 export = {
   recordPost,
   recordUpdate,
   recordDelete,
   recordSent,
   recordEdited,
+  listForProgram,
   errorCode,
   isDm,
   MAX_TEXT_CHARS,

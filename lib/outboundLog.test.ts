@@ -238,4 +238,53 @@ test("the sweeper drops text after 30 days, rows after 365, and any text on a de
   assert.equal(byTs.get("p.deleted").text, null);
 });
 
+test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns DM or private text", async () => {
+  const outboundLog = require("./outboundLog");
+  const programs = require("./programs");
+  db.saveProgram({ id: "out-route", name: "Out Route" });
+  db.saveProgram({ id: "out-route-other", name: "Other" });
+  programs.invalidate();
+  outboundLog.recordPost({ programId: "out-route", channel: "C-OR", threadTs: "1.1", ts: "1.2", text: "public reply" });
+  outboundLog.recordPost({ programId: "out-route", channel: "D-OR", ts: "1.3", text: "dm words" });
+  outboundLog.recordPost({ programId: "out-route", channel: "C-OR", ts: "1.4", text: "private", private: true });
+  outboundLog.recordPost({ programId: "out-route-other", channel: "C-OTHER", ts: "1.5", text: "other program" });
+  // A row written with text by some future path must still not leak for a DM.
+  db.handle().query("UPDATE outbound_messages SET text = 'leaked dm' WHERE channel = 'D-OR'").run();
+
+  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  process.env.RIVET_INTERNAL_TOKEN = "outbound-route-token";
+  try {
+    const serve = require("./web/serve");
+    const res = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/out-route/outbound?includeBlocks=1", {
+        headers: { Authorization: "Bearer outbound-route-token" },
+      }),
+    );
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.total, 3);
+    const blob = JSON.stringify(body);
+    assert.equal(blob.includes("other program"), false, "other programs never appear");
+    assert.equal(blob.includes("dm words") || blob.includes("leaked dm"), false);
+    assert.equal(
+      body.rows.find((r: { messageTs: string }) => r.messageTs === "1.4").text,
+      null,
+      "private rows keep no text",
+    );
+    const pub = body.rows.find((r: { messageTs: string }) => r.messageTs === "1.2");
+    assert.equal(pub.text, "public reply");
+    assert.equal(pub.surface, "thread");
+
+    const missing = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/out-route-missing/outbound", {
+        headers: { Authorization: "Bearer outbound-route-token" },
+      }),
+    );
+    assert.equal(missing.status, 404);
+  } finally {
+    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
+    else process.env.RIVET_INTERNAL_TOKEN = saved;
+  }
+});
+
 export {};

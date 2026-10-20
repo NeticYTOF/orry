@@ -1046,6 +1046,20 @@ async function handleApi(req: Request): Promise<Response | null> {
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
+      const outboundRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/outbound$/);
+      if (outboundRoute && method === "GET") {
+        const res = require("../outboundLog").listForProgram(decodeURIComponent(outboundRoute[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+          source: url.searchParams.get("source"),
+          channel: url.searchParams.get("channel"),
+          includeBlocks: url.searchParams.get("includeBlocks"),
+        });
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
       const dashMetrics = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/dashboard\/metrics$/);
       if (dashMetrics && method === "GET") {
         const res = dashboardApi.metricsOverview(decodeURIComponent(dashMetrics[1]), {
