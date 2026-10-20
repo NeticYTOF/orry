@@ -23,6 +23,9 @@ interface DashboardParams {
   userId?: string;
   active?: boolean;
   pingEligible?: boolean;
+  unassigned?: string | boolean | null;
+  hasAssignedAt?: string | boolean | null;
+  visibility?: string | null;
   eventsLimit?: string | number | null;
   eventsOffset?: string | number | null;
 }
@@ -98,6 +101,10 @@ const SORTS: Record<string, { column: string; dir: string }> = {
   waiting: { column: "created_at", dir: "ASC" },
 };
 
+function isTrue(value: unknown): boolean {
+  return value === true || value === "1" || value === "true";
+}
+
 function escapeLike(value: unknown): string {
   return String(value).replace(/[\\%_]/g, (c) => `\\${c}`);
 }
@@ -110,9 +117,22 @@ function ticketSearchScoped(programId: string, params: DashboardParams = {}) {
   const dir = params.dir === "asc" || params.dir === "desc" ? params.dir.toUpperCase() : SORTS[sort].dir;
   const clauses = ["program_id = ?"];
   const values: Array<string | number> = [programId];
-  if (params.status) {
+  const statuses = params.status
+    ? [
+        ...new Set(
+          String(params.status)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        ),
+      ].slice(0, 10)
+    : [];
+  if (statuses.length === 1) {
     clauses.push("status = ?");
-    values.push(params.status);
+    values.push(statuses[0]);
+  } else if (statuses.length > 1) {
+    clauses.push(`status IN (${statuses.map(() => "?").join(",")})`);
+    values.push(...statuses);
   } else if (params.statusGroup === "open") {
     clauses.push(`status IN (${OPEN_GROUP.map(() => "?").join(",")})`);
     values.push(...OPEN_GROUP);
@@ -123,6 +143,15 @@ function ticketSearchScoped(programId: string, params: DashboardParams = {}) {
   if (params.assigneeId) {
     clauses.push("assignee_id = ?");
     values.push(params.assigneeId);
+  } else if (isTrue(params.unassigned)) {
+    clauses.push("(assignee_id IS NULL OR assignee_id = '')");
+  }
+  if (isTrue(params.hasAssignedAt)) {
+    clauses.push("assigned_at IS NOT NULL");
+  }
+  if (params.visibility) {
+    clauses.push("visibility = ?");
+    values.push(String(params.visibility));
   }
   if (params.requesterId) {
     clauses.push("requester_id = ?");

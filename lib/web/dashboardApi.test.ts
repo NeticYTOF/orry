@@ -465,4 +465,29 @@ test("ticket detail returns the newest events of a long ticket and pages older o
   assert.equal(dash.ticketDetailScoped("dash-long", id, { eventsLimit: 9999 }).events.length, 131, "limit caps at 200");
 });
 
+test("scoped search takes several statuses, unassigned, visibility and assigned-at filters", () => {
+  const P = "dash-g11";
+  seedProgram(P);
+  const released = seedTicket(P, { status: "open" });
+  db.handle().query("UPDATE tickets SET assigned_at = 1 WHERE id = ?").run(released.id);
+  const fresh = seedTicket(P, { status: "open" });
+  const owned = seedTicket(P, { status: "claimed", assigneeId: "U-g11" });
+  const reopened = seedTicket(P, { status: "reopened", assigneeId: "U-g11" });
+  const imported = seedTicket(P, { status: "waiting_for_helper" });
+  db.handle().query("UPDATE tickets SET visibility = 'dashboard' WHERE id = ?").run(imported.id);
+  seedTicket(P, { status: "resolved" });
+  const ids = (params: TestRow) =>
+    dash
+      .ticketSearchScoped(P, params)
+      .rows.map((r: TestRow) => r.id)
+      .sort((a: number, b: number) => a - b);
+
+  assert.deepEqual(ids({ status: "claimed,reopened" }), [owned.id, reopened.id]);
+  assert.deepEqual(ids({ status: "claimed, reopened,claimed" }), [owned.id, reopened.id], "trimmed and deduped");
+  assert.deepEqual(ids({ statusGroup: "open", unassigned: "1" }), [released.id, fresh.id, imported.id]);
+  assert.deepEqual(ids({ status: "open", hasAssignedAt: "true" }), [released.id], "released tickets keep assigned_at");
+  assert.deepEqual(ids({ visibility: "dashboard" }), [imported.id]);
+  assert.deepEqual(ids({ status: "open", unassigned: "0" }), [released.id, fresh.id], "0 does not filter");
+});
+
 export {};
