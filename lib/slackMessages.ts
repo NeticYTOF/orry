@@ -108,6 +108,7 @@ async function sendProgramMessage({
   blocks = null,
   logSource = "program_message",
   logPrivate = false,
+  logTicketId = null,
 }: {
   client: MessageClient;
   program?: Program | null;
@@ -117,6 +118,7 @@ async function sendProgramMessage({
   blocks?: unknown[] | null;
   logSource?: string;
   logPrivate?: boolean;
+  logTicketId?: number | null;
 }): Promise<SendResult> {
   if (!client || !client.chat || typeof client.chat.postMessage !== "function") {
     throw new Error("slack client unavailable");
@@ -145,6 +147,7 @@ async function sendProgramMessage({
     blocks,
     source: logSource,
     private: logPrivate,
+    ticketId: logTicketId,
   };
   const failed = (err: unknown) => {
     try {

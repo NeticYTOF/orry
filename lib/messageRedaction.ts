@@ -105,6 +105,13 @@ function redactEventTexts(ticket: TicketRef, messageTs: string | null = null): n
   return changed;
 }
 
+// Orry's own messages about the ticket (the card quotes the question).
+function purgeOutbound(ticketId: number): void {
+  try {
+    require("./outboundLog").purgeTicketText(ticketId);
+  } catch (_) {}
+}
+
 function tombstone(ticket: TicketRef, kind: "deleted" | "edited", at: number): void {
   db.addTicketEvent({
     ticketId: ticket.id,
@@ -130,6 +137,7 @@ function redactDeletedRoot(ticket: TicketRef, at = Date.now()): void {
     )
     .run(resolution, at, ticket.id);
   redactEventTexts(ticket);
+  purgeOutbound(ticket.id);
   tombstone(ticket, "deleted", at);
 }
 
@@ -142,6 +150,7 @@ function redactEditedRoot(ticket: TicketRef, at = Date.now()): void {
          text_redaction = COALESCE(text_redaction, 'edited') WHERE id = ?`,
     )
     .run(at, ticket.id);
+  purgeOutbound(ticket.id);
   tombstone(ticket, "edited", at);
 }
 

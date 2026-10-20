@@ -460,6 +460,7 @@ const MIGRATIONS = [
     "table",
     "CREATE TABLE IF NOT EXISTS outbound_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT NOT NULL, thread_ts TEXT, message_ts TEXT, surface TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, error TEXT, private INTEGER NOT NULL DEFAULT 0, text TEXT, blocks_json TEXT, text_chars INTEGER, edit_count INTEGER NOT NULL DEFAULT 0, text_purged_at INTEGER, deleted_at INTEGER, delete_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
   ],
+  ["outbound_messages", "ticket_id", "ALTER TABLE outbound_messages ADD COLUMN ticket_id INTEGER"],
 ];
 
 const POST_MIGRATION_SCHEMA = `
@@ -502,6 +503,7 @@ CREATE INDEX IF NOT EXISTS idx_llm_usage_request ON llm_usage(request_id, create
 CREATE INDEX IF NOT EXISTS idx_outbound_program_created ON outbound_messages(program_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_outbound_message ON outbound_messages(channel, message_ts);
 CREATE INDEX IF NOT EXISTS idx_outbound_created ON outbound_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_ticket ON outbound_messages(ticket_id);
 `;
 
 export = { SCHEMA, MIGRATIONS, POST_MIGRATION_SCHEMA };

@@ -24,6 +24,7 @@ interface PostEntry {
   private?: boolean;
   status?: "sent" | "failed";
   error?: string | null;
+  ticketId?: number | null;
 }
 
 interface UpdateEntry {
@@ -89,6 +90,44 @@ function errorCode(error: unknown): string {
   return String(e.data?.error || e.code || errorMessage(error) || "unknown").slice(0, 60);
 }
 
+// A message belongs to a ticket when it is in the ticket's thread, or is the
+// ticket's card or thread card. Callers that know the ticket pass it.
+function ticketFor(channel: string, threadTs: string | null | undefined, ts: string | null | undefined): number | null {
+  try {
+    const handle = db.handle();
+    if (threadTs) {
+      const row = handle
+        .query("SELECT id FROM tickets WHERE channel = ? AND thread_ts = ? LIMIT 1")
+        .get(channel, threadTs) as { id: number } | null;
+      if (row) return row.id;
+    }
+    if (ts) {
+      const row = handle.query("SELECT id FROM tickets WHERE card_ts = ? OR public_ack_ts = ? LIMIT 1").get(ts, ts) as {
+        id: number;
+      } | null;
+      if (row) return row.id;
+    }
+  } catch (_) {}
+  return null;
+}
+
+// When a participant deletes or edits the question, Orry's own messages
+// about that ticket (the card quotes the question) lose their text too.
+function purgeTicketText(ticketId: number): number {
+  try {
+    return db
+      .handle()
+      .query(
+        `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_purged_at = COALESCE(text_purged_at, ?)
+           WHERE ticket_id = ? AND (text IS NOT NULL OR blocks_json IS NOT NULL)`,
+      )
+      .run(Date.now(), ticketId).changes;
+  } catch (e: unknown) {
+    log.debug("outboundLog", `ticket text purge failed: ${errorMessage(e)}`);
+    return 0;
+  }
+}
+
 function recordPost(entry: PostEntry): number | null {
   try {
     const t = Date.now();
@@ -97,12 +136,13 @@ function recordPost(entry: PostEntry): number | null {
     const res = db
       .handle()
       .query(
-        `INSERT INTO outbound_messages (program_id, channel, thread_ts, message_ts, surface, source, status, error, private,
+        `INSERT INTO outbound_messages (program_id, ticket_id, channel, thread_ts, message_ts, surface, source, status, error, private,
            text, blocks_json, text_chars, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         programFor(entry.programId, entry.channel),
+        entry.ticketId ? Number(entry.ticketId) : ticketFor(entry.channel, entry.threadTs, entry.ts),
         entry.channel,
         entry.threadTs || null,
         entry.ts || null,
@@ -241,6 +281,7 @@ function recordEdited(payload: RawPayload, source: string, programId: string | n
 
 interface OutboundRow {
   id: number;
+  ticket_id: number | null;
   channel: string;
   thread_ts: string | null;
   message_ts: string | null;
@@ -268,6 +309,7 @@ interface ListParams {
   source?: string | null;
   channel?: string | null;
   includeBlocks?: string | boolean | null;
+  ticketId?: string | number | null;
 }
 
 const LIST_DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -294,6 +336,12 @@ function listForProgram(programId: string, params: ListParams = {}) {
   if (present(params.source)) {
     clauses.push("source = ?");
     values.push(String(params.source).slice(0, 40));
+  }
+  if (present(params.ticketId)) {
+    const ticketId = Math.trunc(Number(params.ticketId));
+    if (!Number.isFinite(ticketId) || ticketId <= 0) return { error: "ticketId must be a ticket number" };
+    clauses.push("ticket_id = ?");
+    values.push(ticketId);
   }
   if (present(params.channel)) {
     clauses.push("channel = ?");
@@ -325,6 +373,7 @@ function listForProgram(programId: string, params: ListParams = {}) {
     }
     return {
       id: row.id,
+      ticketId: row.ticket_id,
       channel: row.channel,
       threadTs: row.thread_ts,
       messageTs: row.message_ts,
@@ -354,6 +403,7 @@ export = {
   recordSent,
   recordEdited,
   listForProgram,
+  purgeTicketText,
   errorCode,
   isDm,
   MAX_TEXT_CHARS,

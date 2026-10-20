@@ -287,4 +287,52 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
   }
 });
 
+test("log rows link to their ticket: thread replies, the card, and the route's ticketId filter", async () => {
+  const outboundLog = require("./outboundLog");
+  const id = db.createTicket({
+    programId: "out-prog",
+    channel: "C-OUT-T",
+    threadTs: "20.1",
+    requesterId: "U-KID",
+    question: "SENTINEL-T question",
+  });
+  await slackMessages.sendProgramMessage({
+    client: okClient("20.2"),
+    program: PROGRAM,
+    channel: "C-OUT-T",
+    threadTs: "20.1",
+    text: "a reply in the ticket thread",
+  });
+  await slackMessages.sendProgramMessage({
+    client: okClient("20.3"),
+    program: PROGRAM,
+    channel: "C-OUT-ORG2",
+    text: 'asked: "SENTINEL-T question"',
+    logSource: "ticket_card",
+    logTicketId: id,
+  });
+  outboundLog.recordPost({ programId: "out-prog", channel: "C-OUT-T", ts: "20.9", text: "unrelated" });
+  const linked = db
+    .handle()
+    .query("SELECT message_ts FROM outbound_messages WHERE ticket_id = ? ORDER BY message_ts")
+    .all(id)
+    .map((r: { message_ts: string }) => r.message_ts);
+  assert.deepEqual(linked, ["20.2", "20.3"]);
+
+  db.saveProgram({ id: "out-prog", name: "Out" });
+  require("./programs").invalidate();
+  const listed = outboundLog.listForProgram("out-prog", { ticketId: id });
+  assert.equal(listed.total, 2);
+  assert.ok(listed.rows.every((r: { ticketId: number }) => r.ticketId === id));
+
+  // The participant deletes the question: the card that quoted it loses its text too.
+  require("./messageRedaction").handleMessageChange({
+    subtype: "message_deleted",
+    channel: "C-OUT-T",
+    deleted_ts: "20.1",
+  });
+  const left = db.handle().query("SELECT text FROM outbound_messages WHERE ticket_id = ? AND text IS NOT NULL").all(id);
+  assert.equal(left.length, 0);
+});
+
 export {};

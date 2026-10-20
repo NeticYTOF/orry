@@ -893,6 +893,8 @@ async function ensureSupportTicket(options: EnsureSupportTicketOptions): Promise
         threadTs,
         text: "Someone will be here to help you soon!",
         blocks: reply.plainDashesInBlocks(supportTicketBlocks(ticket, prog)),
+        logSource: "ticket_thread_card",
+        logTicketId: ticket.id,
       });
       if (res?.ts && db.updatePublicAckTs(ticket.id, res.ts)) {
         ticket.public_ack_ts = res.ts;
@@ -1390,6 +1392,8 @@ async function postCard({
           `[Ticket #${ticket.id}] <@${requesterId}> asked: "${reply.escapeSlack(question).slice(0, 100)}"`,
         ),
         blocks: cardBlocks,
+        logSource: "ticket_card",
+        logTicketId: ticket.id,
       });
       if (res?.ts) {
         if (db.updateTicketCardTs(ticket.id, res.ts)) {
