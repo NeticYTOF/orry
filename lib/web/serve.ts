@@ -721,6 +721,16 @@ async function handleApi(req: Request): Promise<Response | null> {
     if (url.pathname === "/internal/v1/slack/membership" && method === "GET") {
       return json(await api.internalSlackMembership(url.searchParams.get("channel")));
     }
+    const membersRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/members$/);
+    if (membersRoute && method === "GET") {
+      const res = await api.internalProgramMembers(
+        decodeURIComponent(membersRoute[1]),
+        url.searchParams.get("channel"),
+      );
+      const status =
+        res.error === "unknown program" ? 404 : res.error === "slack not connected" ? 503 : res.error ? 400 : 200;
+      return json(res, status);
+    }
     if (url.pathname === "/internal/v1/slack/users/info" && method === "GET") {
       return json(await api.internalUserInfo(url.searchParams.get("user")));
     }

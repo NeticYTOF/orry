@@ -351,6 +351,8 @@ interface UserInfo {
   realName?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
+  isBot?: boolean;
+  deleted?: boolean;
   reason?: string;
 }
 interface SlackError {
@@ -2045,7 +2047,18 @@ async function internalUserInfo(userId: string): Promise<ApiResponse> {
       const realName = profile.real_name || u.real_name || null;
       const username = u.name || null;
       const avatarUrl = profile.image_192 || profile.image_72 || null;
-      userInfoCache.set(userId, { at: Date.now(), ok: true, displayName, realName, username, avatarUrl });
+      const isBot = Boolean(u.is_bot || u.is_app_user);
+      const deleted = Boolean(u.deleted);
+      userInfoCache.set(userId, {
+        at: Date.now(),
+        ok: true,
+        displayName,
+        realName,
+        username,
+        avatarUrl,
+        isBot,
+        deleted,
+      });
       return { ok: true, slackId: userId, displayName, realName, username, avatarUrl };
     } catch (e) {
       const error = e as SlackError;
@@ -2158,6 +2171,99 @@ async function fetchSlackChannels(): Promise<ApiResponse> {
   }
 }
 
+const MEMBERS_CAP = 300;
+const MEMBERS_TTL_MS = 10 * 60 * 1000;
+const MEMBERS_FAILURE_TTL_MS = 60 * 1000;
+const membersCache = new Map<string, { at: number; result: ApiResponse }>();
+const membersInFlight = new Map<string, Promise<ApiResponse>>();
+
+function programChannelIds(programId: string, prog: Program): Set<string> {
+  const ids = new Set<string>();
+  for (const id of [prog.helpChannel, prog.organizerChannel, ...(Array.isArray(prog.channels) ? prog.channels : [])]) {
+    if (typeof id === "string" && id) ids.add(id);
+  }
+  try {
+    for (const row of db.listProgramChannels(programId)) if (row.channel_id) ids.add(row.channel_id);
+  } catch (_) {}
+  return ids;
+}
+
+// People in one of a program's channels (by default its organizer channel),
+// for an invite picker: active humans only, id, handle and names. Reads
+// conversations.members and the cached users.info lookups (users:read), at
+// most MEMBERS_CAP people, cached for 10 minutes per channel.
+async function internalProgramMembers(programId: string, channelParam: string | null = null): Promise<ApiResponse> {
+  const prog = programs.get(programId);
+  if (!prog) return { error: "unknown program" };
+  const organizer = require("../tickets").getOrganizerChannel(prog, prog.workspaceId || null);
+  const channel = (channelParam || "").trim() || organizer || prog.helpChannel || null;
+  if (!channel) return { error: "program has no channel to list" };
+  const allowed = programChannelIds(programId, prog);
+  if (organizer) allowed.add(organizer);
+  if (!allowed.has(channel)) return { error: "channel is not one of this program's channels" };
+  const key = `${programId}:${channel}`;
+  const hit = membersCache.get(key);
+  if (hit && Date.now() - hit.at < (hit.result.error ? MEMBERS_FAILURE_TTL_MS : MEMBERS_TTL_MS)) return hit.result;
+  const pending = membersInFlight.get(key);
+  if (pending) return pending;
+  const run = fetchProgramMembers(programId, channel).then((result) => {
+    membersCache.set(key, { at: Date.now(), result });
+    return result;
+  });
+  membersInFlight.set(key, run);
+  try {
+    return await run;
+  } finally {
+    membersInFlight.delete(key);
+  }
+}
+
+async function fetchProgramMembers(programId: string, channel: string): Promise<ApiResponse> {
+  const token = config.slack.botToken;
+  if (!token && !slackClient) return { programId, channel, error: "slack not connected" };
+  const client = slackClient || new (require("@slack/web-api").WebClient)(token);
+  const ids: string[] = [];
+  let truncated = false;
+  try {
+    let cursor: string | undefined;
+    do {
+      const page = await client.conversations.members({ channel, limit: 200, ...(cursor ? { cursor } : {}) });
+      for (const id of page.members || []) {
+        if (ids.length >= MEMBERS_CAP) {
+          truncated = true;
+          break;
+        }
+        if (typeof id === "string" && id && id !== "USLACKBOT") ids.push(id);
+      }
+      cursor = page.response_metadata?.next_cursor || undefined;
+    } while (cursor && !truncated);
+  } catch (e) {
+    const error = e as SlackError;
+    return { programId, channel, error: String(error.code || error.data?.error || error.message || "lookup failed") };
+  }
+  const members: Array<{ id: string; handle: string | null; realName: string | null; displayName: string | null }> = [];
+  let unresolved = 0;
+  await Promise.all(
+    ids.map(async (id) => {
+      const info = await internalUserInfo(id).catch(() => null);
+      const flags = userInfoCache.get(id);
+      if (!info || !info.ok || !flags) {
+        unresolved += 1;
+        return;
+      }
+      if (flags.isBot || flags.deleted) return;
+      members.push({
+        id,
+        handle: (info.username as string | null) || null,
+        realName: (info.realName as string | null) || null,
+        displayName: (info.displayName as string | null) || null,
+      });
+    }),
+  );
+  members.sort((a, b) => String(a.realName || a.handle || a.id).localeCompare(String(b.realName || b.handle || b.id)));
+  return { programId, channel, fetchedAt: Date.now(), truncated, unresolved, members };
+}
+
 async function internalSlackMembership(channelId: string): Promise<ApiResponse> {
   if (!channelId) return { ok: false, hasAccess: false, reason: "channel required" };
   const token = config.slack.botToken;
@@ -2182,6 +2288,7 @@ async function internalSlackMembership(channelId: string): Promise<ApiResponse> 
 }
 
 export = {
+  internalProgramMembers,
   buildPulse,
   handleAsk,
   queueList,
