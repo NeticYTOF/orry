@@ -205,6 +205,8 @@ const ANSWERED_TTL_MS = 24 * 60 * 60 * 1000;
 const THREAD_TTL_MS = 60 * 60 * 1000;
 const HISTORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+const OUTBOUND_TEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const OUTBOUND_ROW_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 const CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
 const CACHE_IDLE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1056,6 +1058,23 @@ function recordRequest(userId: string) {
   query("INSERT INTO rate_limits (user_id, created_at) VALUES (?, ?)").run(userId, now());
 }
 
+// The outbound log keeps text for 30 days and rows for a year. A row Orry
+// deleted in Slack (a :x: reaction, a discarded placeholder) must hold no
+// text at all; recordDelete already clears it and this catches any row
+// that was marked deleted some other way.
+function purgeOutboundMessages(t = now()) {
+  const purgedDeleted = query(
+    `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_purged_at = COALESCE(text_purged_at, ?)
+       WHERE deleted_at IS NOT NULL AND (text IS NOT NULL OR blocks_json IS NOT NULL)`,
+  ).run(t).changes;
+  const purgedOld = query(
+    `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_purged_at = ?
+       WHERE created_at < ? AND (text IS NOT NULL OR blocks_json IS NOT NULL)`,
+  ).run(t, t - OUTBOUND_TEXT_TTL_MS).changes;
+  const removed = query("DELETE FROM outbound_messages WHERE created_at < ?").run(t - OUTBOUND_ROW_TTL_MS).changes;
+  return { purgedDeleted, purgedOld, removed };
+}
+
 function sweep() {
   const t = now();
   query("DELETE FROM answered_messages WHERE answered_at < ?").run(t - ANSWERED_TTL_MS);
@@ -1065,6 +1084,11 @@ function sweep() {
   query("DELETE FROM user_messages WHERE created_at < ?").run(t - USER_MESSAGE_TTL_MS);
   query("DELETE FROM answer_cache WHERE COALESCE(last_asked_at, created_at) < ?").run(t - CACHE_IDLE_MS);
   query("DELETE FROM rate_limits WHERE created_at < ?").run(t - 60 * 60 * 1000);
+  try {
+    purgeOutboundMessages(t);
+  } catch (e: unknown) {
+    log.warn("db", `outbound log purge failed: ${errorMessage(e)}`);
+  }
 
   try {
     handle().exec("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -1957,6 +1981,9 @@ export = {
   now,
   handle,
   sweep,
+  purgeOutboundMessages,
+  OUTBOUND_TEXT_TTL_MS,
+  OUTBOUND_ROW_TTL_MS,
   recordAnsweredThread,
   getRecentAnsweredThreads,
   getLearnedFactsWithThreads,

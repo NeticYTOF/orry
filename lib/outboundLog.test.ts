@@ -26,6 +26,7 @@ interface OutRow {
   text_chars: number | null;
   edit_count: number;
   deleted_at: number | null;
+  text_purged_at: number | null;
 }
 
 function rows(channel: string): OutRow[] {
@@ -208,6 +209,33 @@ test("a ticket card edit keeps the latest text and blocks on the card's row", as
   const [card] = rows("C-OUT-ORG").filter((r) => r.message_ts === "17.1");
   assert.equal(card.edit_count >= 1, true);
   assert.match(card.text || "", /Claimed/);
+});
+
+test("the sweeper drops text after 30 days, rows after 365, and any text on a deleted row", () => {
+  const outboundLog = require("./outboundLog");
+  const DAY = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const make = (ts: string, ageDays: number) => {
+    const id = outboundLog.recordPost({ programId: "out-prog", channel: "C-OUT-PURGE", ts, text: `text ${ts}` });
+    db.handle()
+      .query("UPDATE outbound_messages SET created_at = ? WHERE id = ?")
+      .run(now - ageDays * DAY, id);
+    return id;
+  };
+  make("p.fresh", 29);
+  make("p.old", 31);
+  make("p.ancient", 366);
+  const deletedId = make("p.deleted", 1);
+  db.handle().query("UPDATE outbound_messages SET deleted_at = ? WHERE id = ?").run(now, deletedId);
+
+  db.sweep();
+  const byTs = new Map(rows("C-OUT-PURGE").map((r) => [r.message_ts, r]));
+  assert.equal(byTs.get("p.fresh").text, "text p.fresh");
+  assert.equal(byTs.get("p.old").text, null);
+  assert.ok(byTs.get("p.old").text_purged_at, "purge time is recorded");
+  assert.equal(byTs.get("p.old").text_chars, "text p.old".length, "metadata survives the purge");
+  assert.equal(byTs.has("p.ancient"), false);
+  assert.equal(byTs.get("p.deleted").text, null);
 });
 
 export {};
