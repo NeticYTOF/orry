@@ -1046,6 +1046,17 @@ async function handleApi(req: Request): Promise<Response | null> {
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
+      const outcomesRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/answers\/outcomes$/);
+      if (outcomesRoute && method === "GET") {
+        const res = require("../answerOutcomes").listForProgram(decodeURIComponent(outcomesRoute[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        });
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
       const outboundRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/outbound$/);
       if (outboundRoute && method === "GET") {
         const res = require("../outboundLog").listForProgram(decodeURIComponent(outboundRoute[1]), {

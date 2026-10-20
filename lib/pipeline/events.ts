@@ -31,6 +31,10 @@ interface EventOptions {
   programId?: string | null;
   role?: ChannelRole | null;
   addressed?: boolean;
+  // Where the message was, for the answer_outcomes row. Ids only.
+  channel?: string | null;
+  threadTs?: string | null;
+  messageTs?: string | null;
 }
 
 function clean(value: unknown) {
@@ -44,7 +48,14 @@ function format(event: EventFields) {
   return FIELDS.map((k) => `${k}=${clean(event[k])}`).join(" ");
 }
 
-function start({ programId = null, role = null, addressed = false }: EventOptions = {}) {
+function start({
+  programId = null,
+  role = null,
+  addressed = false,
+  channel = null,
+  threadTs = null,
+  messageTs = null,
+}: EventOptions = {}) {
   const startedAt = Date.now();
   const event: EventFields = { program_id: programId, channel_role: role, addressed: Boolean(addressed) };
   let done = false;
@@ -71,6 +82,11 @@ function start({ programId = null, role = null, addressed = false }: EventOption
       event.reason = fields.reason || null;
       event.latency_ms = Date.now() - startedAt;
       log.info("pipeline", `[pipeline] ${format(event)}`);
+      if (channel || threadTs) {
+        try {
+          require("../answerOutcomes").record(event, { channel, threadTs, messageTs });
+        } catch (_) {}
+      }
       return event;
     },
     event,

@@ -207,6 +207,7 @@ const HISTORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 const OUTBOUND_TEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const OUTBOUND_ROW_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const ANSWER_OUTCOME_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 const CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
 const CACHE_IDLE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1088,6 +1089,11 @@ function sweep() {
     purgeOutboundMessages(t);
   } catch (e: unknown) {
     log.warn("db", `outbound log purge failed: ${errorMessage(e)}`);
+  }
+  try {
+    query("DELETE FROM answer_outcomes WHERE created_at < ?").run(t - ANSWER_OUTCOME_TTL_MS);
+  } catch (e: unknown) {
+    log.warn("db", `answer outcome purge failed: ${errorMessage(e)}`);
   }
 
   try {

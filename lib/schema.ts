@@ -461,6 +461,13 @@ const MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS outbound_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT NOT NULL, thread_ts TEXT, message_ts TEXT, surface TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, error TEXT, private INTEGER NOT NULL DEFAULT 0, text TEXT, blocks_json TEXT, text_chars INTEGER, edit_count INTEGER NOT NULL DEFAULT 0, text_purged_at INTEGER, deleted_at INTEGER, delete_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
   ],
   ["outbound_messages", "ticket_id", "ALTER TABLE outbound_messages ADD COLUMN ticket_id INTEGER"],
+
+  // What the answer pipeline did with each message. No text, no user id.
+  [
+    "answer_outcomes",
+    "table",
+    "CREATE TABLE IF NOT EXISTS answer_outcomes (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT, thread_ts TEXT, message_ts TEXT, ticket_id INTEGER, channel_role TEXT, addressed INTEGER NOT NULL DEFAULT 0, final_action TEXT NOT NULL, reason TEXT, grounded INTEGER, latency_ms INTEGER, created_at INTEGER NOT NULL)",
+  ],
 ];
 
 const POST_MIGRATION_SCHEMA = `
@@ -504,6 +511,8 @@ CREATE INDEX IF NOT EXISTS idx_outbound_program_created ON outbound_messages(pro
 CREATE INDEX IF NOT EXISTS idx_outbound_message ON outbound_messages(channel, message_ts);
 CREATE INDEX IF NOT EXISTS idx_outbound_created ON outbound_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_outbound_ticket ON outbound_messages(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_answer_outcomes_program ON answer_outcomes(program_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_answer_outcomes_created ON answer_outcomes(created_at);
 `;
 
 export = { SCHEMA, MIGRATIONS, POST_MIGRATION_SCHEMA };
