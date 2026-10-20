@@ -448,6 +448,9 @@ const MIGRATIONS = [
   ],
 
   ["tickets", "last_human_reply_at", "ALTER TABLE tickets ADD COLUMN last_human_reply_at INTEGER"],
+
+  ["tickets", "text_redacted_at", "ALTER TABLE tickets ADD COLUMN text_redacted_at INTEGER"],
+  ["tickets", "text_redaction", "ALTER TABLE tickets ADD COLUMN text_redaction TEXT"],
 ];
 
 const POST_MIGRATION_SCHEMA = `

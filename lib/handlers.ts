@@ -904,6 +904,13 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (event.bot_id || event.subtype === "bot_message") return;
   if (stagingBlocked(event.channel)) return;
 
+  // A participant deleting or editing their message: drop the stored copy.
+  // Nothing is posted and the message is never answered.
+  if (event.subtype === "message_deleted" || event.subtype === "message_changed") {
+    require("./messageRedaction").handleMessageChange(event, workspace.workspaceOf(event, body));
+    return;
+  }
+
   const allowedSubtypes = ["file_share", "thread_broadcast"];
   if (event.subtype && !allowedSubtypes.includes(event.subtype)) return;
 
