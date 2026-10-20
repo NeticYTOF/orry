@@ -218,10 +218,15 @@ function evidencePrompt(passages: Array<{ id: string; source: string; heading?: 
 }
 
 function exactFaqAnswer(question: string, passages: Array<{ source: string; text: string }>): AnswerResult | null {
+  const ignoredWords = new Set(["a", "an", "the", "this", "that"]);
   const normalize = (value: string) =>
     value
+      .replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/gi, " ")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, " ")
+      .split(/\s+/)
+      .filter((word) => word && !ignoredWords.has(word))
+      .join(" ")
       .trim();
   const expected = normalize(question);
   if (!expected) return null;
@@ -562,7 +567,7 @@ async function lookupAnswer(
   const query = retrievalQuery(question, contextPrompt, prog);
   const { passages } = knowledge.getEvidenceContext(query, programId);
   const corpus = evidencePrompt(passages);
-  let result = contextPrompt ? null : exactFaqAnswer(question, passages);
+  let result = exactFaqAnswer(question, passages);
   if (!result) result = await answer.getGroundedAnswer(question, corpus, contextPrompt, prog, channel, { isPing });
   if (result) {
     result = await applyPassageCitations(result, passages, prog, question);
@@ -602,7 +607,7 @@ async function answerOrChat(
     : retrievalQuery(question, contextPrompt, prog);
   const { passages } = knowledge.getEvidenceContext(query, programId);
   const corpus = evidencePrompt(passages);
-  let result = contextPrompt || previousQuestion ? null : exactFaqAnswer(question, passages);
+  let result = exactFaqAnswer(question, passages);
   if (!result) {
     result =
       onText && passages.length === 0
