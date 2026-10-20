@@ -818,16 +818,36 @@ function channelRemove(programId: string, channelId: string): ApiResponse {
   return { ok, channels: channelsList() };
 }
 
-function internalAuth(req: Request): ApiResponse {
-  const token = process.env.RIVET_INTERNAL_TOKEN;
-  if (!token) return { ok: false, status: 404, body: { error: "internal api disabled" } };
-  const header = req.headers.get("authorization") || "";
-  const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (presented.length !== token.length) return { ok: false, status: 401, body: { error: "unauthorized" } };
+function tokenMatches(presented: string, token: string | undefined): boolean {
+  if (!token || presented.length !== token.length) return false;
   let diff = 0;
   for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ presented.charCodeAt(i);
-  if (diff !== 0) return { ok: false, status: 401, body: { error: "unauthorized" } };
-  return { ok: true };
+  return diff === 0;
+}
+
+// The read-only token may call GET routes and the users/info batch lookup
+// (a read that uses POST). Every other method or route needs the full token.
+function readTokenAllows(req: Request): boolean {
+  const method = req.method.toUpperCase();
+  if (method === "GET") return true;
+  return method === "POST" && new URL(req.url).pathname === "/internal/v1/slack/users/info";
+}
+
+function internalAuth(req: Request): ApiResponse {
+  const token = process.env.RIVET_INTERNAL_TOKEN;
+  const readToken = process.env.RIVET_INTERNAL_READ_TOKEN;
+  if (!token && !readToken) return { ok: false, status: 404, body: { error: "internal api disabled" } };
+  const header = req.headers.get("authorization") || "";
+  const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
+  // Compare against both so the timing does not say which one matched.
+  const full = tokenMatches(presented, token);
+  const read = tokenMatches(presented, readToken);
+  if (full) return { ok: true };
+  if (read) {
+    if (readTokenAllows(req)) return { ok: true, readOnly: true };
+    return { ok: false, status: 403, body: { error: "read-only token" } };
+  }
+  return { ok: false, status: 401, body: { error: "unauthorized" } };
 }
 
 function internalHistoryImportProgress(programId: string): ApiResponse {

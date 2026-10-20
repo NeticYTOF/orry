@@ -446,6 +446,73 @@ test("POST /internal/v1/programs/:id/incidents/manual creates only for a program
     else process.env.RIVET_INTERNAL_TOKEN = saved;
   }
 });
+test("read-only token: GET routes and users/info only; writes are 403; the full token still writes", async () => {
+  const serve = require("./serve");
+  const api = require("./api");
+  const saved = { full: process.env.RIVET_INTERNAL_TOKEN, read: process.env.RIVET_INTERNAL_READ_TOKEN };
+  try {
+    process.env.RIVET_INTERNAL_TOKEN = "full-token-for-writes";
+    process.env.RIVET_INTERNAL_READ_TOKEN = "read-token-for-gets";
+    api.internalProgramSync("ro-token-prog", {
+      name: "RO",
+      workspaceId: "TW-RO",
+      claimedBy: "U-ro-org",
+      programChannels: [],
+    });
+    const R = withToken("read-token-for-gets");
+    const get = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", { headers: R }),
+    );
+    assert.equal(get.status, 200);
+    const lookup = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/slack/users/info", {
+        method: "POST",
+        headers: { ...R, "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: [] }),
+      }),
+    );
+    assert.equal(lookup.status, 200, "the batch name lookup is a read that uses POST");
+    const write = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", {
+        method: "PUT",
+        headers: { ...R, "Content-Type": "application/json" },
+        body: JSON.stringify({ actorId: "U-ro-org", members: ["U-ro-sneak"] }),
+      }),
+    );
+    assert.equal(write.status, 403);
+    assert.equal(require("../db").isHelper("ro-token-prog", "U-ro-sneak"), false);
+    const importStart = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/history-import", { method: "POST", headers: R }),
+    );
+    assert.equal(importStart.status, 403, "the history-import route shares the same gate");
+    const ticketWrite = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/tickets/1/resolve", { method: "PATCH", headers: R }),
+    );
+    assert.equal(ticketWrite.status, 403);
+    const wrong = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/health", { headers: withToken("read-token-for-getz") }),
+    );
+    assert.equal(wrong.status, 401);
+    const fullWrite = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", {
+        method: "PUT",
+        headers: { ...withToken("full-token-for-writes"), "Content-Type": "application/json" },
+        body: JSON.stringify({ actorId: "U-ro-org", members: ["U-ro-sneak"] }),
+      }),
+    );
+    assert.equal(fullWrite.status, 200);
+    assert.equal(require("../db").isHelper("ro-token-prog", "U-ro-sneak"), true);
+  } finally {
+    for (const [key, value] of [
+      ["RIVET_INTERNAL_TOKEN", saved.full],
+      ["RIVET_INTERNAL_READ_TOKEN", saved.read],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("web bind: RIVET_WEB_PORT beats PORT, host defaults to 0.0.0.0, an empty host is refused", () => {
   const serve = require("./serve");
   assert.deepEqual(serve.resolveWebBind({}), { host: "0.0.0.0", port: 4100, error: null });
