@@ -844,6 +844,16 @@ strip it except for the actions the site whitelists (`sla.notified`).
   pipeline", not "every message".
 - The members route lists one channel. Use the organizer channel (the
   default) for the invite form.
+- `GET /internal/v1/programs/:id/helpers` (unchanged, the Wizard's route)
+  lists roster helpers only. Organizers on `RIVET_ADMIN_USER_IDS` are not
+  on it, yet Core counts them as staff: their replies set
+  `first_human_response_at`, they can be the owner and the credited helper,
+  and the closing route reports their closes as `actorKind: "helper"`.
+  No route lists the admins, so ask the access route about the people the
+  data names (owners, first responders, credited helpers, helper closes)
+  and treat `admin: true` as staff.
+- `macro_sent` events keep the macro's trigger word as `trigger` (for
+  example `?wrapup`), with `macroId`.
 
 ## Running it locally: the dev bridge
 
@@ -871,9 +881,9 @@ What it is:
   `dev_bridge_no_slack`; claim, resolve and other database-only writes work.
 - The database is a fresh temp file per port, replaced on every run.
   `--db <file>` keeps one and seeds it only while it has no tickets.
-- The seed is deterministic for a given `--seed` and start time: 150 tickets
-  over the 12 ISO weeks ending this week (125 finished, 25 open or parked),
-  about 1,100 events, about 870 audit rows, about 360 outbound log rows and
+- The seed is deterministic for a given `--seed` and start time: 154 tickets
+  over the 12 ISO weeks ending this week (127 finished, 27 open or parked),
+  about 1,150 events, about 890 audit rows, about 370 outbound log rows and
   480 answer outcomes. Program `loadout`, workspace `T0DEVWS01`, channels
   `C0DEVHELP1` (help), `C0DEVMAIN1` (main), `C0DEVORG01` (organizers).
 - People (ids match the site's `lib/data/fixtures/people.ts`): organizer
@@ -884,6 +894,15 @@ What it is:
   "Maker 40"); one bot, `U0BOTDEV1`.
 - Two invented tickets ask to talk to a human, so the site's sensitive-topic
   path has something to hide.
+- Four more tickets cover cases a site must handle: one the organizer
+  `U0PAT0001` claimed, answered and finished (credited to them, a
+  `helper` close on the closing route) in last week; one from a direct
+  message (`D0DEVDM001`, outside the program's channels); one open ticket
+  whose question the participant deleted and one finished ticket whose
+  question they edited. Both go through the real redaction code
+  (`lib/messageRedaction.ts`), so `question` is empty, `text_redaction`
+  is set and there is a `root_message_deleted` or `root_message_edited`
+  event.
 
 ## Not covered by this series
 

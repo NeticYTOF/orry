@@ -557,19 +557,31 @@ function makeContext(now: number, rng: Rng, summary: SeedSummary): Ctx {
   };
 }
 
-function seedTicket(ctx: Ctx, week: number, created: number, serial: number, helper: () => string, weekIds: number[]) {
+// `o` pins the scenario or the channel (the site cases below); otherwise both come
+// from the random history. Returns the new ticket id.
+function seedTicket(
+  ctx: Ctx,
+  week: number,
+  created: number,
+  serial: number,
+  helper: () => string,
+  weekIds: number[],
+  o: { scenario?: Scenario; channel?: string } = {},
+): number | null {
   const { rng, now, summary } = ctx;
   const handle = db.handle();
   const [category, question] = QUESTIONS[Math.floor(rng() * QUESTIONS.length)];
   const requester = PARTICIPANTS[Math.floor(rng() * PARTICIPANTS.length)].id;
-  const scenario = chooseScenario(rng, now - created, week);
+  const chosen = chooseScenario(rng, now - created, week);
+  const scenario = o.scenario || chosen;
+  const channel = o.channel || CHANNELS.help;
   const threadTs = slackTs(created, serial);
   const story = new TicketStory(created, requester, now, scenario === "imported");
   tell(story, scenario, rng, helper, question);
   const id = db.createTicket({
     programId: PROGRAM_ID,
     workspaceId: WORKSPACE_ID,
-    channel: CHANNELS.help,
+    channel,
     threadTs,
     requesterId: requester,
     question,
@@ -577,7 +589,7 @@ function seedTicket(ctx: Ctx, week: number, created: number, serial: number, hel
     createdAt: created,
     visibility: String(story.fields.visibility),
   });
-  if (!id) return;
+  if (!id) return null;
   if (scenario === "duplicate" && weekIds.length > 0) story.fields.duplicate_of = weekIds[0];
   weekIds.push(id);
   if (story.cards) {
@@ -607,35 +619,29 @@ function seedTicket(ctx: Ctx, week: number, created: number, serial: number, hel
   }
   for (const answer of story.answers) {
     const ts = slackTs(answer.at, serial + 100000);
-    ctx.out({ channel: CHANNELS.help, threadTs, ts, text: answer.text, source: "answer" }, answer.at);
+    ctx.out({ channel, threadTs, ts, text: answer.text, source: "answer" }, answer.at);
   }
   if (story.cards) {
     const at = created + 2 * MIN;
     const ack = "Someone will be here to help you soon!";
     const card = `[Ticket #${id}] <@${requester}> asked: "${question.slice(0, 100)}"`;
     const cardTs = story.fields.card_ts;
-    ctx.out(
-      { channel: CHANNELS.help, threadTs, ts: story.fields.public_ack_ts, text: ack, source: "ticket_thread_card" },
-      at,
-    );
+    ctx.out({ channel, threadTs, ts: story.fields.public_ack_ts, text: ack, source: "ticket_thread_card" }, at);
     ctx.out({ channel: CHANNELS.organizer, ts: cardTs, text: card, source: "ticket_card", ticketId: id }, at);
     if (rng() < 0.15) {
       const ts = slackTs(created + MIN, serial + 700000);
-      ctx.out(
-        { channel: CHANNELS.help, threadTs, ts, text: "Thinking...", source: "placeholder" },
-        created + MIN,
-        true,
-      );
+      ctx.out({ channel, threadTs, ts, text: "Thinking...", source: "placeholder" }, created + MIN, true);
     }
     // The SLA loop notified organizers about some tickets nobody had taken yet.
     if (rng() < 0.2 && !story.fields.first_human_response_at) {
       ctx.audit(null, "sla.notified", id, { rule: "unassigned" }, Math.min(created + 2 * HOUR, now - MIN));
     }
   }
-  if (story.outcome) {
+  // Only help-channel tickets get an answer-pipeline row here.
+  if (story.outcome && channel === CHANNELS.help) {
     const o = story.outcome;
     ctx.outcome({
-      channel: CHANNELS.help,
+      channel,
       threadTs,
       ticketId: id,
       action: o.action,
@@ -647,6 +653,7 @@ function seedTicket(ctx: Ctx, week: number, created: number, serial: number, hel
   summary.tickets += 1;
   if (["resolved", "closed"].includes(String(story.fields.status))) summary.finished += 1;
   else summary.open += 1;
+  return id;
 }
 
 // Messages the pipeline looked at and stayed quiet on, or declined, plus the
@@ -688,6 +695,40 @@ function seedChannelTraffic(ctx: Ctx, firstWeek: number, startSerial: number) {
   );
   const failed = { channel: CHANNELS.organizer, status: "failed", error: "not_in_channel", text: "A failed send." };
   ctx.out({ ...failed, source: "ops_alert" }, now - 5 * DAY);
+}
+
+// Four tickets a status site needs to see at least once, on top of the random
+// history: one an organizer (on the admin list, not the helper list) took and
+// finished, so the site has to know organizers count as staff; one from a
+// direct message, outside the program's channels; one whose question the
+// participant deleted and one they edited, both through the real redaction
+// code (lib/messageRedaction.ts), so the stored text is gone.
+function seedSiteCases(ctx: Ctx, firstWeek: number, startSerial: number): void {
+  const { now } = ctx;
+  const lastFullWeek = firstWeek + (WEEKS - 2) * WEEK;
+  const thisWeek = firstWeek + (WEEKS - 1) * WEEK;
+  const redaction = require("./messageRedaction");
+  const organizer = () => ORGANIZER_IDS[0];
+  const anyHelper = () => HELPER_IDS[1];
+  const ref = (id: number) =>
+    db.handle().query("SELECT id, program_id, resolution FROM tickets WHERE id = ?").get(id) as {
+      id: number;
+      program_id: string;
+      resolution: string | null;
+    };
+  const when = (start: number, day: number, hour: number) => Math.min(start + day * DAY + hour * HOUR, now - 2 * HOUR);
+  let serial = startSerial;
+  seedTicket(ctx, WEEKS - 2, when(lastFullWeek, 2, 16), ++serial, organizer, [], { scenario: "helper" });
+  seedTicket(ctx, WEEKS - 1, Math.max(thisWeek, now - 5 * HOUR), ++serial, anyHelper, [], {
+    scenario: "waiting",
+    channel: "D0DEVDM001",
+  });
+  const deleted = seedTicket(ctx, WEEKS - 1, Math.max(thisWeek, now - 4 * HOUR), ++serial, anyHelper, [], {
+    scenario: "claimed",
+  });
+  if (deleted) redaction.redactDeletedRoot(ref(deleted), now - 3 * HOUR);
+  const edited = seedTicket(ctx, WEEKS - 2, when(lastFullWeek, 3, 18), ++serial, anyHelper, [], { scenario: "helper" });
+  if (edited) redaction.redactEditedRoot(ref(edited), when(lastFullWeek, 3, 19));
 }
 
 // Fills an open database with the invented program's history. Idempotent
@@ -743,6 +784,7 @@ function seed({ now = Date.now(), seed: seedValue = 20261020 }: { now?: number; 
       }
     }
     seedChannelTraffic(ctx, firstWeek, serial);
+    seedSiteCases(ctx, firstWeek, 900);
     handle.exec("COMMIT");
   } catch (e) {
     handle.exec("ROLLBACK");
