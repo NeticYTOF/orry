@@ -745,11 +745,13 @@ async function handleSumRequest({
 
     const formatted = replyText.plainDashes(summary);
     if (isPublic) {
-      await client.chat.postMessage({
+      const payload = {
         channel: event.channel,
         thread_ts: event.thread_ts,
         text: `🧵 *Thread Summary* (requested by <@${event.user}>):\n\n${formatted}`,
-      });
+      };
+      const res = await client.chat.postMessage(payload);
+      require("./outboundLog").recordSent(payload, res, "thread_summary");
     } else {
       await client.chat.postEphemeral({
         channel: event.channel,

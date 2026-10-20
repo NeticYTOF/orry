@@ -662,12 +662,14 @@ async function syncSupportTicketUI(
   let synced = true;
   if (client?.chat?.update && ticket.public_ack_ts) {
     try {
-      await client.chat.update({
+      const payload = {
         channel: ticket.channel,
         ts: ticket.public_ack_ts,
         text: view.thread.text,
         blocks: reply.plainDashesInBlocks(view.thread.blocks),
-      });
+      };
+      await client.chat.update(payload);
+      require("./outboundLog").recordEdited(payload, "ticket_thread_card", ticket.program_id);
     } catch (e) {
       recordSlackSyncFailure("thread", ticket, e as SlackError);
       synced = false;
@@ -896,7 +898,10 @@ async function ensureSupportTicket(options: EnsureSupportTicketOptions): Promise
         ticket.public_ack_ts = res.ts;
         db.recordFirstResponse(ticket.id, false);
       } else if (res?.ts) {
-        await client.chat.delete({ channel, ts: res.ts }).catch(() => {});
+        await client.chat
+          .delete({ channel, ts: res.ts })
+          .then(() => require("./outboundLog").recordDelete({ channel, ts: res.ts, source: "duplicate_thread_card" }))
+          .catch(() => {});
       }
     } catch (e) {
       recordSlackSyncFailure("thread_post", ticket, e as SlackError);
@@ -1259,12 +1264,14 @@ async function syncSlack(
 ): Promise<boolean> {
   if (!client?.chat?.update || !channel || !ts) return true;
   try {
-    await client.chat.update({
+    const payload = {
       channel,
       ts,
       text: reply.plainDashes(text),
       blocks: reply.plainDashesInBlocks(blocks),
-    });
+    };
+    await client.chat.update(payload);
+    require("./outboundLog").recordEdited(payload, "ticket_card", ticket ? ticket.program_id : null);
     return true;
   } catch (e) {
     recordSlackSyncFailure("card", ticket, e as SlackError);
@@ -1390,6 +1397,13 @@ async function postCard({
         } else if (client.chat.delete) {
           await client.chat
             .delete({ channel: organizerChannel, ts: res.ts })
+            .then(() =>
+              require("./outboundLog").recordDelete({
+                channel: organizerChannel,
+                ts: res.ts,
+                source: "duplicate_card",
+              }),
+            )
             .catch((e) => recordSlackSyncFailure("card_duplicate_delete", ticket, e as SlackError));
         }
       }

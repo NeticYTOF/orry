@@ -199,4 +199,53 @@ function recordDelete(entry: DeleteEntry): void {
   }
 }
 
-export = { recordPost, recordUpdate, recordDelete, errorCode, isDm, MAX_TEXT_CHARS };
+interface RawPayload {
+  channel?: unknown;
+  thread_ts?: unknown;
+  ts?: unknown;
+  text?: unknown;
+  blocks?: unknown;
+}
+
+function str(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
+}
+
+// For the few places that call chat.postMessage directly: log the payload
+// that was sent and the ts Slack returned.
+function recordSent(payload: RawPayload, res: unknown, source: string, programId: string | null = null): void {
+  try {
+    const channel = str(payload.channel);
+    if (!channel) return;
+    recordPost({
+      programId,
+      channel,
+      threadTs: str(payload.thread_ts),
+      ts: str((res as { ts?: unknown } | null)?.ts),
+      text: str(payload.text),
+      blocks: payload.blocks,
+      source,
+    });
+  } catch (_) {}
+}
+
+// For direct chat.update calls: log the new text and blocks on the row.
+function recordEdited(payload: RawPayload, source: string, programId: string | null = null): void {
+  try {
+    const channel = str(payload.channel);
+    const ts = str(payload.ts);
+    if (!channel || !ts) return;
+    recordUpdate({ programId, channel, ts, text: str(payload.text), blocks: payload.blocks, source });
+  } catch (_) {}
+}
+
+export = {
+  recordPost,
+  recordUpdate,
+  recordDelete,
+  recordSent,
+  recordEdited,
+  errorCode,
+  isDm,
+  MAX_TEXT_CHARS,
+};

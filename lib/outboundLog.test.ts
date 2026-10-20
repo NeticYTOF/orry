@@ -145,4 +145,69 @@ test("a placeholder that becomes the answer is one row with the final text", asy
   assert.equal(list[0].text, "Your build goes in the #ship channel.");
 });
 
+test("a discarded placeholder and a :x: delete leave a tombstone with no text", async () => {
+  const client = okClient("15.1");
+  const placeholder = reply.postThinking(client, "C-OUT-DEL", "6.6", PROGRAM);
+  await reply.discardPlaceholder(client, "C-OUT-DEL", placeholder);
+  const [discarded] = rows("C-OUT-DEL");
+  assert.ok(discarded.deleted_at);
+  assert.equal(discarded.text, null);
+
+  const answerClient = okClient("16.1");
+  await slackMessages.sendProgramMessage({
+    client: answerClient,
+    program: PROGRAM,
+    channel: "C-OUT-X",
+    threadTs: "5.5",
+    text: "An answer someone wanted gone.",
+  });
+  const { config } = require("./config");
+  const savedBot = config.slack.botUserId;
+  config.slack.botUserId = "U-ORRY-BOT";
+  try {
+    await require("./reactionHandlers").onReactionAdded({
+      event: { reaction: "x", user: "U-KID", item: { channel: "C-OUT-X", ts: "16.1" }, item_user: "U-ORRY-BOT" },
+      client: answerClient,
+    });
+  } finally {
+    config.slack.botUserId = savedBot;
+  }
+  assert.ok(
+    answerClient.calls.some((c) => c.method === "delete"),
+    "the reaction did delete in Slack",
+  );
+  const [gone] = rows("C-OUT-X");
+  assert.ok(gone.deleted_at, "the row is a tombstone");
+  assert.equal(gone.text, null, "the text went at once, not at the 30-day purge");
+});
+
+test("a ticket card edit keeps the latest text and blocks on the card's row", async () => {
+  const tickets = require("./tickets");
+  const client = okClient("17.1");
+  const id = db.createTicket({
+    programId: "out-prog",
+    channel: "C-OUT-HELP",
+    threadTs: "4.4",
+    requesterId: "U-KID",
+    question: "fake question",
+  });
+  db.updateTicketCardTs(id, "17.1");
+  await slackMessages.sendProgramMessage({
+    client,
+    program: PROGRAM,
+    channel: "C-OUT-ORG",
+    text: "[Ticket] card",
+    logSource: "ticket_card",
+  });
+  await tickets.reconcileTicketUI({
+    client,
+    ticket: db.getTicket(id),
+    program: { ...PROGRAM, organizerChannel: "C-OUT-ORG" },
+    cardText: "[Ticket] Claimed",
+  });
+  const [card] = rows("C-OUT-ORG").filter((r) => r.message_ts === "17.1");
+  assert.equal(card.edit_count >= 1, true);
+  assert.match(card.text || "", /Claimed/);
+});
+
 export {};

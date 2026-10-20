@@ -408,6 +408,7 @@ async function discardPlaceholder(
           }
           throw new Error(errCode || "delete failed");
         }
+        logDelete(channel, ts);
         return;
       } catch (error: unknown) {
         const code = error instanceof Error ? error.message : String(error);
@@ -424,6 +425,12 @@ async function discardPlaceholder(
         }
       }
     }
+  } catch (_error: unknown) {}
+}
+
+function logDelete(channel: string, ts: string): void {
+  try {
+    require("./outboundLog").recordDelete({ channel, ts, source: "placeholder_discard" });
   } catch (_error: unknown) {}
 }
 
