@@ -197,6 +197,191 @@ function ticketDetailScoped(programId: string, ticketId: number) {
   };
 }
 
+interface ClosingTicketRow {
+  id: number;
+  status: string;
+  category: string | null;
+  visibility: string | null;
+  assignee_id: string | null;
+  resolved_credit_id: string | null;
+  requester_id: string | null;
+  created_at: number;
+  resolved_at: number;
+  first_response_at: number | null;
+  first_human_response_at: number | null;
+  reopen_count: number | null;
+}
+interface ClosingEventRow {
+  id: number;
+  ticket_id: number;
+  actor_id: string | null;
+  event_type: string;
+  detail: string | null;
+  created_at: number;
+}
+
+const CLOSING_EVENT_TYPES = ["resolved", "closed"];
+const PING_OFFER_SOURCES = new Set(["ping", "reassign_ping"]);
+const CLOSING_DEFAULT_WINDOW_MS = 7 * 86400000;
+const CLOSING_MAX_LIMIT = 500;
+
+function parseEventDetail(value: string | null): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function finiteOrNull(value: unknown): number | null {
+  const n = Number(value);
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(n) ? n : null;
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value ? value.slice(0, 64) : null;
+}
+
+// Per finished ticket: who or what closed it last, when it first escalated
+// and was first taken, and whether pings to helpers led to a claim. Built for
+// "closed by Orry" and queue-time numbers without one detail call per ticket.
+// Never returns ticket text, resolution text, the judge's reason, or the
+// requester's ID: a participant's own close is reported as actorKind
+// "requester" with no actorId.
+function ticketClosing(programId: string, params: DashboardParams = {}) {
+  const missing = needProgram(programId);
+  if (missing) return missing;
+  const until =
+    params.until !== undefined && params.until !== null && params.until !== "" ? Number(params.until) : Date.now();
+  const since =
+    params.since !== undefined && params.since !== null && params.since !== ""
+      ? Number(params.since)
+      : until - CLOSING_DEFAULT_WINDOW_MS;
+  if (!Number.isFinite(since) || !Number.isFinite(until))
+    return { error: "since and until must be epoch milliseconds" };
+  if (since >= until) return { error: "since must be before until" };
+  const limit = Math.min(Math.max(Math.trunc(Number(params.limit)) || 200, 1), CLOSING_MAX_LIMIT);
+  const offset = Math.max(Math.trunc(Number(params.offset)) || 0, 0);
+  const where = `program_id = ? AND status IN ('resolved', 'closed') AND resolved_at > ? AND resolved_at <= ?`;
+  const total =
+    db.handle().query(`SELECT COUNT(*) AS n FROM tickets WHERE ${where}`).get(programId, since, until)?.n || 0;
+  const tickets = db
+    .handle()
+    .query(
+      `SELECT id, status, category, visibility, assignee_id, resolved_credit_id, requester_id, created_at, resolved_at,
+              first_response_at, first_human_response_at, reopen_count
+       FROM tickets WHERE ${where} ORDER BY resolved_at ASC, id ASC LIMIT ? OFFSET ?`,
+    )
+    .all(programId, since, until, limit, offset) as ClosingTicketRow[];
+  const base = { programId, since, until, total, limit, offset };
+  if (tickets.length === 0) return { ...base, rows: [] };
+
+  const lifecycle = require("../assignmentLifecycle");
+  const { isAdmin } = require("../config");
+  const roster = new Set((db.listHelpers(programId, false) as HelperDbRow[]).map((h) => h.user_id));
+  const isStaff = (id: string | null) => !!id && (roster.has(id) || Boolean(isAdmin(id)));
+  const wanted = [...CLOSING_EVENT_TYPES, "escalated", "claimed", "assigned", ...lifecycle.EVENT_TYPES];
+  const ids = tickets.map((t) => t.id);
+  const events = db
+    .handle()
+    .query(
+      `SELECT id, ticket_id, actor_id, event_type, detail, created_at FROM ticket_events
+       WHERE program_id = ? AND ticket_id IN (${ids.map(() => "?").join(",")})
+         AND event_type IN (${wanted.map(() => "?").join(",")})
+       ORDER BY created_at ASC, id ASC`,
+    )
+    .all(programId, ...ids, ...wanted) as ClosingEventRow[];
+  const byTicket = new Map<number, ClosingEventRow[]>();
+  for (const event of events) {
+    const list = byTicket.get(event.ticket_id) || [];
+    list.push(event);
+    byTicket.set(event.ticket_id, list);
+  }
+
+  const rows = tickets.map((ticket) => {
+    const list = byTicket.get(ticket.id) || [];
+    // The newest write wins (highest id): auto-resolves are backdated, so
+    // created_at alone can put an older close after a newer one.
+    const closingEvent = list
+      .filter((e) => CLOSING_EVENT_TYPES.includes(e.event_type))
+      .reduce<ClosingEventRow | null>((latest, e) => (!latest || e.id > latest.id ? e : latest), null);
+    let closing = null;
+    if (closingEvent) {
+      const detail = parseEventDetail(closingEvent.detail);
+      const actor = closingEvent.actor_id;
+      const actorKind = !actor
+        ? "orry"
+        : actor === ticket.requester_id
+          ? "requester"
+          : isStaff(actor)
+            ? "helper"
+            : "other";
+      closing = {
+        event: closingEvent.event_type,
+        at: closingEvent.created_at,
+        actorKind,
+        actorId: actorKind === "helper" ? actor : null,
+        source: stringOrNull(detail.source),
+        rule: stringOrNull(detail.rule),
+        verdict: stringOrNull(detail.verdict),
+        confidence: finiteOrNull(detail.confidence),
+      };
+    }
+    const firstEscalated = list.find((e) => e.event_type === "escalated");
+    const firstTaken = list.find((e) => e.event_type === "claimed" || e.event_type === "assigned");
+    const takenDetail = firstTaken ? parseEventDetail(firstTaken.detail) : {};
+    const lifecycleEvents = list
+      .filter((e) => lifecycle.EVENT_TYPES.includes(e.event_type))
+      .map((e) => ({ ...e, detail: parseEventDetail(e.detail) }));
+    const pings = lifecycle
+      .offersFromEvents(lifecycleEvents)
+      .filter((offer: { source: string | null }) => offer.source && PING_OFFER_SOURCES.has(offer.source))
+      .map(
+        (offer: {
+          offeredAt: number;
+          to: string | null;
+          source: string;
+          outcome: string;
+          outcomeAt: number | null;
+        }) => ({
+          offeredAt: offer.offeredAt,
+          to: offer.to,
+          source: offer.source,
+          outcome: offer.outcome,
+          outcomeAt: offer.outcomeAt,
+          claimFollowed: offer.outcome === "claimed",
+        }),
+      );
+    return {
+      id: ticket.id,
+      status: ticket.status,
+      category: ticket.category,
+      visibility: ticket.visibility,
+      ownerId: ticket.assignee_id,
+      creditedId: ticket.resolved_credit_id,
+      createdAt: ticket.created_at,
+      resolvedAt: ticket.resolved_at,
+      firstResponseAt: ticket.first_response_at,
+      firstHumanResponseAt: ticket.first_human_response_at,
+      reopenCount: ticket.reopen_count || 0,
+      closing,
+      firstEscalatedAt: firstEscalated ? firstEscalated.created_at : null,
+      firstTaken: firstTaken
+        ? {
+            at: firstTaken.created_at,
+            event: firstTaken.event_type,
+            by: firstTaken.event_type === "assigned" ? stringOrNull(takenDetail.to) : firstTaken.actor_id,
+            automatic: takenDetail.automatic === true,
+          }
+        : null,
+      pings,
+    };
+  });
+  return { ...base, rows };
+}
+
 function median(values: number[]): number | null {
   const sorted = [...values].filter((n) => Number.isFinite(n) && n >= 0).sort((a, b) => a - b);
   if (sorted.length === 0) return null;
@@ -546,6 +731,7 @@ export = {
   RESOLVED_GROUP,
   ticketSearchScoped,
   ticketDetailScoped,
+  ticketClosing,
   metricsOverview,
   knowledgeStatus,
   knowledgeRefresh,

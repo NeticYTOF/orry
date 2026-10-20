@@ -1008,6 +1008,17 @@ async function handleApi(req: Request): Promise<Response | null> {
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
+      const dashClosing = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/tickets\/closing$/);
+      if (dashClosing && method === "GET") {
+        const res = dashboardApi.ticketClosing(decodeURIComponent(dashClosing[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        });
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
       const dashTicketDetail = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/tickets\/(\d+)$/);
       if (dashTicketDetail && method === "GET") {
         const res = dashboardApi.ticketDetailScoped(

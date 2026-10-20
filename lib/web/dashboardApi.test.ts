@@ -311,7 +311,6 @@ test("helper roster and availability toggle are program-scoped", () => {
   assert.equal(dash.helperSetActive("dash-roster", { actorId: "U-R2", userId: "U-R1", active: true }).ok, true);
   assert.equal(dash.helperRoster("dash-roster").helpers.find((h: TestRow) => h.userId === "U-R1").active, true);
 });
-export {};
 
 test("access answers admin and active-helper flags for one program only", () => {
   seedProgram("dash-access-a");
@@ -340,3 +339,112 @@ test("access answers admin and active-helper flags for one program only", () => 
     config.slack.adminUserIds.splice(config.slack.adminUserIds.indexOf("U-acc-admin"), 1);
   }
 });
+
+function seedEvent(
+  ticketId: number,
+  programId: string,
+  eventType: string,
+  actorId: string | null,
+  detail: unknown,
+  at: number,
+) {
+  return db.addTicketEvent({ ticketId, programId, actorId, eventType, detail, createdAt: at });
+}
+
+test("closing route labels the latest close, hides requester ids and text, and pairs pings with claims", () => {
+  const P = "dash-closing";
+  seedProgram(P);
+  seedProgram("dash-closing-other");
+  db.syncHelper({ programId: P, userId: "U-cl-helper" });
+  const t0 = Date.UTC(2026, 9, 5, 12, 0, 0);
+  const H = 3600000;
+  const helperClosed = seedTicket(P, {
+    status: "resolved",
+    createdAt: t0,
+    resolvedAt: t0 + 2 * H,
+    requesterId: "U-cl-kid",
+    question: "SENTINEL-QUESTION-TEXT",
+  });
+  seedEvent(helperClosed.id, P, "escalated", null, { by: "ai_no_answer" }, t0 + 60000);
+  seedEvent(helperClosed.id, P, "helper_assignment_offered", null, { to: "U-cl-helper", source: "ping" }, t0 + 120000);
+  seedEvent(helperClosed.id, P, "helper_assignment_claimed", "U-cl-helper", { source: "targeted" }, t0 + 300000);
+  seedEvent(helperClosed.id, P, "claimed", "U-cl-helper", null, t0 + 300000);
+  seedEvent(helperClosed.id, P, "resolved", "U-cl-helper", { source: "macro" }, t0 + 2 * H);
+
+  // Closed by Orry once, reopened, then closed by the participant: the newest write wins
+  // even though the auto-resolve was backdated past it.
+  const selfClosed = seedTicket(P, {
+    status: "resolved",
+    createdAt: t0,
+    resolvedAt: t0 + 5 * H,
+    requesterId: "U-cl-kid",
+  });
+  seedEvent(selfClosed.id, P, "resolved", "U-cl-kid", null, t0 + 5 * H);
+  seedEvent(
+    selfClosed.id,
+    P,
+    "resolved",
+    null,
+    { source: "auto", verdict: "resolved", confidence: 0.91, reason: "SENTINEL-JUDGE-REASON" },
+    t0 + 6 * H,
+  );
+  db.handle()
+    .query("UPDATE ticket_events SET id = id + 1000 WHERE ticket_id = ? AND actor_id = 'U-cl-kid'")
+    .run(selfClosed.id);
+
+  const imported = seedTicket(P, { status: "closed", createdAt: t0, resolvedAt: t0 + 3 * H });
+  db.handle().query("UPDATE tickets SET visibility = 'dashboard' WHERE id = ?").run(imported.id);
+  seedEvent(imported.id, P, "closed", null, { source: "backfill", reason: "no answer (history import)" }, t0 + 3 * H);
+  seedEvent(imported.id, P, "helper_assignment_offered", null, { to: "U-cl-helper", source: "ping" }, t0 + H);
+  seedEvent(imported.id, P, "helper_assignment_timed_out", null, { to: "U-cl-helper" }, t0 + 2 * H);
+
+  const macroClosed = seedTicket(P, { status: "closed", createdAt: t0, resolvedAt: t0 + 4 * H });
+  seedTicket(P, { status: "open", createdAt: t0 });
+  seedTicket(P, { status: "resolved", createdAt: t0, resolvedAt: t0 + 30 * 86400000 });
+  seedTicket("dash-closing-other", { status: "resolved", createdAt: t0, resolvedAt: t0 + H });
+
+  const res = dash.ticketClosing(P, { since: t0, until: t0 + 7 * 86400000 });
+  assert.equal(res.total, 4, "only finished tickets inside the window, in this program");
+  assert.deepEqual(
+    res.rows.map((r: TestRow) => r.id),
+    [helperClosed.id, imported.id, macroClosed.id, selfClosed.id],
+    "ordered by resolved_at",
+  );
+  const byId = new Map<unknown, any>(res.rows.map((r: TestRow) => [r.id, r]));
+  const helperRow = byId.get(helperClosed.id);
+  assert.equal(helperRow.closing.actorKind, "helper");
+  assert.equal(helperRow.closing.actorId, "U-cl-helper");
+  assert.equal(helperRow.firstEscalatedAt, t0 + 60000);
+  assert.deepEqual(helperRow.firstTaken, { at: t0 + 300000, event: "claimed", by: "U-cl-helper", automatic: false });
+  assert.equal(helperRow.pings.length, 1);
+  assert.equal(helperRow.pings[0].claimFollowed, true);
+
+  const selfRow = byId.get(selfClosed.id);
+  assert.equal(selfRow.closing.actorKind, "requester");
+  assert.equal(selfRow.closing.actorId, null, "the participant's id is never returned");
+
+  const importRow = byId.get(imported.id);
+  assert.equal(importRow.closing.source, "backfill");
+  assert.equal(importRow.closing.actorKind, "orry");
+  assert.equal(importRow.visibility, "dashboard");
+  assert.equal(importRow.pings[0].outcome, "timed_out");
+  assert.equal(importRow.pings[0].claimFollowed, false);
+
+  assert.equal(byId.get(macroClosed.id).closing, null, "a macro close writes no event");
+
+  const blob = JSON.stringify(res);
+  assert.equal(blob.includes("SENTINEL"), false, "no ticket text or judge reason");
+  assert.equal(blob.includes("U-cl-kid"), false, "no requester id");
+  assert.equal(blob.includes("U-asker"), false);
+
+  const paged = dash.ticketClosing(P, { since: t0, until: t0 + 7 * 86400000, limit: 2, offset: 2 });
+  assert.equal(paged.total, 4);
+  assert.deepEqual(
+    paged.rows.map((r: TestRow) => r.id),
+    [macroClosed.id, selfClosed.id],
+  );
+  assert.match(dash.ticketClosing(P, { since: t0, until: t0 }).error, /before/);
+  assert.equal(dash.ticketClosing("dash-closing-missing", {}).error, "unknown program");
+});
+
+export {};
