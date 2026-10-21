@@ -1,0 +1,201 @@
+/* ORRY UI page layer: orry. /orry (organizers), the charts in components/viz (FlowChart, WhoChart, TrendChart; QueueShape is
+   styled by the board), the shared stats pieces in components/stats/common.tsx, and the organizers-only notice.
+   Built on the kit (kit.css): panels, stat strips, tabs, tables, folds, states. This file only lays out and draws.
+   Prefixes: or- (page pieces), vz- (charts). Colour discipline: ink + one accent; charts use --chart-a and --chart-n
+   plus the SVG textures from SvgDefs, so every series also differs by shape, weight or pattern. */
+
+/* ============================== Shared pieces (components/stats/common.tsx) ============================== */
+.title-side { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.state h2 { font: 600 20px/1.25 var(--font-pixel); }
+.state .blk.btn-row { margin-top: 14px; }
+.state.or-os { width: 100%; }
+
+/* the textures the charts share (SvgDefs in components/shell/Brand.tsx draws the patterns, these colour them) */
+.p-ink { fill: var(--tex-ink); }
+.p-line { stroke: var(--tex-ink); }
+.p-mut { fill: var(--chart-n); }
+
+/* tooltips built by the server (chart columns, heat cells): rows of label and value */
+.tip b { font-weight: 600; }
+.tip .tr { display: flex; justify-content: space-between; gap: 16px; }
+
+/* ============================== The page ============================== */
+.or-page { min-width: 0; }
+.or-page .ph-note { margin-top: 18px; }
+.or-pane { display: grid; gap: 32px; min-width: 0; }
+.or-gap { margin-bottom: 24px; }
+
+/* one slim row: tabs on the left, week and import choice on the right */
+.or-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; margin-bottom: 24px; }
+.or-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.or-week { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.or-wk { display: inline-flex; flex-direction: column; justify-content: center; min-height: 36px; padding: 0 14px; line-height: 1.2; background: var(--panel); border: 2px solid var(--stroke); }
+.or-wk b { font: 600 14px var(--font-pixel); letter-spacing: .5px; }
+.or-wk small { font-size: 12px; color: var(--dim); }
+
+/* ImportToggle (components/stats/ImportToggle.tsx, class "tog"): a small lifted button with a check square */
+.or-ctl .tog {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 12px;
+  font: 600 14px/1.1 var(--font-pixel); letter-spacing: .5px; text-align: left; color: var(--ink); background: var(--panel-2);
+  border: solid var(--stroke); border-width: 2px 4px 4px 2px; border-radius: 0; cursor: pointer;
+  transition: border-bottom-width .13s var(--ease), transform .13s var(--ease), background-color .13s, color .13s;
+}
+.or-ctl .tog:hover { border-bottom-width: 6px; transform: translate(-2px, -2px); }
+.or-ctl .tog:active { border-bottom-width: 2px; transform: translate(0, 2px); }
+.or-ctl .tog::before { content: ""; flex: none; width: 14px; height: 14px; border: 2px solid currentColor; }
+.or-ctl .tog[aria-pressed="true"] { color: var(--acf); background: var(--ac); }
+.or-ctl .tog[aria-pressed="true"]::before { background: currentColor; box-shadow: inset 0 0 0 2px var(--ac); }
+.or-ctl .tog[aria-busy="true"] { opacity: .65; cursor: progress; }
+@media (hover: none) { .or-ctl .tog:hover { border-bottom-width: 4px; transform: none; } }
+
+.or-tabs > :is(a, button):focus-visible, .or-subtabs > :is(a, button):focus-visible { outline-offset: -5px; }
+/* second row: ink-filled selection so it never competes with the accent on the top row */
+.or-subtabs { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; margin-bottom: 32px; overflow: visible; }
+.or-subtabs > a { min-height: 38px; padding: 0 14px; font-size: 13px; }
+.or-subtabs > [aria-current="page"] { color: var(--bg); background: var(--ink); }
+
+/* stat strip */
+.or-strip { margin: 0; }
+.or-strip .stat-v.few { color: var(--dim); }
+.or-strip .or-cmp { color: var(--mut); }
+.or-meter .meter { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; width: 100%; margin: 4px 0 2px; }
+.or-meter .meter i { width: auto; height: 12px; }
+
+/* panel grid: equal-height rows, panel-h with a title block */
+.or-grid { align-items: stretch; }
+.or-grid > .panel { display: flex; flex-direction: column; min-width: 0; }
+.or-grid > .panel > .panel-b { flex: 1; min-width: 0; }
+.or-grid > .panel > .panel-b.tight { flex: 0 1 auto; }
+.or-ph { min-width: 0; }
+.or-ph .sub { margin-top: 2px; }
+.or-grid > .panel > .panel-b:not(.tight) { padding: 28px; }
+.or-grid > .panel > .panel-h { padding: 18px 28px; }
+.screen .or-none { font-size: 14px; color: var(--dim); }
+.or-list li { padding: 12px 0; font-size: 14px; line-height: 1.55; border-bottom: 1px solid var(--stroke); }
+.or-list li:first-child { padding-top: 0; }
+.or-list li:last-child { padding-bottom: 0; border-bottom: 0; }
+
+/* ============================== "How the N finished" ============================== */
+.or-split { display: flex; gap: 2px; height: 52px; background: var(--stroke); border: 2px solid var(--stroke); }
+.or-seg { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; background: var(--panel); }
+.or-seg b { padding: 1px 7px; font: 600 14px var(--font-mono); color: var(--ink); background: var(--panel); }
+:is(.or-seg, .or-sw).s-helper { background: var(--chart-a); }
+.or-seg.s-helper b { color: var(--chart-a-fg); background: transparent; }
+:is(.or-seg, .or-sw).s-self { background: var(--panel); box-shadow: inset 0 0 0 2px var(--ink); }
+:is(.or-seg, .or-sw).s-other { background: var(--panel) radial-gradient(circle, var(--chart-n) 1.3px, transparent 1.7px) 0 0 / 6px 6px; }
+:is(.or-seg, .or-sw).s-orry { background: var(--panel) repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 6px); }
+.or-sw { display: inline-block; flex: none; width: 16px; height: 16px; border: 1px solid var(--ink); }
+.or-key { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; margin-top: 32px; }
+.or-key h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; font: 600 15px var(--font-pixel); letter-spacing: .5px; border-bottom: 2px solid var(--stroke); }
+.or-key h3 b { font-size: 24px; }
+.or-key li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 14px; border-bottom: 1px solid var(--stroke); }
+.or-key li:last-child { border-bottom: 0; }
+.or-key li span { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.or-key li b { font-weight: 600; }
+@media (max-width: 600px) { .or-key { grid-template-columns: minmax(0, 1fr); } }
+
+/* ============================== Waiting: heat grid, lists ============================== */
+.wg-wrap, .or-page .tbl-scroll, .vz-tbl .tbl-scroll { position: relative; }
+.wg-wrap { overflow-x: auto; scrollbar-width: thin; }
+.wg-wrap:focus-visible { outline-offset: -3px; }
+.wg { width: 100%; min-width: 620px; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
+.wg th { padding: 4px 0; font: 600 12px var(--font-mono); text-align: center; color: var(--mut); }
+.wg thead th:first-child { width: 52px; }
+.wg tbody th { padding-left: 2px; font-size: 13px; text-align: left; color: var(--ink); }
+.wg abbr { text-decoration: none; }
+.wg td { height: 40px; padding: 0; font: 600 14px var(--font-mono); text-align: center; outline: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); outline-offset: -1px; }
+.wg td[data-tip] { cursor: default; }
+.wg td.s0, .wg-legend .s0 { background: var(--panel); color: var(--mut); }
+.wg td.s1, .wg-legend .s1 { background: color-mix(in srgb, var(--chart-a) 16%, var(--panel)); }
+.wg td.s2, .wg-legend .s2 { background: color-mix(in srgb, var(--chart-a) 34%, var(--panel)); }
+.wg td.s3, .wg-legend .s3 { background: color-mix(in srgb, var(--chart-a) 70%, var(--panel)); color: var(--chart-a-fg); }
+.wg td.s4, .wg-legend .s4 { background: var(--chart-a); color: var(--chart-a-fg); }
+.wg-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 18px; font-size: 13px; color: var(--dim); }
+.wg-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.wg-legend i { display: inline-block; width: 18px; height: 18px; outline: 1px solid color-mix(in srgb, var(--ink) 30%, transparent); outline-offset: -1px; }
+.wg-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; margin-top: 32px; }
+.wg-lists h3 { padding-bottom: 8px; font: 600 15px var(--font-pixel); letter-spacing: .5px; border-bottom: 2px solid var(--stroke); }
+.wg-lists li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 14px; border-bottom: 1px solid var(--stroke); }
+.wg-lists li:last-child { border-bottom: 0; }
+.wg-lists li b { font-weight: 600; text-align: right; }
+@media (max-width: 700px) { .wg-lists { grid-template-columns: minmax(0, 1fr); } }
+.tbl.med { min-width: 640px; }
+.tbl.med th, .tbl.med td { padding: 8px 6px; font-size: 13px; text-align: center; }
+.tbl.med thead th:first-child, .tbl.med tbody th { text-align: left; padding-left: 12px; }
+.th-sub { display: block; margin-top: 2px; font: 400 12px var(--font-mono); letter-spacing: 0; color: var(--mut); }
+.tbl td.few { font-size: 13px; color: var(--dim); }
+.tbl td.few[colspan] { text-align: left; white-space: normal; }
+
+/* ============================== Orry's answers ============================== */
+.or-facts.kv > div { grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); align-items: center; padding: 14px 0; }
+.or-facts dt { display: flex; align-items: center; gap: 12px; font: 600 15px/1.3 var(--font-pixel); letter-spacing: .5px; text-transform: none; color: var(--ink); }
+.or-spr { flex: none; width: 32px; height: 32px; image-rendering: pixelated; filter: var(--sprite-filter); }
+.or-gate { display: inline-block; padding: 6px 12px; font-size: 14px; line-height: 1.5; color: var(--dim); border: 2px dashed var(--stroke); }
+@media (max-width: 640px) { .or-facts.kv > div { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* ============================== Charts ============================== */
+/* One .vz-box per chart: legend, the plot (three SVG widths drawn on the server, the one that fits is shown) and the
+   table. VizToggle sets data-view; in chart view the table stays in the page for assistive tech. */
+.vz-box { container: vz / inline-size; min-width: 0; }
+.vz-bar { margin-bottom: 20px; }
+.vz-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--dim); }
+.vz-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.vz-legend svg { display: block; flex: none; overflow: visible; }
+.vz-plot { position: relative; }
+.vz-plot svg.vz { display: none; width: 100%; max-width: 760px; height: auto; margin-inline: auto; overflow: visible; }
+@container vz (max-width: 399px) { .vz-plot svg.vz-s { display: block; } }
+@container vz (min-width: 400px) and (max-width: 599px) { .vz-plot svg.vz-m { display: block; } }
+@container vz (min-width: 600px) { .vz-plot svg.vz-l { display: block; } }
+.vz-box[data-view="table"] :is(.vz-plot, .vz-bar) { display: none; }
+.vz-box[data-view="chart"] .vz-tbl { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.vz-tbl .sh { display: none; }
+.vz-tbl .pc { color: var(--dim); }
+@container vz (max-width: 520px) { .vz-tbl .lh { display: none; } .vz-tbl .sh { display: inline; } }
+
+/* the "Chart | Table" segment in a panel header */
+.vz-seg > button { min-height: 36px; padding: 0 14px; font-size: 13px; }
+.vz-seg > button:focus-visible { outline-offset: -5px; }
+
+/* drawing: ink for what matters, --chart-n for the rest, --chart-a for the series that carries the page */
+.vz-box svg text { font: 12.5px var(--font-mono); fill: var(--mut); }
+.vz-box svg .t-ink { fill: var(--ink); font-weight: 600; }
+.vz-box .g-grid { stroke: var(--chart-n); stroke-opacity: .3; stroke-width: 1; }
+.vz-box .g-base { stroke: var(--chart-n); stroke-width: 1; }
+.vz-box .hit { fill: transparent; cursor: default; }
+.vz-box .hl-col { fill: var(--chart-n); opacity: 0; }
+.vz-box g:hover > .hl-col { opacity: .22; }
+.vz-box .x-hair { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3; }
+/* created and finished per week */
+.vz-box .l-created { fill: none; stroke: var(--chart-n); stroke-width: 2; stroke-linejoin: miter; }
+.vz-box .l-finished { fill: none; stroke: var(--chart-a); stroke-width: 3; stroke-linejoin: miter; }
+.vz-box .l-dash { stroke-dasharray: 5 4; }
+.vz-box .m-created { fill: var(--chart-n); }
+.vz-box .m-finished { fill: var(--panel); stroke: var(--chart-a); stroke-width: 2.5; }
+.vz-box .gap-fill { fill: var(--chart-n); opacity: .2; }
+/* who finished: helpers solid, participants outlined, Orry hatched, others dotted (textures from SvgDefs) */
+.vz-box .s-helper { fill: var(--chart-a); }
+.vz-box .s-self { fill: none; stroke: var(--ink); stroke-width: 2; }
+.vz-box .s-edge { fill: none; stroke: var(--ink); stroke-width: 1; }
+.vz-box .s-prov { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; }
+/* my week: bars and the average person */
+.vz-box .me-bar { fill: var(--chart-a); }
+.vz-box .avg { fill: none; stroke: var(--chart-n); stroke-width: 2; stroke-dasharray: 5 4; }
+.vz-box .avg-dot { fill: var(--panel); stroke: var(--chart-n); stroke-width: 2; }
+
+@media (forced-colors: active) { .or-split, .or-seg, .wg td { forced-color-adjust: none; } }
+
+/* ============================== Narrow ============================== */
+/* the strip sets --cols inline (to match its cell count); the kit halves it under 1100px */
+@media (max-width: 1100px) { .or-strip { --cols: 2 !important; } }
+/* four tabs as a 2 x 2 block on phones, so the open one is never scrolled out of sight */
+@media (max-width: 560px) {
+  .or-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .or-tabs > * { justify-content: center; }
+  .or-tabs > :nth-child(odd) { border-left: 0; }
+  .or-tabs > :nth-child(n+3) { border-top: 2px solid var(--stroke); }
+}
+@container vz (max-width: 520px) { .vz-tbl .tbl th, .vz-tbl .tbl td { padding: 9px 8px; } }
+
+/* the shared Modal's title: the kit's generic dialog h2 rule adds an underline inside the header row */
+dialog.dlg .dlg-head h2 { padding: 0; border: 0; }
+.dlg-b .tbl-scroll { border: 2px solid var(--stroke); }

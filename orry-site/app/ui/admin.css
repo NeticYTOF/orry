@@ -1,0 +1,63 @@
+/* ORRY UI page layer: admin (/team, /config, /settings, the sign-out row on My week). Owned by one agent; uses only the kit
+   classes plus its own, prefixed ad-. Panels, tabs, tables and dialogs come from kit.css; this file only lays them out. */
+
+/* page rhythm: header, stat strip, tabs, panel, each 32px apart */
+.ad-page .stats { --cols: 4; }
+@media (max-width: 1100px) { .ad-page .stats { --cols: 2; } }
+.ad-tabs { margin: 32px 0 24px; }
+.ad-page .ph + .ad-tabs { margin-top: 8px; }
+.ad-narrow { max-width: 820px; }
+.ad-dim { font-size: 13px; color: var(--mut); }
+.ad-gate { max-width: 720px; }
+.ad-gate h2 { font: 600 20px/1.25 var(--font-pixel); }
+
+/* dialogs hold their text; they sit inside table cells that never wrap, so wrapping is switched back on */
+dialog.dlg { white-space: normal; }
+.ad-confirm { font-size: 15px; line-height: 1.6; color: var(--ink); }
+.ad-confirm-form { margin-top: 20px; }
+.ad-confirm-form .btn { width: 100%; }
+
+/* --- the invite form (inside the Invite modal): one column, room between the fields --- */
+.ad-invite { display: grid; gap: 22px; }
+.ad-error { margin: 20px 0 0; }
+.ad-error[hidden], .ad-result[hidden] { display: none; }
+.ad-result { display: grid; justify-items: start; gap: 12px; margin-top: 24px; }
+.ad-result p { margin: 0; color: var(--ink); }
+.ad-result code { display: block; width: 100%; padding: 10px 12px; font: 13px/1.5 var(--font-mono); overflow-wrap: anywhere; color: var(--ink); background: var(--bg); border: 2px solid var(--stroke); }
+.ad-result p.ad-warn { font-size: 13px; color: var(--dim); }
+
+/* --- tables inside a panel: the panel is the box, so the table needs none; actions sit at the row end --- */
+.ad-tbl th[scope="row"] { font-weight: 400; }
+.ad-tbl td, .ad-tbl th { padding-block: 14px; vertical-align: middle; }
+.ad-acts { position: relative; display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 4px 16px; white-space: nowrap; }
+.ad-tbl th.ad-actcol { width: 1%; }
+/* the visually hidden "Actions" label must be positioned inside the scroller, or it widens the whole page */
+.ad-tbl thead th { position: relative; }
+.ad-checks th[scope="row"] { width: 26%; min-width: 180px; font-weight: 600; }
+.ad-checks td:nth-child(2) { width: 1%; white-space: nowrap; }
+.ad-meaning { min-width: 280px; color: var(--dim); }
+/* on a phone the first column stays in view while the rest scrolls inside the panel */
+@media (max-width: 640px) {
+  .ad-tbl tbody th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: 2px 0 0 var(--stroke); }
+  .ad-tbl tr.me > th { background: color-mix(in srgb, var(--ac) 30%, var(--panel)); }
+  .ad-checks th[scope="row"] { min-width: 150px; }
+}
+
+/* --- access events --- */
+.ad-log li { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 4px 20px; padding: 14px 18px; font-size: 14px; line-height: 1.55; border-bottom: 1px solid var(--stroke); }
+.ad-log li:last-child { border-bottom: 0; }
+.ad-log time { font-size: 13px; color: var(--mut); }
+@media (max-width: 560px) { .ad-log li { grid-template-columns: minmax(0, 1fr); } }
+
+/* --- settings: a label and its segments per row --- */
+.ad-pref { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 28px; padding: 22px 18px; border-bottom: 1px solid var(--stroke); }
+.ad-pref:last-child { border-bottom: 0; }
+.ad-pref h3, .ad-out h3 { font: 600 16px/1.3 var(--font-pixel); letter-spacing: .2px; }
+
+/* sign out everywhere: used on Settings and in the Profile panel of My week */
+.ad-out { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 28px; }
+.ad-out-wrap { margin-top: 24px; }
+.ad-narrow .kv { border-top: 0; }
+
+/* "Roomy" (Settings > Display): tables get more air. The attribute is set on <body> by components/shell/preferences.ts. */
+.screen[data-density="roomy"] .tbl th, .screen[data-density="roomy"] .tbl td { padding-block: 18px; }
