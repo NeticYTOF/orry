@@ -34,7 +34,7 @@ cd <path-to-site-checkout>
 ORRY_FIXTURES=0 RIVET_CORE_BASE_URL=http://127.0.0.1:4100 RIVET_INTERNAL_READ_TOKEN=dev-bridge-read-token npm run dev
 ```
 
-Open http://localhost:3200 and use the dev panel on the sign-in page. Sign in
+Open http://localhost:9995 and use the dev panel on the sign-in page. Sign in
 as Pat Placeholder (organizer) or Juno Baker (helper). In PowerShell the
 `$env:` values stay set for that window; close it, or set
 `$env:ORRY_FIXTURES="1"`, to go back to fixtures.

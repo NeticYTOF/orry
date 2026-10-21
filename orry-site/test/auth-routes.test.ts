@@ -25,7 +25,7 @@ const files = walk(APP);
 describe("route list", () => {
   it("finds the app's routes", () => {
     expect(files.length).toBeGreaterThan(10);
-    expect(files.map(f => f.url)).toEqual(expect.arrayContaining(["/sign-in", "/team", "/config", "/auth/callback", "/api/auth/start"]));
+    expect(files.map(f => f.url)).toEqual(expect.arrayContaining(["/sign-in", "/team", "/orry", "/auth/callback", "/api/auth/start"]));
   });
 
   it("every route file is on the route list", () => {
@@ -42,7 +42,7 @@ describe("route list", () => {
   });
 
   it("organizer routes are organizer-only on the list", () => {
-    for (const u of ["/team", "/config", "/api/team/invites", "/api/team/accounts/3/role"]) expect(accessFor(u)).toBe("organizer");
+    for (const u of ["/team", "/orry", "/api/team/invites", "/api/team/accounts/3/role"]) expect(accessFor(u)).toBe("organizer");
   });
 
   it("an unknown path needs a signed-in helper (default deny)", () => {

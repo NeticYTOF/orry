@@ -16,7 +16,7 @@ const sub = (slackId: string) => "dev-hca-" + slackId.toLowerCase();
 
 export type SeedResult = { pending: Array<{ handle: string; link: string }> };
 
-export function seedDev(base = process.env.ORRY_SITE_URL || "http://localhost:3200"): SeedResult {
+export function seedDev(base = process.env.ORRY_SITE_URL || "http://localhost:9995"): SeedResult {
   const db = getDb();
   const n = Number((db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).n);
   if (n > 0) throw new Error("The database already has accounts. Use --force to start over.");
@@ -87,7 +87,7 @@ export function banner(base: string, seeded: SeedResult | null): string {
     `  Open        ${base}/sign-in`,
     "  Sign in     use the dev panel under the button: Pat Placeholder is an organizer,",
     "              Juno, Leila, Ravi, Mia and Noah are helpers, Zara is turned off.",
-    `  Admin       ${base}/team  and  ${base}/config  (as Pat)`
+    `  Admin       ${base}/team  (as Pat)`
   ];
   if (seeded) {
     lines.push("", "  Open invites (each link works once; sign in as the same person in the dev panel):");
@@ -110,7 +110,7 @@ if (/seed-dev.ts$/.test(process.argv[1] ?? "")) {
   }
   try {
     const r = seedDev();
-    console.log(banner(process.env.ORRY_SITE_URL || "http://localhost:3200", r));
+    console.log(banner(process.env.ORRY_SITE_URL || "http://localhost:9995", r));
   } catch (e) {
     console.error((e as Error).message);
     process.exitCode = 1;

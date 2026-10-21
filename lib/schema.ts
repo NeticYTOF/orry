@@ -452,9 +452,7 @@ const MIGRATIONS = [
   ["tickets", "text_redacted_at", "ALTER TABLE tickets ADD COLUMN text_redacted_at INTEGER"],
   ["tickets", "text_redaction", "ALTER TABLE tickets ADD COLUMN text_redaction TEXT"],
 
-  // One row per message Orry put in Slack, updated in place on edits and
-  // deletes. text is NULL for DMs, private rows, deleted messages and after
-  // the 30-day purge (lib/outboundLog.ts).
+  // Metadata only for each message Orry put in Slack (lib/outboundLog.ts).
   [
     "outbound_messages",
     "table",
@@ -511,6 +509,9 @@ CREATE INDEX IF NOT EXISTS idx_outbound_program_created ON outbound_messages(pro
 CREATE INDEX IF NOT EXISTS idx_outbound_message ON outbound_messages(channel, message_ts);
 CREATE INDEX IF NOT EXISTS idx_outbound_created ON outbound_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_outbound_ticket ON outbound_messages(ticket_id);
+UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_chars = NULL,
+  text_purged_at = COALESCE(text_purged_at, CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+  WHERE text IS NOT NULL OR blocks_json IS NOT NULL OR text_chars IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_answer_outcomes_program ON answer_outcomes(program_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_answer_outcomes_created ON answer_outcomes(created_at);
 `;

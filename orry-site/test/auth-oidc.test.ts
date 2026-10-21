@@ -51,7 +51,7 @@ afterAll(() => new Promise<void>(r => server.close(() => r())));
 const provider = () => new OidcProvider({ id: "hca", label: "Hack Club", issuer: base, clientId: CLIENT, clientSecret: SECRET });
 async function run(m: Mode, nonce = "nonce-abc") {
   mode = m; lastNonce = nonce;
-  return provider().callback({ code: "code-1", nonce, redirectUri: "http://localhost:3200/auth/callback" });
+  return provider().callback({ code: "code-1", nonce, redirectUri: "http://localhost:9995/auth/callback" });
 }
 async function failsWith(m: Mode, code: OidcError["code"], nonce?: string) {
   const e = await run(m, nonce).then(() => null, (x: unknown) => x);
@@ -61,9 +61,9 @@ async function failsWith(m: Mode, code: OidcError["code"], nonce?: string) {
 
 describe("OidcProvider against a fake OIDC server", () => {
   it("builds the authorize URL with code flow, openid slack_id, state and nonce", () => {
-    const u = new URL(provider().authorizeUrl({ state: "s1", nonce: "n1", redirectUri: "http://localhost:3200/auth/callback" }));
+    const u = new URL(provider().authorizeUrl({ state: "s1", nonce: "n1", redirectUri: "http://localhost:9995/auth/callback" }));
     expect(u.origin + u.pathname).toBe(base + "/oauth/authorize");
-    expect(Object.fromEntries(u.searchParams)).toMatchObject({ response_type: "code", client_id: CLIENT, scope: "openid slack_id", state: "s1", nonce: "n1", redirect_uri: "http://localhost:3200/auth/callback" });
+    expect(Object.fromEntries(u.searchParams)).toMatchObject({ response_type: "code", client_id: CLIENT, scope: "openid slack_id", state: "s1", nonce: "n1", redirect_uri: "http://localhost:9995/auth/callback" });
   });
 
   it("accepts a good ID token and returns sub and slack_id", async () => {

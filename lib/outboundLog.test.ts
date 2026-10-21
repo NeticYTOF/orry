@@ -23,6 +23,7 @@ interface OutRow {
   error: string | null;
   private: number;
   text: string | null;
+  blocks_json?: string | null;
   text_chars: number | null;
   edit_count: number;
   deleted_at: number | null;
@@ -56,7 +57,7 @@ function okClient(ts = "1700000000.000100") {
 
 const PROGRAM = { id: "out-prog", name: "Out" };
 
-test("a thread reply is logged with its text; a DM and a private send keep metadata only", async () => {
+test("outbound messages keep metadata only on every surface", async () => {
   await slackMessages.sendProgramMessage({
     client: okClient("10.1"),
     program: PROGRAM,
@@ -67,7 +68,9 @@ test("a thread reply is logged with its text; a DM and a private send keep metad
   const [thread] = rows("C-OUT-1");
   assert.equal(thread.surface, "thread");
   assert.equal(thread.message_ts, "10.1");
-  assert.equal(thread.text, "Try restarting the board.");
+  assert.equal(thread.text, null);
+  assert.equal(thread.blocks_json, null);
+  assert.equal(thread.text_chars, null);
   assert.equal(thread.program_id, "out-prog");
   assert.equal(thread.status, "sent");
 
@@ -81,7 +84,7 @@ test("a thread reply is logged with its text; a DM and a private send keep metad
   assert.equal(dm.surface, "dm");
   assert.equal(dm.text, null);
   assert.equal(dm.private, 1);
-  assert.equal(dm.text_chars, 2, "length is kept so the log can still show something was said");
+  assert.equal(dm.text_chars, null);
 
   await slackMessages.sendProgramMessage({
     client: okClient("12.1"),
@@ -95,6 +98,21 @@ test("a thread reply is logged with its text; a DM and a private send keep metad
   const [sensitive] = rows("C-OUT-2");
   assert.equal(sensitive.text, null);
   assert.equal(sensitive.source, "sensitive_reply");
+});
+
+test("opening the schema clears legacy outbound text, blocks, and content lengths", () => {
+  const schema = require("./schema");
+  db.handle()
+    .query(
+      "UPDATE outbound_messages SET text = 'old text', blocks_json = '[{}]', text_chars = 8 WHERE channel = 'C-OUT-1'",
+    )
+    .run();
+  db.handle().exec(schema.POST_MIGRATION_SCHEMA);
+  const [row] = rows("C-OUT-1");
+  assert.equal(row.text, null);
+  assert.equal(row.blocks_json, null);
+  assert.equal(row.text_chars, null);
+  assert.ok(row.text_purged_at);
 });
 
 test("a failed send is logged as failed and still throws the Slack error", async () => {
@@ -133,7 +151,7 @@ test("a logging failure never breaks the send", async () => {
   }
 });
 
-test("a placeholder that becomes the answer is one row with the final text", async () => {
+test("a placeholder that becomes the answer is one metadata row", async () => {
   const client = okClient("14.1");
   const placeholder = reply.postThinking(client, "C-OUT-ANS", "7.7", PROGRAM);
   await reply.finalize(client, "C-OUT-ANS", "7.7", placeholder, "Your build goes in the #ship channel.", {
@@ -143,7 +161,9 @@ test("a placeholder that becomes the answer is one row with the final text", asy
   assert.equal(list.length, 1);
   assert.equal(list[0].source, "answer");
   assert.equal(list[0].edit_count, 1);
-  assert.equal(list[0].text, "Your build goes in the #ship channel.");
+  assert.equal(list[0].text, null);
+  assert.equal(list[0].blocks_json, null);
+  assert.equal(list[0].text_chars, null);
 });
 
 test("a discarded placeholder and a :x: delete leave a tombstone with no text", async () => {
@@ -182,7 +202,7 @@ test("a discarded placeholder and a :x: delete leave a tombstone with no text", 
   assert.equal(gone.text, null, "the text went at once, not at the 30-day purge");
 });
 
-test("a ticket card edit keeps the latest text and blocks on the card's row", async () => {
+test("a ticket card edit updates metadata without retaining text or blocks", async () => {
   const tickets = require("./tickets");
   const client = okClient("17.1");
   const id = db.createTicket({
@@ -208,10 +228,11 @@ test("a ticket card edit keeps the latest text and blocks on the card's row", as
   });
   const [card] = rows("C-OUT-ORG").filter((r) => r.message_ts === "17.1");
   assert.equal(card.edit_count >= 1, true);
-  assert.match(card.text || "", /Claimed/);
+  assert.equal(card.text, null);
+  assert.equal(card.blocks_json, null);
 });
 
-test("the sweeper drops text after 30 days, rows after 365, and any text on a deleted row", () => {
+test("outbound message bodies are never retained and metadata rows expire after 365 days", () => {
   const outboundLog = require("./outboundLog");
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -230,15 +251,15 @@ test("the sweeper drops text after 30 days, rows after 365, and any text on a de
 
   db.sweep();
   const byTs = new Map(rows("C-OUT-PURGE").map((r) => [r.message_ts, r]));
-  assert.equal(byTs.get("p.fresh").text, "text p.fresh");
+  assert.equal(byTs.get("p.fresh").text, null);
   assert.equal(byTs.get("p.old").text, null);
-  assert.ok(byTs.get("p.old").text_purged_at, "purge time is recorded");
-  assert.equal(byTs.get("p.old").text_chars, "text p.old".length, "metadata survives the purge");
+  assert.equal(byTs.get("p.fresh").blocks_json, null);
+  assert.equal(byTs.get("p.old").text_chars, null);
   assert.equal(byTs.has("p.ancient"), false);
   assert.equal(byTs.get("p.deleted").text, null);
 });
 
-test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns DM or private text", async () => {
+test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns message content", async () => {
   const outboundLog = require("./outboundLog");
   const programs = require("./programs");
   db.saveProgram({ id: "out-route", name: "Out Route" });
@@ -248,7 +269,7 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
   outboundLog.recordPost({ programId: "out-route", channel: "D-OR", ts: "1.3", text: "dm words" });
   outboundLog.recordPost({ programId: "out-route", channel: "C-OR", ts: "1.4", text: "private", private: true });
   outboundLog.recordPost({ programId: "out-route-other", channel: "C-OTHER", ts: "1.5", text: "other program" });
-  // A row written with text by some future path must still not leak for a DM.
+  // Legacy/corrupt content must not be exposed by the API.
   db.handle().query("UPDATE outbound_messages SET text = 'leaked dm' WHERE channel = 'D-OR'").run();
 
   const saved = process.env.RIVET_INTERNAL_TOKEN;
@@ -265,14 +286,15 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
     assert.equal(body.total, 3);
     const blob = JSON.stringify(body);
     assert.equal(blob.includes("other program"), false, "other programs never appear");
-    assert.equal(blob.includes("dm words") || blob.includes("leaked dm"), false);
-    assert.equal(
-      body.rows.find((r: { messageTs: string }) => r.messageTs === "1.4").text,
-      null,
-      "private rows keep no text",
+    assert.equal(blob.includes("dm words") || blob.includes("leaked dm") || blob.includes("public reply"), false);
+    assert.ok(
+      body.rows.every(
+        (r: { text: string | null; blocks?: unknown; textChars: number | null }) =>
+          r.text === null && r.textChars === null && (!("blocks" in r) || r.blocks === null),
+      ),
     );
     const pub = body.rows.find((r: { messageTs: string }) => r.messageTs === "1.2");
-    assert.equal(pub.text, "public reply");
+    assert.equal(pub.text, null);
     assert.equal(pub.surface, "thread");
 
     const missing = await serve.handleRequest(
@@ -325,13 +347,16 @@ test("log rows link to their ticket: thread replies, the card, and the route's t
   assert.equal(listed.total, 2);
   assert.ok(listed.rows.every((r: { ticketId: number }) => r.ticketId === id));
 
-  // The participant deletes the question: the card that quoted it loses its text too.
+  // Ticket thread changes do not cause outbound content to be retained.
   require("./messageRedaction").handleMessageChange({
     subtype: "message_deleted",
     channel: "C-OUT-T",
     deleted_ts: "20.1",
   });
-  const left = db.handle().query("SELECT text FROM outbound_messages WHERE ticket_id = ? AND text IS NOT NULL").all(id);
+  const left = db
+    .handle()
+    .query("SELECT text FROM outbound_messages WHERE ticket_id = ? AND (text IS NOT NULL OR blocks_json IS NOT NULL)")
+    .all(id);
   assert.equal(left.length, 0);
 });
 

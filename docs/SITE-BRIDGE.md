@@ -300,20 +300,19 @@ call returned):
 
 ### GET `/internal/v1/programs/:id/outbound?since=&until=&limit=&offset=&source=&channel=&ticketId=&includeBlocks=1`
 
-The outbound log: one row per message Orry put in Slack, newest first,
-updated in place when Orry edits or deletes it. `limit` 1-500 (default 100).
-Filters: `source`, `channel`, `ticketId`. `includeBlocks=1` adds `blocks`.
+The outbound log stores one metadata row per message Orry put in Slack,
+newest first, updated when Orry edits or deletes it. It never stores message
+text, blocks, or content length. `limit` 1-500 (default 100). Filters:
+`source`, `channel`, `ticketId`. `includeBlocks=1` returns `blocks: null` for
+schema compatibility.
 
-- `text` (and `blocks`) is returned only for channel and thread messages that
-  are not private and not deleted. DM rows and private rows (the
-  sensitive-topic reply) are metadata only: `text: null`, `textChars` set.
-- Text is purged after 30 days (`textPurgedAt` set, metadata kept) and rows
-  are deleted after 365 days.
+- `text`, `blocks`, and `textChars` are always `null` for every surface.
+- Historical message text is cleared when the database opens with this
+  version. Metadata rows are deleted after 365 days.
 - A message Orry deleted (`:x:` reaction, a discarded placeholder, a duplicate
   card) keeps its row as a tombstone with `deletedAt`, `deleteReason` and no
   text.
-- When a participant deletes or edits a ticket's question, every row linked
-  to that ticket loses its text (the card quotes the question).
+- Ticket linkage is metadata only; outbound rows never contain ticket text.
 - `source` values: `answer`, `placeholder`, `program_message`,
   `ticket_card`, `ticket_thread_card`, `sensitive_reply`, `weekly_report`,
   `cost_digest`, `ops_alert`, `thread_summary`, `update`, `delete`.
@@ -342,8 +341,8 @@ Filters: `source`, `channel`, `ticketId`. `includeBlocks=1` adds `blocks`.
       "status": "sent",
       "error": null,
       "private": false,
-      "text": "[Ticket #144] <@U0KID0027> asked: \"Can I work on a project with a friend and both get Bolts?\"",
-      "textChars": 93,
+      "text": null,
+      "textChars": null,
       "editCount": 0,
       "textPurgedAt": null,
       "deletedAt": null,
@@ -362,8 +361,8 @@ Filters: `source`, `channel`, `ticketId`. `includeBlocks=1` adds `blocks`.
       "status": "sent",
       "error": null,
       "private": false,
-      "text": "Someone will be here to help you soon!",
-      "textChars": 38,
+      "text": null,
+      "textChars": null,
       "editCount": 0,
       "textPurgedAt": null,
       "deletedAt": null,
@@ -396,17 +395,9 @@ With `source=weekly_report&includeBlocks=1`:
       "status": "sent",
       "error": null,
       "private": false,
-      "text": "Orry weekly report",
-      "blocks": [
-        {
-          "type": "section",
-          "text": {
-            "type": "mrkdwn",
-            "text": "*Week 2026-W42* (invented numbers)"
-          }
-        }
-      ],
-      "textChars": 18,
+      "text": null,
+      "blocks": null,
+      "textChars": null,
       "editCount": 0,
       "textPurgedAt": null,
       "deletedAt": null,
@@ -440,7 +431,7 @@ A DM row (`channel=D0DEVDM001`), metadata only:
       "error": null,
       "private": true,
       "text": null,
-      "textChars": 42,
+      "textChars": null,
       "editCount": 0,
       "textPurgedAt": null,
       "deletedAt": null,
@@ -830,9 +821,8 @@ strip it except for the actions the site whitelists (`sla.notified`).
   `GET /internal/v1/usage`) are unchanged and still global: keep filtering
   them to `loadout`.
 - Routes that carry participant text: ticket search and detail (`question`,
-  event `detail`), audit (`metadata`) and the outbound log (`text`: Orry's
-  own words, which can quote a question). The closing, access, outcomes and
-  members routes carry none.
+  event `detail`) and audit (`metadata`). The outbound log contains metadata
+  only. The closing, access, outcomes and members routes carry none.
 - The closing route is the source for finished-ticket numbers. Page it with
   `limit=500`; `total` tells you when you are done.
 - `firstTaken.by` on an `assigned` event is the assignee, not the actor.

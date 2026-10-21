@@ -7,12 +7,12 @@ A website for Netic's Orry Slack bot: open tickets, closed-ticket statistics, My
 ```
 cd orry-site
 npm install
-npm run dev          # http://localhost:3200
+npm run dev          # http://localhost:9995
 ```
 
-The first run makes `data/site.db` and prints the invite links. Open http://localhost:3200/sign-in. Under the button is a **local-only dev panel** that stands in for Hack Club: pick Pat Placeholder (organizer) or Juno, Leila, Ravi, Mia, Noah (helpers). Zara is turned off. Start over with `npm run seed -- --force`.
+The first run makes `data/site.db` and prints the invite links. Open http://localhost:9995/sign-in. Under the button is a **local-only dev panel** that stands in for Hack Club: pick Pat Placeholder (organizer) or Juno, Leila, Ravi, Mia, Noah (helpers). Zara is turned off. Start over with `npm run seed -- --force`.
 
-Things to try: switch people with the sidebar user card; Board filters and the side sheet; Statistics tabs and the week picker; Closed tickets (select a number to filter); Leaderboard; as Pat, **Team and invites** (make an invite, open its link in a private window, choose that person in the dev panel) and **Config check**.
+Things to try: switch people with the sidebar user card; Board filters and the side sheet; Statistics tabs and the week picker; Closed tickets (select a number to filter); Leaderboard; as Pat, **Team and invites** (make an invite, open its link in a private window, choose that person in the dev panel).
 
 ## Against the real bot code (still fake data)
 

@@ -205,7 +205,6 @@ const ANSWERED_TTL_MS = 24 * 60 * 60 * 1000;
 const THREAD_TTL_MS = 60 * 60 * 1000;
 const HISTORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
-const OUTBOUND_TEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const OUTBOUND_ROW_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const ANSWER_OUTCOME_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -308,6 +307,7 @@ function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
   if (db) return db;
   db = new Database(filename, { create: true });
   // SQLite WAL
+  db.exec("PRAGMA secure_delete = ON");
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec(SCHEMA);
@@ -315,6 +315,7 @@ function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
   backfillResolvedCredits(db);
   backfillLastHumanReply(db);
   db.exec(POST_MIGRATION_SCHEMA);
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   log.info("db", `opened ${filename}`);
   return db;
 }
@@ -322,6 +323,7 @@ function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
 function ensureSchema(filename: string | null = null) {
   const file = filename || process.env.RIVET_DB_PATH || DEFAULT_PATH;
   const database = new Database(file, { create: true });
+  database.exec("PRAGMA secure_delete = ON");
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA busy_timeout = 5000");
   database.exec(SCHEMA);
@@ -329,6 +331,7 @@ function ensureSchema(filename: string | null = null) {
   backfillResolvedCredits(database);
   backfillLastHumanReply(database);
   database.exec(POST_MIGRATION_SCHEMA);
+  database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   database.close();
 }
 
@@ -1059,21 +1062,10 @@ function recordRequest(userId: string) {
   query("INSERT INTO rate_limits (user_id, created_at) VALUES (?, ?)").run(userId, now());
 }
 
-// The outbound log keeps text for 30 days and rows for a year. A row Orry
-// deleted in Slack (a :x: reaction, a discarded placeholder) must hold no
-// text at all; recordDelete already clears it and this catches any row
-// that was marked deleted some other way.
+// The outbound log stores metadata only and keeps rows for a year.
 function purgeOutboundMessages(t = now()) {
-  const purgedDeleted = query(
-    `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_purged_at = COALESCE(text_purged_at, ?)
-       WHERE deleted_at IS NOT NULL AND (text IS NOT NULL OR blocks_json IS NOT NULL)`,
-  ).run(t).changes;
-  const purgedOld = query(
-    `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_purged_at = ?
-       WHERE created_at < ? AND (text IS NOT NULL OR blocks_json IS NOT NULL)`,
-  ).run(t, t - OUTBOUND_TEXT_TTL_MS).changes;
   const removed = query("DELETE FROM outbound_messages WHERE created_at < ?").run(t - OUTBOUND_ROW_TTL_MS).changes;
-  return { purgedDeleted, purgedOld, removed };
+  return { removed };
 }
 
 function sweep() {
@@ -1988,7 +1980,6 @@ export = {
   handle,
   sweep,
   purgeOutboundMessages,
-  OUTBOUND_TEXT_TTL_MS,
   OUTBOUND_ROW_TTL_MS,
   recordAnsweredThread,
   getRecentAnsweredThreads,

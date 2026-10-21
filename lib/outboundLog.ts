@@ -1,15 +1,7 @@
-// A log of what Orry put in Slack: one row per message, updated in place
-// when Orry edits or deletes it. Every function here swallows its own
-// errors: logging must never break, delay or change a send.
-//
-// Text is kept only for channel and thread messages. DMs (channel ids that
-// start with D, or a user id passed as the channel) and rows marked private
-// keep metadata only. A delete removes the text at once.
+// Metadata only for what Orry puts in Slack. Message text and blocks are
+// never persisted. Logging errors must never break, delay or change a send.
 import db = require("./db");
 import log = require("./log");
-
-const MAX_TEXT_CHARS = 8000;
-const MAX_BLOCKS_CHARS = 16000;
 
 type Surface = "channel" | "thread" | "dm";
 
@@ -67,24 +59,6 @@ function programFor(programId: string | null | undefined, channel: string): stri
   }
 }
 
-function clip(value: string | null | undefined, max: number): string | null {
-  if (typeof value !== "string" || !value) return null;
-  return value.length > max ? value.slice(0, max) : value;
-}
-
-function blocksJson(blocks: unknown): string | null {
-  if (!Array.isArray(blocks) || blocks.length === 0) return null;
-  try {
-    return clip(JSON.stringify(blocks), MAX_BLOCKS_CHARS);
-  } catch (_) {
-    return null;
-  }
-}
-
-function keepsText(channel: string, isPrivate: boolean | undefined): boolean {
-  return !isPrivate && !isDm(channel);
-}
-
 function errorCode(error: unknown): string {
   const e = (error && typeof error === "object" ? error : {}) as { code?: unknown; data?: { error?: unknown } };
   return String(e.data?.error || e.code || errorMessage(error) || "unknown").slice(0, 60);
@@ -131,14 +105,12 @@ function purgeTicketText(ticketId: number): number {
 function recordPost(entry: PostEntry): number | null {
   try {
     const t = Date.now();
-    const text = typeof entry.text === "string" ? entry.text : null;
-    const keep = keepsText(entry.channel, entry.private);
     const res = db
       .handle()
       .query(
         `INSERT INTO outbound_messages (program_id, ticket_id, channel, thread_ts, message_ts, surface, source, status, error, private,
            text, blocks_json, text_chars, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)`,
       )
       .run(
         programFor(entry.programId, entry.channel),
@@ -150,10 +122,7 @@ function recordPost(entry: PostEntry): number | null {
         entry.source || "program_message",
         entry.status || "sent",
         entry.error ? String(entry.error).slice(0, 60) : null,
-        keep ? 0 : 1,
-        keep ? clip(text, MAX_TEXT_CHARS) : null,
-        keep ? blocksJson(entry.blocks) : null,
-        text ? text.length : null,
+        entry.private || isDm(entry.channel) ? 1 : 0,
         t,
         t,
       );
@@ -164,40 +133,28 @@ function recordPost(entry: PostEntry): number | null {
   }
 }
 
-// Orry edited one of its messages (a placeholder turned into the answer, a
-// ticket card that changed). The row keeps the latest text only.
+// Orry edited one of its messages. Keep edit metadata without the new content.
 function recordUpdate(entry: UpdateEntry): void {
   try {
     const t = Date.now();
-    const text = typeof entry.text === "string" ? entry.text : null;
     const row = db
       .handle()
-      .query("SELECT id, private, deleted_at FROM outbound_messages WHERE channel = ? AND message_ts = ? LIMIT 1")
-      .get(entry.channel, entry.ts) as { id: number; private: number; deleted_at: number | null } | null;
+      .query("SELECT id, deleted_at FROM outbound_messages WHERE channel = ? AND message_ts = ? LIMIT 1")
+      .get(entry.channel, entry.ts) as { id: number; deleted_at: number | null } | null;
     if (row) {
       if (row.deleted_at) return;
-      const keep = !row.private && keepsText(entry.channel, false);
       db.handle()
         .query(
-          `UPDATE outbound_messages SET text = ?, blocks_json = COALESCE(?, blocks_json), text_chars = ?, source = COALESCE(?, source),
+          `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_chars = NULL, source = COALESCE(?, source),
              edit_count = edit_count + 1, updated_at = ? WHERE id = ?`,
         )
-        .run(
-          keep ? clip(text, MAX_TEXT_CHARS) : null,
-          keep ? blocksJson(entry.blocks) : null,
-          text ? text.length : null,
-          entry.source || null,
-          t,
-          row.id,
-        );
+        .run(entry.source || null, t, row.id);
       return;
     }
     recordPost({
       programId: entry.programId,
       channel: entry.channel,
       ts: entry.ts,
-      text,
-      blocks: entry.blocks,
       source: entry.source || "update",
     });
   } catch (e: unknown) {
@@ -213,7 +170,7 @@ function recordDelete(entry: DeleteEntry): void {
     const changed = db
       .handle()
       .query(
-        `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, deleted_at = COALESCE(deleted_at, ?), delete_reason = COALESCE(delete_reason, ?),
+        `UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_chars = NULL, deleted_at = COALESCE(deleted_at, ?), delete_reason = COALESCE(delete_reason, ?),
            updated_at = ? WHERE channel = ? AND message_ts = ?`,
       )
       .run(t, entry.source || "delete", t, entry.channel, entry.ts).changes;
@@ -251,8 +208,7 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
 }
 
-// For the few places that call chat.postMessage directly: log the payload
-// that was sent and the ts Slack returned.
+// For direct chat.postMessage calls, log metadata and the ts Slack returned.
 function recordSent(payload: RawPayload, res: unknown, source: string, programId: string | null = null): void {
   try {
     const channel = str(payload.channel);
@@ -269,7 +225,7 @@ function recordSent(payload: RawPayload, res: unknown, source: string, programId
   } catch (_) {}
 }
 
-// For direct chat.update calls: log the new text and blocks on the row.
+// For direct chat.update calls, log metadata only.
 function recordEdited(payload: RawPayload, source: string, programId: string | null = null): void {
   try {
     const channel = str(payload.channel);
@@ -318,10 +274,7 @@ function present(value: unknown): boolean {
   return value !== null && value !== undefined && value !== "";
 }
 
-// Program-scoped read of the log, newest first. Text (and blocks, when
-// asked for) is returned only for channel and thread messages that are not
-// private; DM rows and private rows are metadata only even if a future
-// write path ever stored text for them.
+// Program-scoped read of metadata only, newest first.
 function listForProgram(programId: string, params: ListParams = {}) {
   if (!programId || !require("./programs").get(programId)) return { error: "unknown program" };
   const until = present(params.until) ? Number(params.until) : Date.now();
@@ -362,15 +315,6 @@ function listForProgram(programId: string, params: ListParams = {}) {
     .all(...values, limit, offset) as OutboundRow[];
   const withBlocks = params.includeBlocks === true || params.includeBlocks === "1" || params.includeBlocks === "true";
   const rows = found.map((row) => {
-    const textAllowed = !row.private && row.surface !== "dm" && !isDm(row.channel) && !row.deleted_at;
-    let blocks: unknown = undefined;
-    if (withBlocks) {
-      try {
-        blocks = textAllowed && row.blocks_json ? JSON.parse(row.blocks_json) : null;
-      } catch (_) {
-        blocks = null;
-      }
-    }
     return {
       id: row.id,
       ticketId: row.ticket_id,
@@ -382,9 +326,9 @@ function listForProgram(programId: string, params: ListParams = {}) {
       status: row.status,
       error: row.error,
       private: Boolean(row.private),
-      text: textAllowed ? row.text : null,
-      ...(withBlocks ? { blocks } : {}),
-      textChars: row.text_chars,
+      text: null,
+      ...(withBlocks ? { blocks: null } : {}),
+      textChars: null,
       editCount: row.edit_count,
       textPurgedAt: row.text_purged_at,
       deletedAt: row.deleted_at,
@@ -406,5 +350,4 @@ export = {
   purgeTicketText,
   errorCode,
   isDm,
-  MAX_TEXT_CHARS,
 };

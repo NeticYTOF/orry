@@ -108,7 +108,7 @@ function Team({ m }: { m: StatsModel }) {
       <div className="panel-b tight" id="teamBody">
         {t.rosterEmpty ? (
           <div className="panel-b">
-            <div className="state-note"><p><b>Empty because Loadout&apos;s helper roster is empty.</b></p><p>First human reply, the limit and the team need it.</p>{m.role === "organizer" ? <a className="btn sm" href="/config">Config check</a> : null}</div>
+            <div className="state-note"><p><b>Empty because Loadout&apos;s helper roster is empty.</b></p><p>First human reply, the limit and the team need it.</p>{m.role === "organizer" ? <a className="btn sm" href="/team">Team and invites</a> : null}</div>
           </div>
         ) : (
           <div className="tbl-scroll" tabIndex={0} role="region" aria-label="Team table">
@@ -229,7 +229,7 @@ function Categories({ m }: { m: StatsModel }) {
 }
 
 function Answers({ m }: { m: StatsModel }) {
-  const cfg = m.role === "organizer" ? <> <a className="lnk" href="/config">Config check</a></> : null;
+  const cfg = m.role === "organizer" ? <> <a className="lnk" href="/team">Team and invites</a></> : null;
   const gate = <span className="or-gate">{m.answers.message}{cfg}</span>;
   const spr = (f: string) => <img className="or-spr" src={`/sprites/${f}.png`} alt="" width={32} height={32} />;
   return (

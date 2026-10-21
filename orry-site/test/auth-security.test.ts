@@ -13,7 +13,7 @@ describe("return path after sign-in", () => {
     ["/\\evil.example", "/board"],
     ["/\\/evil.example", "/board"],
     ["https://evil.example/board", "/board"],
-    ["http://localhost:3200/board", "/board"],
+    ["http://localhost:9995/board", "/board"],
     ["javascript:alert(1)", "/board"],
     ["board", "/board"],
     ["/%2F%2Fevil.example", "/board"],
@@ -40,13 +40,13 @@ describe("return path after sign-in", () => {
 });
 
 describe("Origin check on non-GET requests", () => {
-  const site = "http://localhost:3200";
+  const site = "http://localhost:9995";
   it("accepts the exact site origin", () => {
     expect(originAllowed(hdr({ origin: site }), site)).toBe(true);
   });
   it.each([
-    "https://localhost:3200", "http://localhost:3201", "http://127.0.0.1:3200", "http://evil.example",
-    "http://localhost:3200.evil.example", "https://poorup.jeremy-d.hackclub.app"
+    "https://localhost:9995", "http://localhost:9996", "http://127.0.0.1:9995", "http://evil.example",
+    "http://localhost:9995.evil.example", "https://poorup.jeremy-d.hackclub.app"
   ])("refuses %s", o => {
     expect(originAllowed(hdr({ origin: o }), site)).toBe(false);
   });

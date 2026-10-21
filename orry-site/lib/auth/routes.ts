@@ -43,7 +43,6 @@ export const ROUTES: RouteEntry[] = [
   /* organizers */
   { pattern: "/orry", access: "organizer", kind: "page" },
   { pattern: "/team", access: "organizer", kind: "page" },
-  { pattern: "/config", access: "organizer", kind: "page" },
   { pattern: "/api/team/*", access: "organizer", kind: "api" }
 ];
 

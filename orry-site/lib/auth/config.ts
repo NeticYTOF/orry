@@ -14,7 +14,7 @@ export const INVITES_PER_DAY = 30;
 export const SLACK_ID_RE = /^[UW][A-Z0-9]{8,14}$/;
 
 export function baseUrl(): string {
-  return (process.env.ORRY_SITE_URL || "http://localhost:3200").replace(/\/+$/, "");
+  return (process.env.ORRY_SITE_URL || "http://localhost:9995").replace(/\/+$/, "");
 }
 export function baseOrigin(): string {
   return new URL(baseUrl()).origin;

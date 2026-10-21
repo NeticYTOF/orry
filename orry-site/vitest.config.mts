@@ -8,6 +8,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
-    env: { ORRY_FIXTURES: "1", ORRY_SITE_URL: "http://localhost:3200" }
+    env: { ORRY_FIXTURES: "1", ORRY_SITE_URL: "http://localhost:9995" }
   }
 });
