@@ -68,7 +68,7 @@ delivery in `core_sync_state`; a daily cron (`0 9 * * *`) re-sends anything not 
 - **Ingest** — per-source text fetch (inline / `file://` / json-faq / gdoc / github-dir /
   url crawl, optionally via Firecrawl `lib/firecrawl.ts`), capped at 200k chars, SSRF-guarded
   (`lib/sourceGuard.ts` resolves DNS and rejects private ranges per redirect).
-- **Freshness** — 30-min `setInterval` full refresh, a startup refresh, an admin
+- **Freshness** — hourly `setInterval` full refresh, a startup refresh, an admin
   `/api/knowledge/refresh`, and a fire-and-forget per-program refresh from Wizard.
   Failures increment `fail_count` and downgrade source status, which then gates whether
   exact factual claims from that source are allowed.

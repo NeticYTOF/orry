@@ -78,6 +78,15 @@
       "name": "Loadout — Community Eras",
       "type": "markdown",
       "url": "file://loadout/corpus/10-eras.md"
+    },
+    {
+      "name": "Loadout — live website docs",
+      "type": "url",
+      "url": "https://loadout.dino.icu/",
+      "paths": [
+        "/docs"
+      ],
+      "dynamic": true
     }
   ],
   "channels": [

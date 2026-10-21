@@ -100,7 +100,7 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
 - `lib/retrieve.ts` — hand-rolled **BM25** (K1=1.2), no embeddings, no
   vector store. Budgets: `TOTAL_CONTEXT_BUDGET=8000`, `LEARNED_BUDGET=1500`.
 - `lib/knowledge.ts` — corpus assembly; `file://` sources resolve under the
-  app root; `source_cache` in SQLite; 30-min auto-refresh.
+  app root; `source_cache` in SQLite; hourly auto-refresh.
 - `lib/answer.ts` — system prompts; `reasoningEffort` forwarded to the
   provider (DeepSeek reasons at full effort otherwise: 15–40s vs 4.4s).
   `RIVET_REQUIRE_GROUNDED_ANSWER` disables streaming + chat replies.
