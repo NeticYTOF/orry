@@ -1,0 +1,620 @@
+{
+  "health": {
+    "ok": true,
+    "openTickets": 21,
+    "ticketCardsOn": true
+  },
+  "program": {
+    "channels": [
+      "C0DEVHELP1",
+      "C0DEVMAIN1"
+    ],
+    "organizerChannel": "C0DEVORG01",
+    "sla": null
+  },
+  "access": {
+    "U0PAT0001": {
+      "admin": true,
+      "helper": false
+    },
+    "U0JUNO001": {
+      "admin": false,
+      "helper": true
+    },
+    "U0QUIN001": {
+      "admin": false,
+      "helper": false
+    },
+    "U0KID0001": {
+      "admin": false,
+      "helper": false
+    }
+  },
+  "roster": [
+    "U0JUNO001:helper:pixel-otter:pixel-otter",
+    "U0LEILA01:helper:copper-wren:copper-wren",
+    "U0MIA0001:helper:fuse-badger:fuse-badger",
+    "U0NOAH001:helper:lamp-ferret:lamp-ferret",
+    "U0PAT0001:organizer:pat-placeholder:pat-placeholder",
+    "U0RAVI001:helper:drill-heron:drill-heron",
+    "U0SAM0001:helper:sand-finch:sand-finch",
+    "U0TESS001:helper:tin-lark:tin-lark",
+    "U0ZARA001:helper:soldermoth:soldermoth"
+  ],
+  "names": {
+    "U0PAT0001": {
+      "slackId": "U0PAT0001",
+      "displayName": "pat-placeholder",
+      "realName": "Pat Placeholder",
+      "username": "pat-placeholder",
+      "avatarUrl": null
+    },
+    "U0JUNO001": {
+      "slackId": "U0JUNO001",
+      "displayName": "pixel-otter",
+      "realName": "Juno Baker",
+      "username": "pixel-otter",
+      "avatarUrl": null
+    },
+    "U0KID0001": {
+      "slackId": "U0KID0001",
+      "displayName": "maker-01",
+      "realName": "Maker 01",
+      "username": "maker-01",
+      "avatarUrl": null
+    },
+    "U0NOPE9999": null
+  },
+  "people": {
+    "one": {
+      "id": "U0LEILA01",
+      "handle": "copper-wren",
+      "name": "copper-wren"
+    },
+    "byHandle": "U0LEILA01",
+    "suggest": [
+      "U0CAL0001",
+      "U0LEILA01"
+    ]
+  },
+  "wait": {
+    "available": true,
+    "medianWaitMs": 4272859,
+    "sampleSize": 12,
+    "windowDays": 7
+  },
+  "closingKinds": {
+    "resolved/helper": 64,
+    "none/-": 7,
+    "resolved/orry/auto/last_word": 22,
+    "resolved/requester": 13,
+    "closed/orry/backfill": 4,
+    "resolved/orry/backfill": 2,
+    "resolved/orry/auto/judge": 15
+  },
+  "rowVsClosing": {
+    "same": 127,
+    "missing": 0,
+    "diff": {}
+  },
+  "history": {
+    "finished": 127,
+    "created": 154,
+    "closings": 127
+  },
+  "organizer": {
+    "board": {
+      "needHuman": 21,
+      "waitingFirstReply": 16,
+      "inProgress": 5,
+      "noOwner": 11,
+      "limitFlags": 16,
+      "oldest": 2,
+      "rows": 27,
+      "views": {
+        "human": 21,
+        "noowner": 11,
+        "mine": 0,
+        "orry": 0,
+        "48h": 6,
+        "imp": 0,
+        "parked": 6,
+        "all": 21
+      },
+      "banners": [
+        "no_sla"
+      ],
+      "sensitive": [
+        135,
+        152
+      ],
+      "outside": [
+        152
+      ],
+      "load": [
+        "_none:11",
+        "U0JUNO001:4",
+        "U0LEILA01:2",
+        "U0RAVI001:2",
+        "U0ZARA001:1",
+        "U0TESS001:1",
+        "U0MIA0001:0",
+        "U0NOAH001:0",
+        "U0SAM0001:0"
+      ]
+    },
+    "stats last full week": {
+      "week": "2026-W42",
+      "strip": {
+        "finished": "13",
+        "orry": "3",
+        "people": "10",
+        "created": "15",
+        "first_reply": "59 min",
+        "resolution": "8 h 6 min",
+        "reopened": "0 %",
+        "within": "77 %"
+      },
+      "equation": {
+        "resolved": 13,
+        "closed": 0,
+        "finished": 13,
+        "closedImportNoAnswer": 0,
+        "closedOther": 0
+      },
+      "orry": {
+        "total": 3,
+        "lastWord": 2,
+        "judge": 1,
+        "historyImport": 0,
+        "importResolved": 0,
+        "importClosed": 0,
+        "live": 3
+      },
+      "people": {
+        "total": 10,
+        "helpers": 8,
+        "participants": 2,
+        "personOrMacro": 0
+      },
+      "exact": true,
+      "team": [
+        "U0LEILA01:2:2",
+        "U0RAVI001:1:0",
+        "U0MIA0001:1:3",
+        "U0PAT0001:1:1",
+        "U0JUNO001:2:3",
+        "U0SAM0001:1:0",
+        "U0ZARA001:0:1",
+        "U0TESS001:0:1"
+      ],
+      "teamTotals": {
+        "finished": 8,
+        "firstReplies": 11,
+        "median": "59 min",
+        "reopened": "0 of 11"
+      }
+    },
+    "stats current week": {
+      "week": "2026-W43",
+      "strip": {
+        "finished": "1",
+        "orry": "0",
+        "people": "1",
+        "created": "13",
+        "first_reply": "Too few tickets (n = 3)",
+        "resolution": "Too few tickets (n = 1)",
+        "reopened": "8 %",
+        "within": "23 %"
+      },
+      "equation": {
+        "resolved": 1,
+        "closed": 0,
+        "finished": 1,
+        "closedImportNoAnswer": 0,
+        "closedOther": 0
+      },
+      "orry": {
+        "total": 0,
+        "lastWord": 0,
+        "judge": 0,
+        "historyImport": 0,
+        "importResolved": 0,
+        "importClosed": 0,
+        "live": 0
+      },
+      "people": {
+        "total": 1,
+        "helpers": 1,
+        "participants": 0,
+        "personOrMacro": 0
+      },
+      "exact": true,
+      "team": [
+        "U0LEILA01:0:1",
+        "U0RAVI001:1:1",
+        "U0JUNO001:0:1"
+      ],
+      "teamTotals": {
+        "finished": 1,
+        "firstReplies": 3,
+        "median": "Too few (n = 3)",
+        "reopened": "1 of 3"
+      }
+    },
+    "closed": {
+      "counts": {
+        "all": 13,
+        "orry": 3,
+        "helper": 8,
+        "participant": 2,
+        "person": 0
+      },
+      "total": 13,
+      "withheld": [
+        154,
+        127
+      ],
+      "labels": {
+        "125": "helper",
+        "126": "helper",
+        "127": "orry_last_word",
+        "128": "helper",
+        "129": "orry_last_word",
+        "130": "participant",
+        "132": "helper",
+        "133": "orry_judge",
+        "134": "helper",
+        "136": "participant",
+        "138": "helper",
+        "151": "helper",
+        "154": "helper"
+      }
+    },
+    "me": {
+      "finished": 0,
+      "team": 1,
+      "open": 0,
+      "median": "Too few (n = 0)",
+      "onRoster": true,
+      "finishedRows": 0
+    },
+    "leaderboard": {
+      "rows": [
+        "U0RAVI001:1:1",
+        "U0LEILA01:0:1",
+        "U0MIA0001:0:0",
+        "U0NOAH001:0:0",
+        "U0PAT0001:0:0",
+        "U0JUNO001:0:1",
+        "U0SAM0001:0:0",
+        "U0ZARA001:0:0",
+        "U0TESS001:0:0"
+      ],
+      "team": {
+        "finished": 1,
+        "firstReplies": 3,
+        "median": "Too few (n = 3)",
+        "reopened": "1 of 3"
+      }
+    },
+    "leaderboard8w": {
+      "rows": [
+        "U0JUNO001:15",
+        "U0LEILA01:12",
+        "U0RAVI001:6",
+        "U0ZARA001:4",
+        "U0MIA0001:3",
+        "U0NOAH001:3",
+        "U0SAM0001:3",
+        "U0PAT0001:1",
+        "U0TESS001:0"
+      ],
+      "team": 47
+    }
+  },
+  "helper": {
+    "board": {
+      "needHuman": 20,
+      "waitingFirstReply": 15,
+      "inProgress": 5,
+      "noOwner": 10,
+      "limitFlags": 15,
+      "oldest": 2,
+      "rows": 26,
+      "views": {
+        "human": 20,
+        "noowner": 10,
+        "mine": 4,
+        "orry": 0,
+        "48h": 6,
+        "imp": 0,
+        "parked": 6,
+        "all": 20
+      },
+      "banners": [
+        "no_sla"
+      ],
+      "sensitive": [
+        135
+      ],
+      "outside": [],
+      "load": [
+        "_none:10",
+        "U0JUNO001:4",
+        "U0LEILA01:2",
+        "U0RAVI001:2",
+        "U0ZARA001:1",
+        "U0TESS001:1",
+        "U0MIA0001:0",
+        "U0NOAH001:0",
+        "U0SAM0001:0"
+      ]
+    },
+    "stats last full week": {
+      "week": "2026-W42",
+      "strip": {
+        "finished": "13",
+        "orry": "3",
+        "people": "10",
+        "created": "15",
+        "first_reply": "59 min",
+        "resolution": "8 h 6 min",
+        "reopened": "0 %",
+        "within": "77 %"
+      },
+      "equation": {
+        "resolved": 13,
+        "closed": 0,
+        "finished": 13,
+        "closedImportNoAnswer": 0,
+        "closedOther": 0
+      },
+      "orry": {
+        "total": 3,
+        "lastWord": 2,
+        "judge": 1,
+        "historyImport": 0,
+        "importResolved": 0,
+        "importClosed": 0,
+        "live": 3
+      },
+      "people": {
+        "total": 10,
+        "helpers": 8,
+        "participants": 2,
+        "personOrMacro": 0
+      },
+      "exact": true,
+      "team": [
+        "U0LEILA01:2:2",
+        "U0RAVI001:1:0",
+        "U0MIA0001:1:3",
+        "U0PAT0001:1:1",
+        "U0JUNO001:2:3",
+        "U0SAM0001:1:0",
+        "U0ZARA001:0:1",
+        "U0TESS001:0:1"
+      ],
+      "teamTotals": {
+        "finished": 8,
+        "firstReplies": 11,
+        "median": "59 min",
+        "reopened": "0 of 11"
+      }
+    },
+    "stats current week": {
+      "week": "2026-W43",
+      "strip": {
+        "finished": "1",
+        "orry": "0",
+        "people": "1",
+        "created": "13",
+        "first_reply": "Too few tickets (n = 3)",
+        "resolution": "Too few tickets (n = 1)",
+        "reopened": "8 %",
+        "within": "23 %"
+      },
+      "equation": {
+        "resolved": 1,
+        "closed": 0,
+        "finished": 1,
+        "closedImportNoAnswer": 0,
+        "closedOther": 0
+      },
+      "orry": {
+        "total": 0,
+        "lastWord": 0,
+        "judge": 0,
+        "historyImport": 0,
+        "importResolved": 0,
+        "importClosed": 0,
+        "live": 0
+      },
+      "people": {
+        "total": 1,
+        "helpers": 1,
+        "participants": 0,
+        "personOrMacro": 0
+      },
+      "exact": true,
+      "team": [
+        "U0LEILA01:0:1",
+        "U0RAVI001:1:1",
+        "U0JUNO001:0:1"
+      ],
+      "teamTotals": {
+        "finished": 1,
+        "firstReplies": 3,
+        "median": "Too few (n = 3)",
+        "reopened": "1 of 3"
+      }
+    },
+    "closed": {
+      "counts": {
+        "all": 13,
+        "orry": 3,
+        "helper": 8,
+        "participant": 2,
+        "person": 0
+      },
+      "total": 13,
+      "withheld": [
+        154,
+        127
+      ],
+      "labels": {
+        "125": "helper",
+        "126": "helper",
+        "127": "orry_last_word",
+        "128": "helper",
+        "129": "orry_last_word",
+        "130": "participant",
+        "132": "helper",
+        "133": "orry_judge",
+        "134": "helper",
+        "136": "participant",
+        "138": "helper",
+        "151": "helper",
+        "154": "helper"
+      }
+    },
+    "me": {
+      "finished": 0,
+      "team": 1,
+      "open": 4,
+      "median": "Too few (n = 1)",
+      "onRoster": true,
+      "finishedRows": 0
+    },
+    "leaderboard": {
+      "rows": [
+        "U0RAVI001:1:1",
+        "U0LEILA01:0:1",
+        "U0MIA0001:0:0",
+        "U0NOAH001:0:0",
+        "U0PAT0001:0:0",
+        "U0JUNO001:0:1",
+        "U0SAM0001:0:0",
+        "U0ZARA001:0:0",
+        "U0TESS001:0:0"
+      ],
+      "team": {
+        "finished": 1,
+        "firstReplies": 3,
+        "median": "Too few (n = 3)",
+        "reopened": "1 of 3"
+      }
+    },
+    "leaderboard8w": {
+      "rows": [
+        "U0JUNO001:15",
+        "U0LEILA01:12",
+        "U0RAVI001:6",
+        "U0ZARA001:4",
+        "U0MIA0001:3",
+        "U0NOAH001:3",
+        "U0SAM0001:3",
+        "U0PAT0001:1",
+        "U0TESS001:0"
+      ],
+      "team": 47
+    }
+  },
+  "tickets": {
+    "picked": {
+      "plain": 2,
+      "sensitive": 135,
+      "redacted": 153,
+      "outside": 152,
+      "finished": 146,
+      "reopened": 143
+    },
+    "plain:organizer": {
+      "state": "shown",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "plain:helper": {
+      "state": "shown",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "sensitive:organizer": {
+      "state": "withheld_sensitive",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "sensitive:helper": {
+      "state": "withheld_sensitive",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "redacted:organizer": {
+      "state": "redacted",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "redacted:helper": {
+      "state": "redacted",
+      "status": "claimed",
+      "timeline": 4,
+      "ending": null,
+      "credited": null
+    },
+    "outside:organizer": {
+      "state": "withheld_outside",
+      "status": "waiting_for_helper",
+      "timeline": 2,
+      "ending": null,
+      "credited": null
+    },
+    "outside:helper": null,
+    "finished:organizer": {
+      "state": "shown",
+      "status": "resolved",
+      "timeline": 8,
+      "ending": "Helper",
+      "credited": "U0RAVI001"
+    },
+    "finished:helper": {
+      "state": "shown",
+      "status": "resolved",
+      "timeline": 8,
+      "ending": "Helper",
+      "credited": "U0RAVI001"
+    },
+    "reopened:organizer": {
+      "state": "shown",
+      "status": "reopened",
+      "timeline": 10,
+      "ending": null,
+      "credited": null
+    },
+    "reopened:helper": {
+      "state": "shown",
+      "status": "reopened",
+      "timeline": 10,
+      "ending": null,
+      "credited": null
+    },
+    "reveal": {
+      "ok": true,
+      "chars": 75
+    }
+  },
+  "logKinds": [
+    "ticket_reveal",
+    "ticket_view"
+  ]
+}

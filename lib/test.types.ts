@@ -58,6 +58,7 @@ export interface TestDb {
   muteThread(...args: unknown[]): unknown;
   open(...args: unknown[]): unknown;
   recordFirstResponse(...args: unknown[]): unknown;
+  recordHumanReply(...args: unknown[]): boolean;
   removeHelper(...args: unknown[]): unknown;
   resolveTicket(...args: unknown[]): boolean;
   saveProgram(...args: unknown[]): unknown;

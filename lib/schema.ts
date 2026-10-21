@@ -446,6 +446,26 @@ const MIGRATIONS = [
     "table",
     "CREATE TABLE IF NOT EXISTS ticket_metrics_migrations (version TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)",
   ],
+
+  ["tickets", "last_human_reply_at", "ALTER TABLE tickets ADD COLUMN last_human_reply_at INTEGER"],
+
+  ["tickets", "text_redacted_at", "ALTER TABLE tickets ADD COLUMN text_redacted_at INTEGER"],
+  ["tickets", "text_redaction", "ALTER TABLE tickets ADD COLUMN text_redaction TEXT"],
+
+  // Metadata only for each message Orry put in Slack (lib/outboundLog.ts).
+  [
+    "outbound_messages",
+    "table",
+    "CREATE TABLE IF NOT EXISTS outbound_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT NOT NULL, thread_ts TEXT, message_ts TEXT, surface TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, error TEXT, private INTEGER NOT NULL DEFAULT 0, text TEXT, blocks_json TEXT, text_chars INTEGER, edit_count INTEGER NOT NULL DEFAULT 0, text_purged_at INTEGER, deleted_at INTEGER, delete_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  ],
+  ["outbound_messages", "ticket_id", "ALTER TABLE outbound_messages ADD COLUMN ticket_id INTEGER"],
+
+  // What the answer pipeline did with each message. No text, no user id.
+  [
+    "answer_outcomes",
+    "table",
+    "CREATE TABLE IF NOT EXISTS answer_outcomes (id INTEGER PRIMARY KEY AUTOINCREMENT, program_id TEXT, channel TEXT, thread_ts TEXT, message_ts TEXT, ticket_id INTEGER, channel_role TEXT, addressed INTEGER NOT NULL DEFAULT 0, final_action TEXT NOT NULL, reason TEXT, grounded INTEGER, latency_ms INTEGER, created_at INTEGER NOT NULL)",
+  ],
 ];
 
 const POST_MIGRATION_SCHEMA = `
@@ -485,6 +505,15 @@ CREATE INDEX IF NOT EXISTS idx_radar_program_status ON radar_signals(program_id,
 CREATE INDEX IF NOT EXISTS idx_incident_reports_incident ON incident_reports(incident_id, notified_at);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_program_time ON llm_usage(program_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_request ON llm_usage(request_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_program_created ON outbound_messages(program_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_message ON outbound_messages(channel, message_ts);
+CREATE INDEX IF NOT EXISTS idx_outbound_created ON outbound_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbound_ticket ON outbound_messages(ticket_id);
+UPDATE outbound_messages SET text = NULL, blocks_json = NULL, text_chars = NULL,
+  text_purged_at = COALESCE(text_purged_at, CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+  WHERE text IS NOT NULL OR blocks_json IS NOT NULL OR text_chars IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_answer_outcomes_program ON answer_outcomes(program_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_answer_outcomes_created ON answer_outcomes(created_at);
 `;
 
 export = { SCHEMA, MIGRATIONS, POST_MIGRATION_SCHEMA };

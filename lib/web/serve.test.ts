@@ -446,6 +446,107 @@ test("POST /internal/v1/programs/:id/incidents/manual creates only for a program
     else process.env.RIVET_INTERNAL_TOKEN = saved;
   }
 });
+test("read-only token: GET routes and users/info only; writes are 403; the full token still writes", async () => {
+  const serve = require("./serve");
+  const api = require("./api");
+  const saved = { full: process.env.RIVET_INTERNAL_TOKEN, read: process.env.RIVET_INTERNAL_READ_TOKEN };
+  try {
+    process.env.RIVET_INTERNAL_TOKEN = "full-token-for-writes";
+    process.env.RIVET_INTERNAL_READ_TOKEN = "read-token-for-gets";
+    api.internalProgramSync("ro-token-prog", {
+      name: "RO",
+      workspaceId: "TW-RO",
+      claimedBy: "U-ro-org",
+      programChannels: [],
+    });
+    const R = withToken("read-token-for-gets");
+    const get = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", { headers: R }),
+    );
+    assert.equal(get.status, 200);
+    const lookup = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/slack/users/info", {
+        method: "POST",
+        headers: { ...R, "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: [] }),
+      }),
+    );
+    assert.equal(lookup.status, 200, "the batch name lookup is a read that uses POST");
+    const write = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", {
+        method: "PUT",
+        headers: { ...R, "Content-Type": "application/json" },
+        body: JSON.stringify({ actorId: "U-ro-org", members: ["U-ro-sneak"] }),
+      }),
+    );
+    assert.equal(write.status, 403);
+    assert.equal(require("../db").isHelper("ro-token-prog", "U-ro-sneak"), false);
+    const importStart = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/history-import", { method: "POST", headers: R }),
+    );
+    assert.equal(importStart.status, 403, "the history-import route shares the same gate");
+    const ticketWrite = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/tickets/1/resolve", { method: "PATCH", headers: R }),
+    );
+    assert.equal(ticketWrite.status, 403);
+    const wrong = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/health", { headers: withToken("read-token-for-getz") }),
+    );
+    assert.equal(wrong.status, 401);
+    const fullWrite = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/ro-token-prog/helpers", {
+        method: "PUT",
+        headers: { ...withToken("full-token-for-writes"), "Content-Type": "application/json" },
+        body: JSON.stringify({ actorId: "U-ro-org", members: ["U-ro-sneak"] }),
+      }),
+    );
+    assert.equal(fullWrite.status, 200);
+    assert.equal(require("../db").isHelper("ro-token-prog", "U-ro-sneak"), true);
+  } finally {
+    for (const [key, value] of [
+      ["RIVET_INTERNAL_TOKEN", saved.full],
+      ["RIVET_INTERNAL_READ_TOKEN", saved.read],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("web bind: RIVET_WEB_PORT beats PORT, host defaults to 0.0.0.0, an empty host is refused", () => {
+  const serve = require("./serve");
+  assert.deepEqual(serve.resolveWebBind({}), { host: "0.0.0.0", port: 4100, error: null });
+  assert.equal(serve.resolveWebBind({ PORT: "3000", RIVET_WEB_PORT: "4100" }).port, 4100);
+  assert.equal(serve.resolveWebBind({ PORT: "3000" }).port, 3000, "PORT is still honoured when it is the only one");
+  assert.equal(serve.resolveWebBind({ RIVET_WEB_PORT: "nope", PORT: "8080" }).port, 8080);
+  assert.equal(serve.resolveWebBind({ RIVET_WEB_HOST: "127.0.0.1" }).host, "127.0.0.1");
+  const empty = serve.resolveWebBind({ RIVET_WEB_HOST: "  " });
+  assert.equal(empty.host, null);
+  assert.match(empty.error, /empty/);
+});
+
+test("web start: a port already in use returns null instead of throwing into the bot", () => {
+  const serve = require("./serve");
+  const holder = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("held") });
+  const saved = { host: process.env.RIVET_WEB_HOST, port: process.env.RIVET_WEB_PORT };
+  try {
+    process.env.RIVET_WEB_HOST = "127.0.0.1";
+    process.env.RIVET_WEB_PORT = String(holder.port);
+    assert.equal(serve.start(), null);
+    process.env.RIVET_WEB_HOST = "";
+    assert.equal(serve.start(), null, "an empty host never binds");
+  } finally {
+    holder.stop(true);
+    for (const [key, value] of [
+      ["RIVET_WEB_HOST", saved.host],
+      ["RIVET_WEB_PORT", saved.port],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("no RIVET_DASHBOARD_PASSCODE → passcode login refuses instead of accepting a guessable default", async () => {
   const serve = require("./serve");
   const saved = process.env.RIVET_DASHBOARD_PASSCODE;
@@ -535,6 +636,81 @@ test("dev-testing auto-signin needs NODE_ENV=development, not just the sentinel 
     else process.env.SLACK_CLIENT_ID = cSaved;
     if (nSaved === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = nSaved;
+  }
+});
+
+test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400 without a userId", async () => {
+  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  process.env.RIVET_INTERNAL_TOKEN = "access-route-token";
+  const serve = require("./serve");
+  const api = require("./api");
+  const H = withToken("access-route-token");
+  try {
+    api.internalProgramSync("access-route", { name: "Access", workspaceId: "TW-AC", programChannels: [] });
+    require("../db").syncHelper({ programId: "access-route", userId: "U-ac-helper" });
+    const ok = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/access-route/access?userId=U-ac-helper", { headers: H }),
+    );
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).helper, true);
+    const missing = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/no-such-access/access?userId=U-ac-helper", { headers: H }),
+    );
+    assert.equal(missing.status, 404);
+    const noUser = await serve.handleRequest(
+      new Request("http://localhost/internal/v1/programs/access-route/access", { headers: H }),
+    );
+    assert.equal(noUser.status, 400);
+  } finally {
+    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
+    else process.env.RIVET_INTERNAL_TOKEN = saved;
+  }
+});
+
+test("GET /internal/v1/programs/:id/audit filters by action, action prefix, since/until and pages with offset", async () => {
+  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  process.env.RIVET_INTERNAL_TOKEN = "audit-route-token";
+  const serve = require("./serve");
+  const db = require("../db");
+  const H = withToken("audit-route-token");
+  const get = async (query: string) => {
+    const res = await serve.handleRequest(
+      new Request(`http://localhost/internal/v1/programs/audit-route/audit?${query}`, { headers: H }),
+    );
+    assert.equal(res.status, 200);
+    return (await res.json()) as Array<{ action: string; created_at: number }>;
+  };
+  try {
+    const at = (id: number | null, t: number) =>
+      db.handle().query("UPDATE audit_events SET created_at = ? WHERE id = ?").run(t, id);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "sla.notified" }), 1000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket.resolved" }), 2000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket.claimed" }), 3000);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "sla.notified" }), 4000);
+    at(db.recordAuditEvent({ programId: "audit-other", action: "sla.notified" }), 4500);
+    at(db.recordAuditEvent({ programId: "audit-route", action: "ticket_x" }), 5000);
+
+    assert.deepEqual(
+      (await get("action=sla.notified")).map((r) => r.created_at),
+      [4000, 1000],
+      "exact action, this program only",
+    );
+    assert.deepEqual(
+      (await get("action=ticket.*")).map((r) => r.action),
+      ["ticket.claimed", "ticket.resolved"],
+      "prefix match; the dot is literal, so ticket_x is not a ticket.* row",
+    );
+    assert.deepEqual(
+      (await get("since=1000&until=3000")).map((r) => r.created_at),
+      [3000, 2000],
+    );
+    assert.deepEqual(
+      (await get("limit=2&offset=1")).map((r) => r.created_at),
+      [4000, 3000],
+    );
+  } finally {
+    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
+    else process.env.RIVET_INTERNAL_TOKEN = saved;
   }
 });
 

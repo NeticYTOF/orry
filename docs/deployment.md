@@ -41,7 +41,9 @@ volume.
 re-authorization after adding it, branding falls back to plain Rivet),
 `channels:history`, `groups:history`, `channels:join`, `app_mentions:read`,
 `reactions:read`, `reactions:write`, `commands`, `im:history`, `im:write`,
-`channels:read`, `groups:read`, `files:read`. Socket Mode on, Interactivity
+`channels:read`, `groups:read`, `files:read`, **`users:read`** (names for the
+bridge's user lookups; adding it needs a reinstall, which may need a workspace
+admin). Socket Mode on, Interactivity
 on, and `app_mention` subscribed. Generate the manifest with `bun run manifest` — command names derive from
 `RIVET_BOT_SLUG`; command names use that configured slug, including the sources
 and administration commands.

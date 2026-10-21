@@ -431,6 +431,9 @@ async function escalateSensitive({
     channel: event.channel,
     threadTs,
     text: replyText.plainDashes(text),
+    // The log must not become a list of sensitive threads with their text.
+    logSource: "sensitive_reply",
+    logPrivate: true,
   });
   context.addToThread(threadTs, "assistant", text, null, event.channel);
   db.recordMetric("fallback", null, "sensitive_unticketed", prog.id);
@@ -742,11 +745,13 @@ async function handleSumRequest({
 
     const formatted = replyText.plainDashes(summary);
     if (isPublic) {
-      await client.chat.postMessage({
+      const payload = {
         channel: event.channel,
         thread_ts: event.thread_ts,
         text: `🧵 *Thread Summary* (requested by <@${event.user}>):\n\n${formatted}`,
-      });
+      };
+      const res = await client.chat.postMessage(payload);
+      require("./outboundLog").recordSent(payload, res, "thread_summary");
     } else {
       await client.chat.postEphemeral({
         channel: event.channel,
@@ -903,6 +908,13 @@ async function handleMacroTrigger({
 async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (event.bot_id || event.subtype === "bot_message") return;
   if (stagingBlocked(event.channel)) return;
+
+  // A participant deleting or editing their message: drop the stored copy.
+  // Nothing is posted and the message is never answered.
+  if (event.subtype === "message_deleted" || event.subtype === "message_changed") {
+    require("./messageRedaction").handleMessageChange(event, workspace.workspaceOf(event, body));
+    return;
+  }
 
   const allowedSubtypes = ["file_share", "thread_broadcast"];
   if (event.subtype && !allowedSubtypes.includes(event.subtype)) return;

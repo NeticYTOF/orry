@@ -1,0 +1,32 @@
+/* The LOADOUT ORRY lockup and the hidden SVG defs every page relies on (the helmet logo and the chart textures). */
+
+export function Brand({ href = "/board" }: { href?: string }) {
+  return (
+    <a className="brand" href={href} aria-label="LOADOUT ORRY, help desk home">
+      <span className="lg-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" shapeRendering="crispEdges" focusable="false"><use href="#logo" /></svg>
+      </span>
+      <span className="lg-text">LOADOUT <span>ORRY</span></span>
+    </a>
+  );
+}
+
+/* From mockups/orry.html: the logo group used by every <use href="#logo">, and the textures charts use (tx-*). */
+export function SvgDefs() {
+  return (
+    <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true" focusable="false">
+      <defs>
+        <g id="logo">
+          <path className="lg-a" d="M6 1h11v1h-11zM5 2h13v1h-13zM4 3h15v1h-15zM3 4h6v1h-6zM15 4h5v1h-5zM2 5h5v1h-5zM17 5h4v1h-4zM1 6h6v1h-6zM17 6h5v1h-5zM1 7h5v1h-5zM18 7h5v1h-5zM1 8h5v1h-5zM18 8h5v1h-5zM1 9h5v1h-5zM18 9h5v1h-5zM1 10h5v1h-5zM18 10h5v1h-5zM1 11h4v1h-4zM19 11h4v1h-4zM1 12h3v1h-3zM20 12h3v1h-3zM1 13h3v1h-3zM20 13h3v1h-3zM1 14h3v1h-3zM20 14h3v1h-3zM1 15h3v1h-3zM20 15h3v1h-3zM1 16h4v1h-4zM19 16h4v1h-4zM1 17h5v1h-5zM18 17h4v1h-4zM2 18h6v1h-6zM16 18h5v1h-5zM3 19h17v1h-17zM4 20h15v1h-15zM5 21h13v1h-13zM6 22h11v1h-11z" />
+          <path className="lg-b" d="M6 0h11v1h-11zM5 1h1v1h-1zM17 1h1v1h-1zM4 2h1v1h-1zM18 2h1v1h-1zM3 3h1v1h-1zM19 3h1v1h-1zM2 4h1v1h-1zM9 4h6v1h-6zM20 4h1v1h-1zM1 5h1v1h-1zM7 5h3v1h-3zM11 5h2v1h-2zM14 5h3v1h-3zM21 5h1v1h-1zM0 6h1v1h-1zM7 6h1v1h-1zM9 6h1v1h-1zM11 6h2v1h-2zM14 6h1v1h-1zM16 6h1v1h-1zM22 6h1v1h-1zM0 7h1v1h-1zM6 7h2v1h-2zM9 7h1v1h-1zM11 7h2v1h-2zM14 7h1v1h-1zM16 7h2v1h-2zM23 7h1v1h-1zM0 8h1v1h-1zM6 8h1v1h-1zM9 8h1v1h-1zM11 8h2v1h-2zM14 8h1v1h-1zM17 8h1v1h-1zM23 8h1v1h-1zM0 9h1v1h-1zM6 9h1v1h-1zM9 9h1v1h-1zM11 9h2v1h-2zM14 9h1v1h-1zM17 9h1v1h-1zM23 9h1v1h-1zM0 10h1v1h-1zM6 10h1v1h-1zM11 10h2v1h-2zM17 10h1v1h-1zM23 10h1v1h-1zM0 11h1v1h-1zM5 11h2v1h-2zM10 11h4v1h-4zM17 11h2v1h-2zM23 11h1v1h-1zM0 12h1v1h-1zM4 12h4v1h-4zM9 12h2v1h-2zM13 12h2v1h-2zM16 12h4v1h-4zM23 12h1v1h-1zM0 13h1v1h-1zM4 13h1v1h-1zM7 13h3v1h-3zM14 13h3v1h-3zM19 13h1v1h-1zM23 13h1v1h-1zM0 14h1v1h-1zM4 14h1v1h-1zM8 14h2v1h-2zM14 14h2v1h-2zM19 14h1v1h-1zM23 14h1v1h-1zM0 15h1v1h-1zM4 15h2v1h-2zM9 15h2v1h-2zM13 15h2v1h-2zM18 15h2v1h-2zM23 15h1v1h-1zM0 16h1v1h-1zM5 16h2v1h-2zM10 16h4v1h-4zM17 16h2v1h-2zM23 16h1v1h-1zM0 17h1v1h-1zM6 17h3v1h-3zM15 17h3v1h-3zM22 17h1v1h-1zM1 18h1v1h-1zM8 18h8v1h-8zM21 18h1v1h-1zM2 19h1v1h-1zM20 19h1v1h-1zM3 20h1v1h-1zM19 20h1v1h-1zM4 21h1v1h-1zM18 21h1v1h-1zM5 22h1v1h-1zM17 22h1v1h-1zM6 23h11v1h-11z" />
+          <path className="lg-c" d="M10 5h1v1h-1zM13 5h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM13 6h1v1h-1zM15 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h1v1h-1zM15 7h1v1h-1zM7 8h2v1h-2zM10 8h1v1h-1zM13 8h1v1h-1zM15 8h2v1h-2zM7 9h2v1h-2zM10 9h1v1h-1zM13 9h1v1h-1zM15 9h2v1h-2zM7 10h4v1h-4zM13 10h4v1h-4zM7 11h3v1h-3zM14 11h3v1h-3zM8 12h1v1h-1zM15 12h1v1h-1zM5 13h2v1h-2zM17 13h2v1h-2zM5 14h3v1h-3zM16 14h3v1h-3zM6 15h3v1h-3zM15 15h3v1h-3zM7 16h3v1h-3zM14 16h3v1h-3zM9 17h6v1h-6z" />
+          <path className="lg-lamp" d="M11 12h2v1h-2zM10 13h4v1h-4zM10 14h4v1h-4zM11 15h2v1h-2z" />
+        </g>
+        <pattern id="tx-hatch" width="6" height="6" patternUnits="userSpaceOnUse"><path className="p-line" d="M-1,-1 L7,7 M-4,2 L2,8 M2,-4 L8,2" strokeWidth="1.6" fill="none" /></pattern>
+        <pattern id="tx-cross" width="6" height="6" patternUnits="userSpaceOnUse"><path className="p-line" d="M-1,-1 L7,7 M7,-1 L-1,7" strokeWidth="1.2" fill="none" /></pattern>
+        <pattern id="tx-dots" width="4" height="4" patternUnits="userSpaceOnUse"><rect className="p-ink" x="1" y="1" width="2" height="2" /></pattern>
+        <pattern id="tx-dotm" width="6" height="6" patternUnits="userSpaceOnUse"><rect className="p-mut" x="2" y="2" width="2" height="2" /></pattern>
+      </defs>
+    </svg>
+  );
+}

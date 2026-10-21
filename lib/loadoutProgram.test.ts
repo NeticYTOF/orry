@@ -64,9 +64,9 @@ test("LOADOUT pins the canonical economy rules that the corpus is graded on", ()
   expect(rules).toContain("Research Mode is a modifier");
 });
 
-test("the bot displays as Rivet and signs nothing", () => {
+test("the bot displays as Orry and signs nothing", () => {
   const program = loadout();
-  expect(program.supportName).toBe("Rivet");
+  expect(program.supportName).toBe("Orry the ore Maulwürf");
   expect(program.replySignature || "").toBe("");
 });
 

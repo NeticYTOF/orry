@@ -722,7 +722,14 @@ async function respond({
   const inHelpChannel = role === "help";
   const isAddressed = addressed || mode === ALWAYS || role === "dm";
   const startedAt = Date.now();
-  const trace = pipelineEvents.start({ programId, role, addressed: isAddressed });
+  const trace = pipelineEvents.start({
+    programId,
+    role,
+    addressed: isAddressed,
+    channel,
+    threadTs,
+    messageTs: messageTs || null,
+  });
 
   const activeIncident = await handleActiveIncident({
     client,
