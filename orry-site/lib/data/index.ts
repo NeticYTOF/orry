@@ -1,4 +1,4 @@
-/* Chooses where data comes from. ORRY_FIXTURES=1 (the local default) uses invented data; ORRY_FIXTURES=0 reads the Core bridge. */
+/* Fixtures are opt-in; without the explicit local-dev setting the site reads Core. */
 import type { DataSource } from "./types";
 import { FixtureSource } from "./fixtures/source";
 import { BridgeSource } from "./bridge/source";
@@ -6,7 +6,7 @@ import { BridgeSource } from "./bridge/source";
 let cached: DataSource | null = null;
 
 export function dataMode(): "fixtures" | "bridge" {
-  return process.env.ORRY_FIXTURES === "0" ? "bridge" : "fixtures";
+  return process.env.ORRY_FIXTURES === "1" ? "fixtures" : "bridge";
 }
 
 export function getDataSource(): DataSource {
