@@ -1,6 +1,6 @@
-# Putting Rivet in a Slack workspace
+# Putting Orry in a Slack workspace
 
-Operator runbook for a single-workspace Rivet deployment on Railway. Code-dependent
+Operator runbook for a single-workspace Orry deployment on Railway. Code-dependent
 instructions link to the source files that implement them. Workspace-specific
 values use placeholders.
 
@@ -14,7 +14,7 @@ change.
 Command names are derived from `RIVET_BOT_SLUG` (`lib/brand.ts`), and the
 bot registers its listeners from the same slug. Generating the manifest rather
 than writing it is what keeps the two in step — an app advertising
-`/pixl-teach` while the process listens for `/rivet-teach` fails silently, with
+`/pixl-teach` while the process listens for `/orry-teach` fails silently, with
 no error anywhere (`scripts/manifest.cjs`).
 
 ```sh
@@ -22,11 +22,11 @@ bun install
 bun run manifest
 ```
 
-The defaults in `.env.example` generate `/rivet`, `/rivet-teach`, `/rivet-gaps`,
-and the other `/rivet-*` commands. If you choose another display name or slug,
+The defaults generate `/orry`, `/orry-teach`, `/orry-gaps`,
+and the other `/orry-*` commands. If you choose another display name or slug,
 put the same `RIVET_BOT_NAME` and `RIVET_BOT_SLUG` in the runtime environment
 before generating the manifest. **Slash command names are unique per workspace**
-— two apps cannot both own `/rivet`, so choose a free slug before installing.
+— two apps cannot both own `/orry`, so choose a free slug before installing.
 
 In Slack:
 
@@ -44,7 +44,7 @@ That single manifest sets, for you:
 | Socket Mode | on | `scripts/manifest.cjs` |
 | Interactivity | on | `scripts/manifest.cjs` |
 
-The manifest includes `app_mention` and `app_mentions:read`. Rivet handles direct
+The manifest includes `app_mention` and `app_mentions:read`. Orry handles direct
 pings through either that event or the message event and deduplicates by Slack
 message ID. Re-apply the manifest after changing the event or scope list.
 
@@ -239,12 +239,12 @@ passes silently.
 
 Once the smoke test passes, in the workspace:
 
-- `/rivet-sources` (or `/<your-slug>-sources`) — what loaded and when it last refreshed.
-- `/rivet <question>` — a private answer, no channel clutter. The question is the
-  whole argument: `/rivet what is the deadline`, not `/rivet ask what is the
+- `/orry-sources` (or `/<your-slug>-sources`) — what loaded and when it last refreshed.
+- `/orry <question>` — a private answer, no channel clutter. The question is the
+  whole argument: `/orry what is the deadline`, not `/orry ask what is the
   deadline` — there is no `ask` subcommand.
 - Post in the help channel — every top-level message gets a reply there.
 
 If a command silently does nothing, suspect a slug mismatch between the installed
-app and `RIVET_BOT_SLUG`, not Slack. If `/rivet-sources` is the only thing that
+app and `RIVET_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that
 answers, the program is loaded but owns no channels — step 5.

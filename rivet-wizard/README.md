@@ -5,9 +5,9 @@ programs connected to the Rivet network".
 
 ## Hosted Rivet (default)
 
-One shared `@Rivet` app serves every program. Onboarding is configuration:
+One shared `@Orry` app serves every program. Onboarding is configuration:
 
-1. Create `#your-help` and `#your-organizers` in Slack, `/invite @Rivet` into both.
+1. Create `#your-help` and `#your-organizers` in Slack, `/invite @Orry` into both.
 2. Open the Wizard → **Connect with hosted Rivet**.
 3. Enter the program name + support identity, pick both channels from the
    selector (raw-ID fallback for private channels), enable AI + tickets, add docs.

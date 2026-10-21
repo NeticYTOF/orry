@@ -5,8 +5,8 @@ architecture, read `AGENTS.md` first; this file is state, not policy.
 
 ## Where things stand
 
-Orry the ore Maulwürf is the public identity of Rivet, a Slack help-channel
-bot (Bun + TS, Socket Mode) serving **Loadout**, a Hack Club YSWS. It answers
+Orry the ore Maulwürf is the Slack help-channel bot (Bun + TS, Socket Mode)
+serving **Loadout**, a Hack Club YSWS. Rivet Core answers
 from a program documentation corpus, escalates what it can't answer to human
 helpers, and learns from resolutions.
 
@@ -25,9 +25,9 @@ helpers, and learns from resolutions.
 | `orry` | `bun index.ts`, detached | Running locally at last check; no service or scheduled-task supervisor was found. Stops if the process exits or the machine sleeps/restarts. |
 
 The code and generated Slack manifest use Orry's name and `/orry` commands.
-The installed bot profile still reported `rivet`; updating it through the
+The installed bot profile still displays `rivet`; updating it through the
 connected Slack profile tool returned `not_admin`. A workspace admin must
-apply the new manifest or update the Slack bot profile.
+update the display name to Orry the ore Maulwürf.
 
 ## Credentials and local-only state
 
@@ -58,7 +58,7 @@ vs Track XP (per-track, permanent). Four tracks **Tools/Systems/Compute/
 Hardware**, LV.15 cap, Research Mode is a modifier. Requisitions
 LV.3/6/9/12/15. Custom tiers FIELD/POWER/ROOT/BARE METAL. AI cap 40%.
 Quality: Originality/Technical Depth/Execution/Documentation. **Jerry leads;
-Fazin/Wind and Netic co-organize; Netic built Rivet.**
+Fazin/Wind and Netic co-organize; Netic built Orry.**
 Program repo `jeremy341/loadout`, bot repo `NeticYTOF/orry`.
 Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 `lib/loadoutProgram.test.ts` fails the build on drift.
@@ -70,8 +70,8 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
   and state unresolved parts. Follow-up retrieval uses thread context while
   checking coverage against the current question; clarification keeps the
   requester's reply.
-- Voice/branding: public name is **Orry the ore Maulwürf**, prefix `/orry`;
-  legacy “Rivet” remains a spoken alias. Gentle German slang and mine-mole
+- Voice/branding: public name is **Orry the ore Maulwürf**, prefix `/orry`.
+  Gentle German slang and mine-mole
   humor are prompt-guided; no profanity/controversy rule is deterministic.
   Generated Slack manifest has the new name, but the installed Slack profile
   still needs an admin update (`users.profile.set` returned `not_admin`).

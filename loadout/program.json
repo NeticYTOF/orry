@@ -3,7 +3,7 @@
   "name": "Loadout",
   "scope": "program",
   "posture": "active",
-  "supportName": "Rivet",
+  "supportName": "Orry the ore Maulwürf",
   "replySignature": "",
   "aiAnswers": true,
   "ticketsEnabled": true,
@@ -11,7 +11,8 @@
   "helperPing": true,
   "supportActive": true,
   "autoAssign": true,
-  "ticketVisibility": "public",
+  "ticketVisibility": "thread",
+  "publicTicketsEnabled": true,
   "learning": "active",
   "requireGroundedAnswer": true,
   "status": "sandbox",
@@ -24,8 +25,8 @@
     "Track XP is non-spendable and permanent; spending Bolts never lowers a Builder Profile.",
     "Dates, eligibility, inventory, prices, sponsors, and participation numbers are unconfirmed. Never state them as fact.",
     "Write the program name as 'Loadout', never 'LOADOUT'. Write 'Hack Club' and 'YSWS' - never 'hack club', 'yswe', or 'YSWSes'. Loadout was built by Netic, Wind, and Jerry, who are also the org behind it. If asked who built it, who the makers are, or who runs it, that is the answer.",
-    "Jerry is the lead org of Loadout. Fazin / Wind is developer and co-organizer. Netic is developer and co-organizer and built Rivet, Loadout's Slack bot.",
-    "The Loadout program repo is https://github.com/jeremy341/loadout and Rivet's own repo is https://github.com/NeticYTOF/orry. Quote them when asked for links."
+    "Jerry is the lead org of Loadout. Fazin / Wind is developer and co-organizer. Netic is developer and co-organizer and built Orry, Loadout's Slack bot.",
+    "The Loadout program repo is https://github.com/jeremy341/loadout and Orry's own repo is https://github.com/NeticYTOF/orry. Quote them when asked for links."
   ],
   "links": {
     "website": "https://loadout-jerry-team1.vercel.app/",

@@ -1,15 +1,15 @@
 # Orry the ore Maulwürf — feature and behavior guide
 
-This guide describes the Rivet bot as configured for Loadout and the behavior
-implemented in Core. “Orry” is the bot's public persona; Rivet remains the
-repository and internal project name.
+This guide describes Orry the ore Maulwürf, Loadout's Slack bot, and the
+behavior implemented in Rivet Core. Orry is the bot's public name; Rivet is
+the repository and internal project name.
 
 ## Identity and personality
 
 - **Display name:** Orry the ore Maulwürf.
 - **Slash-command prefix:** `/orry` (for example, `/orry`, `/orry-sources`,
   `/orry-teach`). `RIVET_BOT_NAME` and `RIVET_BOT_SLUG` control the generated
-  name and commands. The word “Rivet” remains a spoken compatibility alias.
+  name and commands.
 - **Character:** a cheerful, cheeky mine-mole who likes ore, tiny tools, and
   helping people get things working. Warm, curious, and lively, with patient,
   capable help underneath the cheekiness.
@@ -146,10 +146,10 @@ messages.
 ## When Orry replies, waits, or stays quiet
 
 1. **Addressing:** Slack @mentions, “orry”/the configured bot name, and the
-   legacy “rivet” alias can address Orry. Name detection works anywhere in a
+   “Orry” name reference can address the bot. Name detection works anywhere in a
    message and recognizes a name with a word suffix (such as “Orrybot”).
 2. **Name references:** wording such as “ask Orry”, “Orry already answered”,
-   or “ignore Rivet” is treated as a reference rather than a request to speak.
+   or “ignore Orry” is treated as a reference rather than a request to speak.
    A fresh question in the same message can still be handled.
 3. **Channel and thread policy:** help channels answer help requests; main
    channels follow their ambient-reply settings; organizer channels do not
@@ -185,7 +185,7 @@ every message containing its name; normal policy and safety checks still run.
   facts. For the current Loadout setup, nine sources loaded successfully in the
   last local smoke run.
 - **Retrieval:** sources are assembled into a program-scoped corpus and ranked
-  with BM25 text search. Rivet does not use embeddings or a vector database.
+  with BM25 text search. Orry does not use embeddings or a vector database.
   Source text is cached in SQLite and refreshed at startup and on a timer
   (30-minute default).
 - **Grounding:** numeric claims must be supported verbatim; program claims must

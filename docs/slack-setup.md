@@ -37,14 +37,14 @@ uses to register the listeners.
 The header comment of `scripts/manifest.cjs` states the failure mode directly
 (`scripts/manifest.cjs`): command names come from `RIVET_BOT_SLUG`, and
 hand-editing a manifest is how you end up with an app advertising
-`/pixl-teach` while the process listens for `/rivet-teach` — a failure with no
+`/pixl-teach` while the process listens for `/orry-teach` — a failure with no
 error anywhere, because Slack is perfectly happy with a command nobody handles.
 The manifest is not documentation of the bot; it is what Slack is told exists.
 
 Consequences worth knowing before you pick a slug:
 
 - **Slash command names are unique per workspace.** Two apps cannot both own
-  `/rivet`; the second fails to install. Rename now, not later
+  `/orry`; the second fails to install. Rename now, not later
   (`.env.example`).
 - **Regenerate after changing the slug.** A manifest generated with one slug and
   an app configured with another is exactly the silent failure above. The bot
@@ -63,7 +63,7 @@ Socket Mode is already on in the generated manifest
 (`scripts/manifest.cjs`, `socket_mode_enabled: true`, with a comment
 noting it must stay true). The manifest also subscribes to message events and
 `app_mention`, with the `app_mentions:read` scope (`scripts/manifest.cjs`).
-Rivet accepts direct pings through either event and deduplicates them. Re-apply
+Orry accepts direct pings through either event and deduplicates them. Re-apply
 the manifest after changing event subscriptions or scopes.
 
 ## 3. The two tokens are not interchangeable
@@ -83,7 +83,7 @@ listens on no port, so there is no public URL, no domain, no tunnel and no
 reverse proxy to configure (`.env.example`, `scripts/manifest.cjs`).
 The port you may see referenced elsewhere (`RIVET_WEB_PORT`, default `4100`, at
 `lib/config.ts` and `lib/web/serve.ts`) is the optional local web
-console, not how Slack reaches the bot. Unlike Pixorpheus's HTTP receiver, Rivet
+console, not how Slack reaches the bot. Unlike Pixorpheus's HTTP receiver, Orry
 needs an `xapp-` app-level token; `SLACK_SIGNING_SECRET` is not used.
 
 ## 4. Required environment variables
@@ -110,7 +110,7 @@ model; `HCAI_INTENT_MODEL` routes that classifier through HCAI.
 
 ## 5. Give it something to answer from
 
-Rivet answers from a program corpus. With no program configured, `programs.all()`
+Orry answers from a program corpus. With no program configured, `programs.all()`
 is empty and there is no knowledge to retrieve.
 
 `RIVET_PROGRAMS_JSON` takes the program's JSON **inline as a value** — it is
@@ -166,17 +166,17 @@ bun index.ts
 
 Then, in Slack:
 
-- `/rivet-sources` — what loaded and when it last refreshed
+- `/orry-sources` — what loaded and when it last refreshed
   (`lib/commands.ts`).
-- `/rivet <question>` — a private answer, no channel clutter
+- `/orry <question>` — a private answer, no channel clutter
   (`lib/commands.ts`; the manifest's usage hint is `[question]`,
-  `scripts/manifest.cjs`). The question is the whole argument: `/rivet what is
-  the deadline`, not `/rivet ask what is the deadline` — there is no `ask`
+  `scripts/manifest.cjs`). The question is the whole argument: `/orry what is
+  the deadline`, not `/orry ask what is the deadline` — there is no `ask`
   subcommand, and the bare word would just be searched for.
 - Post in the help channel — every top-level message gets a reply there.
 
 If a command silently does nothing, suspect a slug mismatch between the app and
-`RIVET_BOT_SLUG`, not Slack. If `/rivet-sources` is the only thing that answers,
+`RIVET_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that answers,
 the program is loaded but owns no channels (step 5).
 
 ---
@@ -221,4 +221,4 @@ get in.
   only the app-manifest flow and the two token locations are confirmed by this
   repository (`.env.example`, `scripts/manifest.cjs`).
 - Whether Slack still permits more than one app per workspace owning
-  `/rivet`-style command names is Slack-side policy, not code.
+  `/orry`-style command names is Slack-side policy, not code.

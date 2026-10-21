@@ -443,12 +443,18 @@ function threadRequiresMention(prog: Program | null): boolean {
   );
 }
 
-function shouldConsiderThreadReply(event: HandlerEvent, prog: Program | null = null): boolean {
+function shouldConsiderThreadReply(
+  event: HandlerEvent,
+  prog: Program | null = null,
+  workspaceId: string | null = null,
+): boolean {
   if (!event.thread_ts || event.thread_ts === event.ts) return true;
   if (db.isThreadMuted(event.thread_ts)) {
     return mentionsRivetDirectly(event.text);
   }
   if (mentionsRivetByName(event.text) || mentionsRivetDirectly(event.text)) return true;
+  const ticket = db.getTicketByThreadTs(event.thread_ts, workspaceId);
+  if (ticket && !["resolved", "closed"].includes(ticket.status)) return true;
   if (threadRequiresMention(prog)) return false;
   return context.hasSpokenInThread(event.thread_ts);
 }
@@ -1118,7 +1124,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
       return;
     }
 
-    if (!shouldConsiderThreadReply(event, prog)) {
+    if (!shouldConsiderThreadReply(event, prog, workspaceId)) {
       log.debug("intent", "skipping thread reply — rivet not in this thread / not addressed");
       return;
     }
@@ -1153,7 +1159,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (!inHelpChannel) return;
 
   if (event.thread_ts && !named) {
-    if (!shouldConsiderThreadReply(event, prog)) {
+    if (!shouldConsiderThreadReply(event, prog, workspaceId)) {
       log.debug("intent", "skipping help thread reply — rivet not in this thread / not addressed");
       return;
     }

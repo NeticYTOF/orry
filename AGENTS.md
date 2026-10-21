@@ -6,10 +6,11 @@ that have already been made here so you do not repeat them.
 
 ## What this is
 
-Rivet is a Slack help-channel bot (Bun + TypeScript, Socket Mode — it dials
-out to Slack, nothing listens inbound). It answers questions from a program's
-own documentation corpus, routes what it cannot answer to human helpers, and
-learns from resolutions. It currently serves **Loadout**, a Hack Club YSWS.
+Orry the ore Maulwürf is Loadout's Slack help-channel bot (Bun + TypeScript,
+Socket Mode — it dials out to Slack, nothing listens inbound). Rivet Core
+answers questions from a program's documentation corpus, routes what it cannot
+answer to human helpers, and learns from resolutions. It currently serves
+**Loadout**, a Hack Club YSWS.
 Live in `#loadout` (main), `#loadout-help` (help/tickets), `#loadout-development`
 (report + mentions only).
 
@@ -142,7 +143,7 @@ spendable); Track XP is separate, non-spendable, permanent. Four tracks:
 LV.3/6/9/12/15. Custom Order tiers FIELD LV.4, POWER LV.8, ROOT LV.12,
 BARE METAL LV.15. AI cap 40%. Quality: Originality / Technical Depth /
 Execution / Documentation. Jerry leads; Fazin/Wind and Netic co-organize;
-**Netic built Rivet**. Program repo `jeremy341/loadout`, bot repo
+**Netic built Orry**. Program repo `jeremy341/loadout`, bot repo
 `NeticYTOF/orry`. Write `Loadout`, `Hack Club`, `YSWS` — never
 `LOADOUT`/`Cores`/`yswe`/`YSWSes`. An earlier 5-track/Cores draft is
 superseded; `lib/loadoutProgram.test.ts` fails the build if it returns.
