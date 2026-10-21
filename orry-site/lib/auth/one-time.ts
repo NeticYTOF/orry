@@ -74,11 +74,11 @@ export function redeemOneTimePassword(candidate: string, oldToken?: string | nul
     if (account?.status === "off") return { ok: false, reason: "account_off" };
     const t = now();
     const accountId = account
-      ? (getDb().prepare("UPDATE accounts SET role = 'organizer' WHERE id = ?").run(account.id), account.id)
+      ? (getDb().prepare("UPDATE accounts SET role = 'helper' WHERE id = ?").run(account.id), account.id)
       : insertAccount({
           slackId: c.slackId,
           hcaSub: `otp:${digest}`,
-          role: "organizer",
+          role: "helper",
           createdBy: null,
           createdAt: t,
           lastSignInAt: t,
