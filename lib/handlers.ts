@@ -534,6 +534,37 @@ function checkEligibility({
   return "proceed";
 }
 
+async function ensureTopLevelHelpTicket({
+  event,
+  client,
+  workspaceId,
+  prog,
+  role,
+}: {
+  event: HandlerEvent;
+  client: SlackClient;
+  workspaceId: string | null;
+  prog: Program | null;
+  role: string;
+}): Promise<void> {
+  if (role !== "help" || (event.thread_ts && event.thread_ts !== event.ts) || !prog) return;
+  try {
+    await require("./tickets").ensureSupportTicket({
+      program: prog,
+      channel: event.channel,
+      threadTs: event.ts,
+      requesterId: event.user,
+      question: (event.text || "").trim(),
+      client,
+      workspaceId,
+      role: "help",
+      source: "help_channel_message",
+    });
+  } catch (error: unknown) {
+    log.warn("tickets", `help-channel ticket creation failed for ${event.channel}/${event.ts}: ${errorMessage(error)}`);
+  }
+}
+
 async function refuseUnauthorizedCommand({
   event,
   client,
@@ -1033,6 +1064,8 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (!isDm && !inHelpChannel && !isProgChannel) return;
   if (!isDm && policy.settings && policy.settings.enabled === false) return;
 
+  await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
+
   if (question) {
     db.recordUserMessage({ userId: event.user, channel: event.channel, threadTs, text: question });
   }
@@ -1237,6 +1270,8 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
       ? { ...selectedSettings, enabled: false }
       : selectedSettings;
   if (settings && settings.enabled === false) return;
+
+  await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
 
   if (db.wasAnswered(event.ts)) return;
 
