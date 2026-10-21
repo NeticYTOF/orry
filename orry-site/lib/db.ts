@@ -54,7 +54,19 @@ const MIGRATIONS: string[] = [
     role_checked_at  INTEGER NOT NULL
   );
   CREATE INDEX sessions_account ON sessions (account_id);
+  `,
   `
+  CREATE TABLE used_one_time_passwords (
+    digest      TEXT PRIMARY KEY,
+    consumed_at INTEGER NOT NULL
+  );
+  CREATE TABLE one_time_attempts (
+    id           INTEGER PRIMARY KEY CHECK (id = 1),
+    window_start INTEGER NOT NULL,
+    failures     INTEGER NOT NULL,
+    locked_until INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function dbPath(): string {
@@ -62,7 +74,8 @@ export function dbPath(): string {
 }
 
 export function openDb(file: string = dbPath()): Db {
-  if (file !== ":memory:") fs.mkdirSync(path.dirname(path.resolve(/*turbopackIgnore: true*/ file)), { recursive: true });
+  if (file !== ":memory:")
+    fs.mkdirSync(path.dirname(path.resolve(/*turbopackIgnore: true*/ file)), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec("PRAGMA busy_timeout = 5000");
   if (file !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
@@ -104,7 +117,13 @@ export function getDb(): Db {
 
 /** Tests only: use this database (for example openDb(":memory:")), or null to reopen from ORRY_SITE_DB. */
 export function setDbForTests(db: Db | null): void {
-  if (G.__orryDb && G.__orryDb !== db) { try { G.__orryDb.close(); } catch { /* already closed */ } }
+  if (G.__orryDb && G.__orryDb !== db) {
+    try {
+      G.__orryDb.close();
+    } catch {
+      /* already closed */
+    }
+  }
   G.__orryDb = db ?? undefined;
 }
 
@@ -120,7 +139,11 @@ export function tx<T>(fn: (db: Db) => T): T {
     db.exec("COMMIT");
     return out;
   } catch (e) {
-    try { db.exec("ROLLBACK"); } catch { /* nothing to roll back */ }
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* nothing to roll back */
+    }
     throw e;
   } finally {
     depth--;
@@ -130,4 +153,6 @@ export function tx<T>(fn: (db: Db) => T): T {
 /* The clock for every auth decision. Tests move it with setNowForTests. */
 const C = globalThis as unknown as { __orryNow?: number | null };
 export const now = (): number => C.__orryNow ?? Date.now();
-export function setNowForTests(ms: number | null): void { C.__orryNow = ms; }
+export function setNowForTests(ms: number | null): void {
+  C.__orryNow = ms;
+}

@@ -16,6 +16,7 @@ export const ROUTES: RouteEntry[] = [
   { pattern: "/no-access", access: "public", kind: "page" },
   { pattern: "/auth/callback", access: "public", kind: "api" },
   { pattern: "/api/auth/start", access: "public", kind: "api" },
+  { pattern: "/api/auth/one-time", access: "public", kind: "api" },
   { pattern: "/api/auth/sign-out", access: "public", kind: "api" },
   { pattern: "/api/health", access: "public", kind: "api" },
   /* the dev identity provider: 404 unless ORRY_DEV_AUTH=1 */
@@ -43,11 +44,12 @@ export const ROUTES: RouteEntry[] = [
   /* organizers */
   { pattern: "/orry", access: "organizer", kind: "page" },
   { pattern: "/team", access: "organizer", kind: "page" },
-  { pattern: "/api/team/*", access: "organizer", kind: "api" }
+  { pattern: "/api/team/*", access: "organizer", kind: "api" },
 ];
 
 function matches(pattern: string, path: string): boolean {
-  const p = pattern.split("/").filter(Boolean), s = path.split("/").filter(Boolean);
+  const p = pattern.split("/").filter(Boolean),
+    s = path.split("/").filter(Boolean);
   for (let i = 0; i < p.length; i++) {
     if (p[i] === "*") return true;
     if (i >= s.length) return false;
@@ -60,8 +62,8 @@ function matches(pattern: string, path: string): boolean {
 /** Exact entries win over wildcard ones. */
 export function routeFor(path: string): RouteEntry | null {
   const clean = path.split("?")[0].split("#")[0] || "/";
-  const exact = ROUTES.find(r => !r.pattern.includes("*") && matches(r.pattern, clean));
-  return exact ?? ROUTES.find(r => r.pattern.includes("*") && matches(r.pattern, clean)) ?? null;
+  const exact = ROUTES.find((r) => !r.pattern.includes("*") && matches(r.pattern, clean));
+  return exact ?? ROUTES.find((r) => r.pattern.includes("*") && matches(r.pattern, clean)) ?? null;
 }
 
 /** Unknown paths need a helper (default deny). */

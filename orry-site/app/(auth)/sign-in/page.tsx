@@ -2,9 +2,7 @@
    few other outcomes of a sign-in. Invite only: there is no sign-up. */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { DevPanel } from "@/components/shell/DevPanel";
-import { devAuthEnabled } from "@/lib/auth/config";
-import { primaryProviderId } from "@/lib/auth/providers";
+import { oneTimePasswordEnabled } from "@/lib/auth/config";
 import { getSession } from "@/lib/session";
 import { AuthCard } from "../AuthCard";
 
@@ -17,31 +15,55 @@ const MSG: Record<string, string> = {
   off: "An organizer turned this account off. Ask them if that is a mistake.",
   out: "You are signed out.",
   noslack: "Your Hack Club account has no linked Slack account, so the site can't check your helper status.",
-  mismatch: "This Hack Club account is not the one this Slack account signed in with before, so you are not signed in. The organizers can see this in the access events.",
+  mismatch:
+    "This Hack Club account is not the one this Slack account signed in with before, so you are not signed in. The organizers can see this in the access events.",
   retry: "That sign-in took too long or started in another tab. Try again.",
   failed: "The answer from Hack Club could not be checked, so you are not signed in. Try again.",
   cancelled: "Sign-in was cancelled.",
-  unavailable: "Sign-in is not set up on this site yet. The operator needs to set the Hack Club client ID and secret.",
-  exists: "You already have an account. Sign in as usual."
+  unavailable: "One-time sign-in is not configured on this site yet.",
+  used: "That one-time password has already been used. Ask an organizer for a new one-time password.",
+  offline: "Orry could not verify access right now. Try again later.",
+  exists: "You already have an account. Sign in as usual.",
 };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const sp = await searchParams;
   const m = typeof sp.m === "string" ? sp.m : "";
   if (!m && (await getSession())) redirect("/board");
   const msg = MSG[m];
-  const provider = primaryProviderId();
+  const oneTime = oneTimePasswordEnabled();
 
   return (
     <>
       <AuthCard title="Sign in">
-        {msg ? <p id="authMsg" className="state-note" role="status">{msg}</p> : null}
-        <form method="post" action="/api/auth/start">
-          {provider ? <input type="hidden" name="provider" value={provider} /> : null}
-          <button className="btn pri" type="submit" id="slackBtn" disabled={!provider}>Sign in with Hack Club</button>
-        </form>
+        {msg ? (
+          <p id="authMsg" className="state-note" role="status">
+            {msg}
+          </p>
+        ) : null}
+        {oneTime ? (
+          <form method="post" action="/api/auth/one-time">
+            <label htmlFor="password">One-time password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="one-time-code"
+              required
+              maxLength={256}
+            />
+            <button className="btn pri" type="submit">
+              Sign in
+            </button>
+          </form>
+        ) : (
+          <p role="status">{MSG.unavailable}</p>
+        )}
       </AuthCard>
-      {devAuthEnabled() ? <DevPanel /> : null}
     </>
   );
 }

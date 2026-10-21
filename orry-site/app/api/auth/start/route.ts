@@ -9,13 +9,19 @@ import { devAccount } from "@/lib/auth/dev-idp";
 import { getProvider, primaryProviderId, redirectUri } from "@/lib/auth/providers";
 import { inviteById, shownState } from "@/lib/auth/store";
 import { originAllowed, safeReturnPath } from "@/lib/security";
+import { oneTimePasswordEnabled } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   if (!originAllowed(req.headers)) return redirectTo("/sign-in?m=failed");
+  if (oneTimePasswordEnabled()) return redirectTo("/sign-in?m=unavailable");
   let form: FormData;
-  try { form = await req.formData(); } catch { form = new FormData(); }
+  try {
+    form = await req.formData();
+  } catch {
+    form = new FormData();
+  }
   const wanted = String(form.get("provider") || primaryProviderId() || "");
   const provider = getProvider(wanted);
   if (!provider) return redirectTo("/sign-in?m=unavailable");
@@ -31,10 +37,15 @@ export async function POST(req: NextRequest) {
 
   const hintSub = provider.id === "dev" ? String(form.get("as") || "") : "";
   const loginHint = hintSub && devAccount(hintSub) ? hintSub : undefined;
-  const state = randomToken(24), nonce = randomToken(24);
+  const state = randomToken(24),
+    nonce = randomToken(24);
   const r = safeReturnPath(req.cookies.get(cookieNames.next)?.value);
   const res = redirectTo(provider.authorizeUrl({ state, nonce, redirectUri: redirectUri(), loginHint }));
-  setShort(res, cookieNames.oauth, encode.oauth({ s: state, n: nonce, p: provider.id, r, ...(inviteId ? { i: inviteId } : {}) }));
+  setShort(
+    res,
+    cookieNames.oauth,
+    encode.oauth({ s: state, n: nonce, p: provider.id, r, ...(inviteId ? { i: inviteId } : {}) }),
+  );
   clearCookie(res, cookieNames.next);
   return res;
 }

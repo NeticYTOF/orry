@@ -12,11 +12,21 @@ type RouteFile = { file: string; url: string; kind: "page" | "api" };
 function walk(dir: string, out: RouteFile[] = []): RouteFile[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (!e.name.startsWith("_")) walk(p, out); continue; }
+    if (e.isDirectory()) {
+      if (!e.name.startsWith("_")) walk(p, out);
+      continue;
+    }
     const m = e.name.match(/^(page|route)\.(tsx?|jsx?)$/);
     if (!m) continue;
-    const segs = path.relative(APP, dir).split(path.sep).filter(s => s && !(s.startsWith("(") && s.endsWith(")")) && !s.startsWith("@"));
-    out.push({ file: path.relative(path.join(APP, ".."), p).replace(/\\/g, "/"), url: "/" + segs.join("/"), kind: m[1] === "page" ? "page" : "api" });
+    const segs = path
+      .relative(APP, dir)
+      .split(path.sep)
+      .filter((s) => s && !(s.startsWith("(") && s.endsWith(")")) && !s.startsWith("@"));
+    out.push({
+      file: path.relative(path.join(APP, ".."), p).replace(/\\/g, "/"),
+      url: "/" + segs.join("/"),
+      kind: m[1] === "page" ? "page" : "api",
+    });
   }
   return out;
 }
@@ -25,24 +35,27 @@ const files = walk(APP);
 describe("route list", () => {
   it("finds the app's routes", () => {
     expect(files.length).toBeGreaterThan(10);
-    expect(files.map(f => f.url)).toEqual(expect.arrayContaining(["/sign-in", "/team", "/orry", "/auth/callback", "/api/auth/start"]));
+    expect(files.map((f) => f.url)).toEqual(
+      expect.arrayContaining(["/sign-in", "/team", "/orry", "/auth/callback", "/api/auth/start"]),
+    );
   });
 
   it("every route file is on the route list", () => {
-    const missing = files.filter(f => !routeFor(f.url)).map(f => `${f.file} (${f.url})`);
+    const missing = files.filter((f) => !routeFor(f.url)).map((f) => `${f.file} (${f.url})`);
     expect(missing, "add these to lib/auth/routes.ts").toEqual([]);
   });
 
   it("every guarded route file calls the guard itself", () => {
     const unguarded = files
-      .filter(f => routeFor(f.url)!.access !== "public")
-      .filter(f => !GUARD.test(fs.readFileSync(path.join(APP, "..", f.file), "utf8")))
-      .map(f => `${f.file} (${routeFor(f.url)!.access})`);
+      .filter((f) => routeFor(f.url)!.access !== "public")
+      .filter((f) => !GUARD.test(fs.readFileSync(path.join(APP, "..", f.file), "utf8")))
+      .map((f) => `${f.file} (${routeFor(f.url)!.access})`);
     expect(unguarded, "call requireSession() / requireApiSession() in these").toEqual([]);
   });
 
   it("organizer routes are organizer-only on the list", () => {
-    for (const u of ["/team", "/orry", "/api/team/invites", "/api/team/accounts/3/role"]) expect(accessFor(u)).toBe("organizer");
+    for (const u of ["/team", "/orry", "/api/team/invites", "/api/team/accounts/3/role"])
+      expect(accessFor(u)).toBe("organizer");
   });
 
   it("an unknown path needs a signed-in helper (default deny)", () => {
@@ -50,8 +63,26 @@ describe("route list", () => {
   });
 
   it("only sign-in, invite, callback, health and the dev provider are public", () => {
-    const pub = ROUTES.filter(r => r.access === "public").map(r => r.pattern).sort();
-    expect(pub).toEqual(["/", "/api/auth/sign-out", "/api/auth/start", "/api/health", "/auth/callback", "/dev-idp", "/dev-idp/authorize", "/dev-idp/jwks", "/dev-idp/token", "/dev-idp/userinfo", "/invite", "/invite/[token]", "/no-access", "/sign-in"]);
+    const pub = ROUTES.filter((r) => r.access === "public")
+      .map((r) => r.pattern)
+      .sort();
+    expect(pub).toEqual([
+      "/",
+      "/api/auth/one-time",
+      "/api/auth/sign-out",
+      "/api/auth/start",
+      "/api/health",
+      "/auth/callback",
+      "/dev-idp",
+      "/dev-idp/authorize",
+      "/dev-idp/jwks",
+      "/dev-idp/token",
+      "/dev-idp/userinfo",
+      "/invite",
+      "/invite/[token]",
+      "/no-access",
+      "/sign-in",
+    ]);
   });
 
   it("the signed-in layout runs the guard", () => {

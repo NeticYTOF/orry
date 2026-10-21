@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "build": "next build",
-    "start": "next start -H 127.0.0.1 -p 9995",
+    "start": "next start -H 0.0.0.0 -p 9995",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bootstrap": "tsx scripts/bootstrap.ts",
