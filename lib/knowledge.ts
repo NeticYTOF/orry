@@ -998,14 +998,35 @@ function getContext(question: string, programId: string | null = null) {
 function getEvidenceContext(
   question: string,
   programId: string | null = null,
-  { semanticFallback = true }: { semanticFallback?: boolean } = {},
+  {
+    semanticFallback = true,
+    additionalQueries = [],
+    matchQuestion = question,
+  }: { semanticFallback?: boolean; additionalQueries?: string[]; matchQuestion?: string } = {},
 ) {
   const sources = sourceSections(programId);
   const generated = generatedSections(programId, question);
   const index = retrieve.buildIndex(retrieve.chunkSections([...generated, ...sources]));
   const programSourceNames = new Set(sources.map(([name]) => name.toLowerCase()));
-  const passages = retrieve
-    .selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, semanticFallback)
+  const weakMatch = retrieve.hasWeakMatch(index, matchQuestion);
+  const queries = [...new Set([question, ...additionalQueries].filter((query) => query.trim()))];
+  let selected = queries.flatMap((query) =>
+    retrieve.selectEvidence(index, query, retrieve.DEFAULT_BUDGET, null, false),
+  );
+  selected = [...new Map(selected.map((passage) => [passage.id, passage])).values()];
+  if (additionalQueries.length && selected.length === 0 && semanticFallback) {
+    selected = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, true);
+  } else if (!additionalQueries.length) {
+    selected = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, semanticFallback);
+  }
+  let passageBudget = additionalQueries.length ? retrieve.TOTAL_CONTEXT_BUDGET : Infinity;
+  const passages = selected
+    .slice(0, 80)
+    .filter((passage) => {
+      if (passage.text.length > passageBudget) return false;
+      passageBudget -= passage.text.length;
+      return true;
+    })
     .map((passage) => ({
       ...passage,
       programId,
@@ -1016,6 +1037,7 @@ function getEvidenceContext(
       .map(({ id, source, heading, text }) => `### ${source} [${id}]${heading ? ` — ${heading}` : ""}\n${text}`)
       .join("\n\n"),
     passages,
+    weakMatch,
   };
 }
 

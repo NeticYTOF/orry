@@ -217,6 +217,29 @@ function evidencePrompt(passages: Array<{ id: string; source: string; heading?: 
     .join("\n\n");
 }
 
+async function evidenceForQuestion(
+  query: string,
+  question: string,
+  programId: string | null,
+  prog: ProgramLike | string | null,
+  channel: string | null,
+  semanticFallback = true,
+) {
+  const initial = knowledge.getEvidenceContext(query, programId, {
+    semanticFallback: false,
+    matchQuestion: question,
+  });
+  if (!semanticFallback || !initial.weakMatch) return initial;
+
+  const queries = await answer.expandSearchQueries(question, prog, channel);
+  if (!queries.length) return knowledge.getEvidenceContext(query, programId, { semanticFallback: true });
+  return knowledge.getEvidenceContext(query, programId, {
+    semanticFallback: true,
+    additionalQueries: queries,
+    matchQuestion: question,
+  });
+}
+
 function canonicalFaqQuestion(question: string, prog: ProgramLike | string | null) {
   const resolved = typeof prog === "string" ? (programs.get(prog) as ProgramLike) : prog;
   const programName = resolved?.name?.trim();
@@ -584,7 +607,7 @@ async function lookupAnswer(
   if (staged) return staged;
 
   const query = retrievalQuery(question, contextPrompt, prog);
-  const { passages } = knowledge.getEvidenceContext(query, programId);
+  const { passages } = await evidenceForQuestion(query, question, programId, prog, channel);
   const corpus = evidencePrompt(passages);
   let result = exactFaqAnswer(question, passages);
   if (!result) result = await answer.getGroundedAnswer(question, corpus, contextPrompt, prog, channel, { isPing });
@@ -625,7 +648,7 @@ async function answerOrChat(
   const query = previousQuestion
     ? retrievalQuery(question, `User: ${previousQuestion}`, prog)
     : retrievalQuery(question, contextPrompt, prog);
-  const { passages } = knowledge.getEvidenceContext(query, programId, { semanticFallback: answerMode !== "general" });
+  const { passages } = await evidenceForQuestion(query, question, programId, prog, channel, answerMode !== "general");
   const corpus = evidencePrompt(passages);
   let result = exactFaqAnswer(question, passages);
   if (!result) {

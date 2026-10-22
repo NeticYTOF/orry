@@ -383,6 +383,21 @@ function selectChunks(
   return selected;
 }
 
+function hasWeakMatch(index: SearchIndex, question: string) {
+  const parts = questionParts(question);
+  if (!parts.length) return true;
+  for (const part of parts) {
+    const terms = [...new Set(tokenize(part))];
+    if (terms.length <= 1) return true;
+    const best = score(index, terms)[0]?.chunk;
+    if (!best) return true;
+    const matchedTerms = new Set(tokenize(best.text));
+    const matched = terms.filter((term) => matchedTerms.has(term)).length;
+    if (matched < Math.max(2, Math.ceil(terms.length / 2))) return true;
+  }
+  return false;
+}
+
 function passageId(chunk: Chunk) {
   return `p_${createHash("sha256")
     .update(`${chunk.source}\0${chunk.heading || ""}\0${chunk.text}`)
@@ -516,6 +531,7 @@ export = {
   buildIndex,
   score,
   selectChunks,
+  hasWeakMatch,
   selectEvidence,
   selectContext,
   MIN_CHUNK,

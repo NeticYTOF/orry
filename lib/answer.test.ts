@@ -11,6 +11,24 @@ test("normalizeEmoji leaves ordinary channel text generic", () => {
   assert.equal(answer.normalizeEmoji("ask in the help channel"), "ask in the help channel");
 });
 
+test("weak-query expansion accepts independent documentation phrases from the configured model", async () => {
+  const original = llm.complete;
+  let request: any = null;
+  llm.complete = async (options: any) => {
+    request = options;
+    return { text: '{"queries":["Track XP", "requisitions", "physical loadout", "bolts"]}' };
+  };
+  try {
+    const queries = await answer.expandSearchQueries("what is this", { id: "loadout", name: "Loadout" }, "C_HELP");
+    assert.deepEqual(queries, ["Track XP", "requisitions", "physical loadout", "bolts"]);
+    assert.equal(request.telemetry.operation, "retrieval_query");
+    assert.match(request.messages[0].content, /including useful terms absent from the question/i);
+    assert.ok(queries.every((query: string) => !/what|this/i.test(query)));
+  } finally {
+    llm.complete = original;
+  }
+});
+
 test("Orry's greed, competitive streak, and hesitant generosity guide his voice", () => {
   const voice = answer.VOICE.join(" ");
   assert.match(voice, /Greed drives you/i);

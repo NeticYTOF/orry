@@ -669,6 +669,57 @@ function selectAnswerTier({ isPing = false, inHelpChannel = false }: AnswerOptio
   return (config.helpAnswer || config.answer) as AnswerTier;
 }
 
+async function expandSearchQueries(question: string, program: ProgramRef = null, channel: string | null = null) {
+  const tier = selectAnswerTier();
+  try {
+    const { text } = await llm.complete(
+      {
+        baseUrl: tier.baseUrl,
+        apiKey: tier.apiKey,
+        model: tier.model,
+        fallback: tier.fallback,
+        onRateLimited: tier.onRateLimited,
+        maxTokens: 180,
+        temperature: 0,
+        timeout: 7000,
+        deadlineAt: Date.now() + 7000,
+        thinking: { type: "disabled" },
+        reasoningEffort: "low",
+        messages: [
+          {
+            role: "system",
+            content:
+              'You create search queries for a program documentation index. Do not answer the user. Infer several likely documentation terms or short phrases that could locate the answer, including useful terms absent from the question. Return only JSON: {"queries":["...", "..."]}. Include 3 to 6 distinct phrases, each under 8 words. If the question is vague, search for the program overview and FAQ topics that best fit it.',
+          },
+          {
+            role: "user",
+            content: JSON.stringify({ program: resolveProgram(program)?.name || String(program || ""), question }),
+          },
+        ],
+        telemetry: { operation: "retrieval_query", programId: resolveProgram(program)?.id || null, channel },
+      },
+      "answer",
+    );
+    const json = text.match(/\{[\s\S]*\}/)?.[0];
+    const parsed = json ? JSON.parse(json) : null;
+    if (!Array.isArray(parsed?.queries)) return [];
+    return [
+      ...new Set(
+        parsed.queries
+          .filter((query: unknown): query is string => typeof query === "string")
+          .map((query: string) => query.trim())
+          .filter(
+            (query: string) =>
+              query.length >= 3 && query.length <= 100 && /^[\p{L}\p{N}][\p{L}\p{N} '\u2019/-]*$/u.test(query),
+          ),
+      ),
+    ].slice(0, 6);
+  } catch (error: unknown) {
+    log.debug("retrieve", `query expansion failed: ${errorMessage(error)}`);
+    return [];
+  }
+}
+
 function answerRequest(
   question: string,
   corpus: string,
@@ -911,6 +962,7 @@ export = {
   parseReply,
   parseAnswerOrChat,
   ownedSourceName,
+  expandSearchQueries,
   sanitizeAnswer,
   systemPrompt,
   answerOrChatPrompt,
