@@ -178,8 +178,9 @@ test("onAppMention analyses an attached image instead of replying blind", async 
     config.slack.helpChannel = savedHelp;
   }
 
-  assert.equal(posted.length, 1);
-  assert.match(posted[0].text, /breadboard/);
+  // The top-level help-channel message also opens a ticket and posts its ticket card.
+  const answers = posted.filter((p) => /breadboard/.test(p.text));
+  assert.equal(answers.length, 1, "exactly one vision answer");
   assert.equal(visionSawQuestion, "bruda cant u see the IMAGE");
 });
 
@@ -294,7 +295,7 @@ test("explicit human review requests escalate once without calling the provider"
   assert.match(posted.find((p: any) => p.channel === "C0ORGANIZER").text, new RegExp(`Ticket #${ticket.id}`));
 });
 
-test("a casual help-channel root stays silent and does not open a ticket", async () => {
+test("a casual help-channel root gets a ticket but no answer", async () => {
   const programs = require("./programs");
   const savedForChannel = programs.forChannel;
   const savedIsHelp = programs.isHelpChannel;
@@ -324,8 +325,10 @@ test("a casual help-channel root stays silent and does not open a ticket", async
     reactions: { add: async () => ({}) },
   };
   const event = { ts: "qg-1", channel: HELP_CHANNEL, user: "U0ASKER", team: "T-QG", text: "hi" };
+  let postsAfterFirstDelivery = 0;
   try {
     await handlers.onMessage({ event, client });
+    postsAfterFirstDelivery = posts.length;
     await handlers.onMessage({ event, client });
   } finally {
     programs.forChannel = savedForChannel;
@@ -333,12 +336,13 @@ test("a casual help-channel root stays silent and does not open a ticket", async
     respond.respond = savedRespond;
   }
   const ticket = db.getTicketByThreadTs("qg-1", "T-QG");
-  assert.equal(ticket, null, "casual chatter must not create a support ticket");
+  assert.ok(ticket, "every top-level help-channel message opens a ticket");
   assert.equal(responded, false, "the eligibility gate keeps Orry from answering a greeting");
-  assert.equal(posts.length, 0, "casual chatter must not post ticket UI");
+  assert.ok(postsAfterFirstDelivery >= 1, "the first delivery posts the ticket card");
+  assert.equal(posts.length, postsAfterFirstDelivery, "a second delivery adds no ticket card");
 });
 
-test("a substantive help-channel root routes through respond and owns ticket creation", async () => {
+test("a substantive help-channel root routes through respond and also opens its ticket", async () => {
   const calls: any[] = [];
   const savedHelp = config.slack.helpChannel;
   const savedRespond = respond.respond;
@@ -362,7 +366,7 @@ test("a substantive help-channel root routes through respond and owns ticket cre
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].mode, respond.HELP_ONLY);
-  assert.equal(db.getTicketByThreadTs(event.ts, event.team), null, "stubbed respond owns the ticket in production");
+  assert.ok(db.getTicketByThreadTs(event.ts, event.team), "the top-level help message opens its ticket before respond runs");
 });
 
 test("isolated app_mention ignores bot and self events", async () => {
@@ -1632,8 +1636,8 @@ test("macros work in any program thread for helpers, like !sum", async () => {
     assert.equal(ephemerals.length, 1);
     assert.equal(
       db.claimMessage("handler-gate-chatter", channel),
-      true,
-      "the chatter message was left for normal handling",
+      false,
+      "the chatter message was already claimed by normal handling",
     );
 
     await handlers.onMessage({
