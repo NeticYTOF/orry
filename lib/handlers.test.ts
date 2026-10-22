@@ -178,9 +178,9 @@ test("onAppMention analyses an attached image instead of replying blind", async 
     config.slack.helpChannel = savedHelp;
   }
 
-  // The top-level help-channel message also opens a ticket and posts its ticket card.
-  const answers = posted.filter((p) => /breadboard/.test(p.text));
-  assert.equal(answers.length, 1, "exactly one vision answer");
+  assert.equal(posted.length, 2, "the image answer and help ticket are both posted");
+  assert.ok(posted.some((message: any) => /breadboard/.test(message.text)));
+  assert.ok(posted.some((message: any) => /Someone will be here to help you soon/i.test(message.text)));
   assert.equal(visionSawQuestion, "bruda cant u see the IMAGE");
 });
 
@@ -295,7 +295,7 @@ test("explicit human review requests escalate once without calling the provider"
   assert.match(posted.find((p: any) => p.channel === "C0ORGANIZER").text, new RegExp(`Ticket #${ticket.id}`));
 });
 
-test("a casual help-channel root gets a ticket but no answer", async () => {
+test("a casual help-channel root stays silent but still opens the required ticket", async () => {
   const programs = require("./programs");
   const savedForChannel = programs.forChannel;
   const savedIsHelp = programs.isHelpChannel;
@@ -336,13 +336,13 @@ test("a casual help-channel root gets a ticket but no answer", async () => {
     respond.respond = savedRespond;
   }
   const ticket = db.getTicketByThreadTs("qg-1", "T-QG");
-  assert.ok(ticket, "every top-level help-channel message opens a ticket");
+  assert.ok(ticket, "every help-channel root message gets a ticket");
+  assert.equal(ticket.question, "hi");
   assert.equal(responded, false, "the eligibility gate keeps Orry from answering a greeting");
-  assert.ok(postsAfterFirstDelivery >= 1, "the first delivery posts the ticket card");
-  assert.equal(posts.length, postsAfterFirstDelivery, "a second delivery adds no ticket card");
+  assert.equal(posts.length, 2, "one public acknowledgement and one organizer card are posted once");
 });
 
-test("a substantive help-channel root routes through respond and also opens its ticket", async () => {
+test("a substantive help-channel root opens its ticket and routes through respond", async () => {
   const calls: any[] = [];
   const savedHelp = config.slack.helpChannel;
   const savedRespond = respond.respond;
@@ -366,7 +366,7 @@ test("a substantive help-channel root routes through respond and also opens its 
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].mode, respond.HELP_ONLY);
-  assert.ok(db.getTicketByThreadTs(event.ts, event.team), "the top-level help message opens its ticket before respond runs");
+  assert.ok(db.getTicketByThreadTs(event.ts, event.team), "ticket creation happens before answer routing");
 });
 
 test("isolated app_mention ignores bot and self events", async () => {

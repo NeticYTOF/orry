@@ -791,7 +791,11 @@ test("a direct ping from either Slack event is answered once", async () => {
       event: { ts: ts1, channel: "C0HELP", user: "U0ASKER", text: `<@${BOT}> how do i submit` },
       client: {},
     });
-    assert.equal(metrics.length, 0, "normal ping onMessage records no metric");
+    assert.equal(
+      metrics.some((metric: any[]) => String(metric[2] || "").startsWith("eligibility:")),
+      false,
+      "the answered ping is not recorded as suppressed by eligibility",
+    );
     assert.equal(claims.length, 1, "message event claims the addressed message");
     assert.equal(responds.length, 1, "message event handles the direct ping");
     await handlers.onAppMention({
@@ -810,8 +814,11 @@ test("a direct ping from either Slack event is answered once", async () => {
       event: { ts: ts2, channel: "C0HELP", user: "U0ASKER", text: `<@${BOT}> is goated` },
       client: {},
     });
-    assert.equal(metrics.length, 1, "praise ping onMessage records silent");
-    assert.equal(metrics[0][2], "eligibility:greeting");
+    assert.equal(
+      metrics.filter((metric: any[]) => metric[2] === "eligibility:greeting").length,
+      1,
+      "praise ping is recorded as silent once, alongside ticket metrics",
+    );
     assert.equal(responds.length, 0);
     metrics = [];
     gaps = [];
@@ -822,7 +829,7 @@ test("a direct ping from either Slack event is answered once", async () => {
       client: {},
     });
     assert.equal(responds.length, 0, "B4: silent ping never answers via mention");
-    assert.equal(metrics.length, 0, "B4: silent ping metrics exactly once");
+    assert.equal(metrics.length, 0, "B4: duplicate mention delivery records no additional metrics");
 
     db.muteThread("char-mute-1", "C0HELP");
     try {

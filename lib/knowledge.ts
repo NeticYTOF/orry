@@ -563,7 +563,6 @@ async function fetchGithubFile(file: GithubFile, sourceName: string): Promise<Gi
 }
 
 const CRAWL_MAX_PAGES = 80;
-const CRAWL_MAX_DEPTH = 4;
 const ASSET_RE = /\.(?:css|js|mjs|json|md|txt|xml|rss|png|jpe?g|gif|svg|webp|ico|pdf|zip|gz|woff2?|ttf|mp4|webm)$/i;
 
 function normalizePath(p: string) {
@@ -658,9 +657,13 @@ async function fetchUrlSource(source: SourceRecord, force: boolean) {
   const pages = [first.content];
   let frontier = nextHops(linksFrom(first.raw), rootUrl, origin, prefixes, seen);
 
-  for (let depth = 1; depth <= CRAWL_MAX_DEPTH && frontier.length && pages.length < CRAWL_MAX_PAGES; depth++) {
+  while (frontier.length) {
+    if (pages.length + frontier.length > CRAWL_MAX_PAGES) {
+      throw new Error(`crawl reached the ${CRAWL_MAX_PAGES}-page limit before covering ${source.url}`);
+    }
     const discovered: string[] = [];
-    for (let i = 0; i < frontier.length && pages.length < CRAWL_MAX_PAGES; i += FETCH_BATCH_SIZE) {
+    const failed: string[] = [];
+    for (let i = 0; i < frontier.length; i += FETCH_BATCH_SIZE) {
       const batch = frontier.slice(i, i + FETCH_BATCH_SIZE);
       const results = await Promise.all(
         batch.map(async (url) => {
@@ -671,15 +674,25 @@ async function fetchUrlSource(source: SourceRecord, force: boolean) {
               "knowledge",
               `failed to crawl ${url} for "${source.name}": ${error instanceof Error ? error.message : String(error)}`,
             );
-            return null;
+            return { url, failed: true as const };
           }
         }),
       );
       for (const r of results) {
-        if (!r) continue;
-        if (r.content) pages.push(r.content);
+        if ("failed" in r) {
+          failed.push(r.url);
+          continue;
+        }
+        if (!r.content.trim()) {
+          failed.push(r.url);
+          continue;
+        }
+        pages.push(r.content);
         discovered.push(...nextHops(linksFrom(r.raw), r.url, origin, prefixes, seen));
       }
+    }
+    if (failed.length) {
+      throw new Error(`failed to fetch ${failed.length} page(s) while crawling ${source.url}`);
     }
     frontier = discovered;
   }

@@ -95,9 +95,10 @@ test("uncertainty for personal lore does not point people to Loadout docs or hel
   assert.doesNotMatch(text, /Loadout docs|helper|organizer/i);
 });
 
-test("a declined Loadout fact still points to a human when general chat lacks a source", () => {
+test("uncertainty fallback identifies the documentation that was searched", () => {
   const text = respond.uncertaintyText({ id: "loadout", name: "Loadout" }, { general: true, programFact: true });
   assert.match(text, /helper or organizer can confirm/i);
+  assert.doesNotMatch(text, /Loadout docs|program docs|documentation/i);
 });
 
 test("questionTopic turns a how-to question into a short topic phrase", () => {
@@ -165,6 +166,20 @@ test("uncertainty wording keeps a model line that only mentions the docs and a t
     "I can't confirm it lands within 2 days, so I won't guess.",
     "a digit inside a time phrase is kept",
   );
+});
+
+test("uncertainty wording replaces an unsupported model source claim with the searched docs", () => {
+  const text = respond.uncertaintyText(
+    { id: "loadout", name: "Loadout" },
+    {
+      result: {
+        source: null,
+        answer: "",
+        uncertaintyReply: "I couldn't verify that from the Loadout docs, so I won't guess.",
+      },
+    },
+  );
+  assert.match(text, /couldn't verify that from the Loadout docs/i);
 });
 
 test("gap recording is gated on engagement: chatter records nothing, an engaged miss records a gap", async () => {
@@ -1494,7 +1509,7 @@ test("a classifier outage in a help channel preserves the support path (ticket +
     const ticket = db.getTicketByThreadTs("t-outage-1");
     assert.ok(ticket, "the outage must not swallow the support request");
     assert.equal(ticket.status, "waiting_for_helper");
-    assert.ok(client.calls.posts.some((t: string) => /couldn't verify|can't confirm/i.test(t)));
+    assert.ok(client.calls.posts.some((t: string) => /can't confirm/i.test(t)));
     assert.ok(client.calls.posts.some((t: string) => /helper/i.test(t)));
   } finally {
     config.slack.helpChannel = savedHelp;

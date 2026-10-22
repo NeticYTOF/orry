@@ -1317,12 +1317,10 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
       : selectedSettings;
   if (settings && settings.enabled === false) return;
 
+  if (db.wasAnswered(event.ts)) return;
   await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
 
-  if (db.wasAnswered(event.ts)) return;
-
   if (event.thread_ts && (db.isThreadMuted(event.thread_ts) || db.isTakeover(event.thread_ts))) {
-    if (db.wasAnswered(event.ts)) return;
     const elig = require("./eligibility");
     const verdict = elig.shouldOrryRespond({
       text: event.text,
@@ -1348,6 +1346,8 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
     if (verdict.clearTakeover) db.clearTakeover(event.thread_ts);
   }
 
+  if (!db.claimMessage(event.ts, event.channel)) return;
+
   const eligibility = checkEligibility({
     event,
     prog,
@@ -1358,7 +1358,6 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
   });
   if (eligibility === "stop") return;
   if (eligibility === "escalate") {
-    if (!db.claimMessage(event.ts, event.channel)) return;
     await escalateSensitive({
       event,
       client,
@@ -1376,16 +1375,13 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
 
   if (await handleTeachRequest({ event, client, question, prog, mentionOnly: true, claimFirst: false })) return;
 
-  if (await handleSumRequest({ event, client, question, prog, mentionOnly: true, claimFirst: true })) return;
+  if (await handleSumRequest({ event, client, question, prog, mentionOnly: true, claimFirst: false })) return;
 
   const imageFile = findImage(event);
   if (imageFile) {
-    if (!db.claimMessage(event.ts, event.channel)) return;
     await handleImage({ event, client, imageFile, program: prog });
     return;
   }
-
-  if (!db.claimMessage(event.ts, event.channel)) return;
 
   await respond.respond({
     workspaceId,
