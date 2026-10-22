@@ -74,7 +74,7 @@ test("Acme's branding can never appear on a message sent for a different program
 
   const acme = { id: "acme", name: "Acme", supportName: "Acme Help", iconUrl: "https://cdn.example.com/acme.png" };
   const sandbox = {
-    id: "rivet-sandbox-e2e",
+    id: "orry-sandbox-e2e",
     name: "Sandbox",
     supportName: "Sandbox Help",
     iconUrl: "https://cdn.example.com/sandbox.png",
@@ -396,7 +396,7 @@ test("regression: duplicate card text carries no stray bracket", () => {
 });
 
 test("a permanently failing send records slack_send_failure", async () => {
-  process.env.RIVET_DB_PATH = ":memory:";
+  process.env.ORRY_DB_PATH = ":memory:";
   const db = require("./db");
   try {
     db.open(":memory:");

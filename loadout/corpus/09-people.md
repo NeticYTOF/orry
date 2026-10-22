@@ -2,7 +2,7 @@
 
 - **Jerry — Lead organizer.** Leads Loadout and develops its website.
 - **Fazin / Wind — Developer and co-organizer.** Works on the program plan and helps develop Loadout.
-- **Netic — Developer and co-organizer.** Develops Rivet, Loadout's Slack bot, and helps organize the program.
+- **Netic — Developer and co-organizer.** Develops Orry for Loadout, and helps organize the program.
 
 Jerry is the lead org of Loadout.
 
@@ -13,7 +13,7 @@ Hack Club is a nonprofit community of teenagers who learn by making and sharing 
 ## Links
 
 - Loadout program repo: https://github.com/jeremy341/loadout
-- Rivet, the Slack bot: https://github.com/NeticYTOF/orry (built by Netic)
+- Orry, the Slack bot: https://github.com/NeticYTOF/orry (built by Netic)
 - Website: https://loadout-jerry-team1.vercel.app/
 - RSVP: https://rsvp.soon.it/loadout
 - Hack Club Slack: #loadout

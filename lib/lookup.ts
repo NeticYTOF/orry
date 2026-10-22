@@ -32,6 +32,7 @@ interface AnswerResult {
   unresolved?: string[];
   citationEvidence?: unknown[];
   passageCitations?: unknown[];
+  groundedAnswer?: string;
   uncertaintyReply?: string;
   suggestedSource?: { name: string; url?: string | null } | null;
 }
@@ -192,21 +193,78 @@ function isAuthoritativeOnlyTopic(question: string, result: AnswerResult | null)
   return AUTHORITATIVE_ONLY_RES.some((re) => re.test(text));
 }
 
-const NUMERIC_CLAIM_RE =
-  /\$\s?\d[\d,.]*|\b\d[\d,.]*\s?%|\b\d[\d,.]*\s?(?:percent|px|pixels?|hours?|hrs?|days?|weeks?|months?|dollars?|points?|bolts?|xp)\b/gi;
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+};
+const NUMBER_WORD_ALTERNATION = Object.keys(NUMBER_WORDS).join("|");
+const NUMERIC_UNIT = "(?:percent|px|pixels?|hours?|hrs?|days?|weeks?|months?|dollars?|points?|bolts?|xp)";
+const NUMERIC_CLAIM_RE = new RegExp(
+  [
+    "\\$\\s?\\d+(?:,\\d{3})*(?:\\.\\d+)?",
+    "\\b\\d[\\d,.]*\\s?%",
+    `\\b\\d[\\d,.]*[\\s-]?${NUMERIC_UNIT}\\b`,
+    `\\b(?:${NUMBER_WORD_ALTERNATION})[\\s-]?(?:%|${NUMERIC_UNIT}\\b)`,
+  ].join("|"),
+  "gi",
+);
+const WORD_NUMBER_BEFORE_UNIT = new RegExp(`\\b(${NUMBER_WORD_ALTERNATION})(?=[\\s-]?(?:%|${NUMERIC_UNIT}\\b))`, "gi");
 
-function normalizeForMatch(text: string) {
+// Brings a claim and a passage to one form: no currency symbols or thousands separators, no trailing
+// punctuation after a number, number words from one to twenty written as digits before a unit, and
+// single spacing. "$1,000." and "1000 dollars" then compare equal, and "five days" equals "5 days".
+function normalizeNumericText(text: string) {
   return String(text || "")
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(/[$€£¥]/g, "")
+    .replace(/(\d),(?=\d{3}(?!\d))/g, "$1")
+    .replace(/(\d)\.(?!\d)/g, "$1")
+    .replace(/(\d)-(?=[a-z%])/g, "$1 ")
+    .replace(WORD_NUMBER_BEFORE_UNIT, (word: string) => String(NUMBER_WORDS[word.toLowerCase()]))
+    .replace(/\s+/g, " ")
+    .replace(/\s+%/g, "%")
+    .replace(/[.,;:!?]+$/, "")
+    .trim();
 }
 
+function escapeRegExp(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasNumericClaim(text: string) {
+  return (String(text || "").match(NUMERIC_CLAIM_RE) || []).length > 0;
+}
+
+// A number in the answer must appear, as a whole number, in the text it is checked against. The
+// caller decides that text: the cited passages when there are any, never the user's question.
 function numericClaimsGrounded(answerText: string, corpusText: string) {
   if (!corpusText) return true;
   const claims = String(answerText || "").match(NUMERIC_CLAIM_RE) || [];
   if (claims.length === 0) return true;
-  const corpusNorm = normalizeForMatch(corpusText);
-  return claims.every((claim) => corpusNorm.includes(normalizeForMatch(claim)));
+  const corpusNorm = normalizeNumericText(corpusText);
+  return claims.every((claim) => {
+    const claimNorm = normalizeNumericText(claim);
+    if (!claimNorm) return true;
+    return new RegExp(`(?<![\\d.])${escapeRegExp(claimNorm)}(?!\\d)`).test(corpusNorm);
+  });
 }
 
 function evidencePrompt(passages: Array<{ id: string; source: string; heading?: string; text: string }>) {
@@ -300,6 +358,17 @@ function separateExplicitUncertainty(answer: string, question: string) {
   };
 }
 
+function claimKey(text: unknown) {
+  return String(text || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+// Sentence-level grounding. Each factual sentence is kept only if the verifier supports it from its
+// cited passages (or, when the verifier is unavailable, if its citations resolve to eligible passages).
+// Unsupported sentences are dropped and named in an UNRESOLVED note. The whole answer is refused only
+// when no factual sentence survives.
 async function applyPassageCitations(
   result: AnswerResult | null,
   passages: Array<{
@@ -320,7 +389,6 @@ async function applyPassageCitations(
   const sources = programSources(prog);
   const eligible = new Map<string, (typeof passages)[number]>();
   const aliases = new Map<string, string>();
-  const ids = new Map<string, string>();
   for (const [index, passage] of passages.entries()) {
     if (!passage.id || passage.programId !== programId) continue;
     const configured = sources.find((source) => source.name?.toLowerCase() === passage.source.toLowerCase());
@@ -334,112 +402,174 @@ async function applyPassageCitations(
     }
     eligible.set(passage.id, passage);
     aliases.set(`E${index + 1}`, passage.id);
-    ids.set(passage.id, `E${index + 1}`);
   }
   const separated = separateExplicitUncertainty(String(result.answer || ""), question);
   if (!result.unresolved?.length && separated.unresolved.length) result.unresolved = separated.unresolved;
-  const answerText = separated.answer;
-  const refs = [...answerText.matchAll(/\[(E\d+)\]/g)];
-  for (const match of refs) {
-    const alias = match[1];
-    const id = aliases.get(alias);
-    if (!id) return null;
-  }
-  const sentenceParts = answerText.split(/(?<=[.!?])\s+(?!\[E\d+\])|(?<=\])\s+(?!\[E\d+\])|\n+/).filter(Boolean);
-  const claims = sentenceParts.map((sentence) => {
+
+  // Hedges are kept as written. Every other sentence is a factual claim to verify, and a claim whose
+  // citation cannot be resolved is dropped without being sent to the verifier.
+  type Piece = { hedge: true; text: string } | { hedge: false; index: number };
+  const pieces: Piece[] = [];
+  const factual: Array<{ claim: string; evidenceIds: string[]; invalid: boolean }> = [];
+  for (const sentence of grounding.splitAnswerSentences(separated.answer)) {
     const claim = sentence
       .replace(/\[E\d+\]/g, "")
+      .replace(/\s{2,}/g, " ")
       .trim()
       .replace(/\s+([.,!?;:])/g, "$1");
-    const citedIds = [...sentence.matchAll(/\[(E\d+)\]/g)].map((match) => aliases.get(match[1]) || "");
-    return { claim, supported: true, evidenceIds: [...new Set(citedIds)] };
-  });
-  if (!claims.length || claims.some(({ claim }) => !claim)) return null;
+    if (!claim) continue;
+    if (grounding.isHedgeSentence(claim) && !hasNumericClaim(claim)) {
+      pieces.push({ hedge: true, text: claim });
+      continue;
+    }
+    const aliasTokens = [...sentence.matchAll(/\[(E\d+)\]/g)].map((match) => match[1]);
+    const evidenceIds = [
+      ...new Set(aliasTokens.flatMap((alias) => (aliases.has(alias) ? [aliases.get(alias)!] : []))),
+    ];
+    const invalid =
+      aliasTokens.some((alias) => !aliases.has(alias)) || /\[[^\]\n]*\bE\d/i.test(sentence.replace(/\[E\d+\]/g, ""));
+    pieces.push({ hedge: false, index: factual.length });
+    factual.push({ claim, evidenceIds, invalid });
+  }
 
+  const verifiable = factual.flatMap((item, index) => (item.invalid ? [] : [{ ...item, index }]));
+  if (!verifiable.length) return null;
   const verificationEvidence = [...eligible.values()].map((passage) => ({ ...passage, programId }));
-  const expectedClaims = claims.map(({ claim, evidenceIds }) => ({ claim, evidenceIds }));
+  const expectedClaims = verifiable.map(({ claim, evidenceIds }) => ({ claim, evidenceIds }));
   const needsCoverage = Boolean(question || result.unresolved?.length);
-  const verdict = await answer.verifyGrounding(expectedClaims, verificationEvidence, prog, null, {
-    ...(needsCoverage ? { requestCoverage: { question, contextQuestion, unresolved: result.unresolved || [] } } : {}),
-  });
-  const verified = grounding.parseGroundingVerdict(verdict);
+  const coverageRequest = { question, contextQuestion, unresolved: result.unresolved || [] };
+  let verdict: unknown = null;
+  try {
+    verdict = await answer.verifyGrounding(expectedClaims, verificationEvidence, prog, null, {
+      ...(needsCoverage ? { requestCoverage: coverageRequest } : {}),
+    });
+  } catch (error: unknown) {
+    log.debug("grounding", `claim verifier failed: ${error instanceof Error ? error.message : String(error)}`);
+    verdict = null;
+  }
+  const verifierAvailable = verdict !== null && verdict !== undefined;
+  const verified = verifierAvailable ? grounding.parseGroundingVerdict(verdict) : null;
+  // A verdict that is present but unusable cannot say which sentence is supported, so nothing is kept.
   if (
-    !verified.ok ||
-    verified.claims.length !== expectedClaims.length ||
-    verified.claims.some(
-      (claim, index) =>
-        claim.claim.trim().replace(/\s+/g, " ").toLowerCase() !== expectedClaims[index].claim.toLowerCase(),
-    )
+    verified &&
+    (!verified.ok ||
+      verified.claims.length !== expectedClaims.length ||
+      verified.claims.some((claim, index) => claimKey(claim.claim) !== claimKey(expectedClaims[index].claim)))
   )
     return null;
-  const supportedIndexes = verified.claims.flatMap((claim, index) => (claim.supported ? [index] : []));
-  if (!supportedIndexes.length || (supportedIndexes.length !== verified.claims.length && !result.unresolved?.length))
-    return null;
-  const supportedClaims = supportedIndexes.map((index) => verified.claims[index]);
-  const supportedExpectedClaims = supportedIndexes.map((index) => expectedClaims[index]);
-  const checkedClaims = grounding.validatePassageClaims({
-    verdict: { ...verified, verdict: "supported", claims: supportedClaims },
-    expectedClaims: supportedExpectedClaims,
-    evidence: verificationEvidence,
-    programId,
-  });
-  if (!checkedClaims.supported) return null;
-  if (needsCoverage) {
-    let coverage = verified.coverage === true;
-    if (supportedIndexes.length !== verified.claims.length) {
-      const coverageVerdict = grounding.parseGroundingVerdict(
-        await answer.verifyGrounding(supportedExpectedClaims, verificationEvidence, prog, null, {
-          requestCoverage: { question, contextQuestion, unresolved: result.unresolved || [] },
-        }),
-      );
-      coverage = Boolean(
-        coverageVerdict.ok &&
-        coverageVerdict.coverage === true &&
-        coverageVerdict.claims.length === supportedExpectedClaims.length &&
-        coverageVerdict.claims.every(
-          (claim, index) =>
-            claim.supported &&
-            claim.claim.trim().replace(/\s+/g, " ").toLowerCase() ===
-              supportedExpectedClaims[index].claim.toLowerCase(),
-        ) &&
+
+  const evidenceText = (ids: string[]) => ids.map((id) => eligible.get(id)?.text || "").join("\n");
+  const decisions = new Map<number, { ok: boolean; ids: string[] }>();
+  verifiable.forEach((item, position) => {
+    const expected = expectedClaims[position];
+    let ids: string[];
+    let ok: boolean;
+    if (verified) {
+      const claim = verified.claims[position];
+      ids = claim.evidenceIds;
+      ok =
+        claim.supported &&
         grounding.validatePassageClaims({
-          verdict: { ...coverageVerdict, verdict: "supported" },
-          expectedClaims: supportedExpectedClaims,
+          verdict: { verdict: "supported", claims: [claim] },
+          expectedClaims: [expected],
           evidence: verificationEvidence,
           programId,
-        }).supported,
+        }).supported;
+    } else {
+      // The verifier threw or timed out: accept the sentence when its citations resolve to eligible passages.
+      ids = expected.evidenceIds;
+      ok =
+        ids.length > 0 &&
+        grounding.validatePassageCitations({ citations: ids, evidence: verificationEvidence, programId }).supported;
+    }
+    if (ok && !numericClaimsGrounded(item.claim, evidenceText(ids))) ok = false;
+    decisions.set(item.index, { ok, ids });
+  });
+
+  const kept: string[] = [];
+  const dropped: string[] = [];
+  const usedIds = new Set<string>();
+  let keptFactual = 0;
+  for (const piece of pieces) {
+    if (piece.hedge === true) {
+      kept.push(piece.text);
+      continue;
+    }
+    const decision = decisions.get(piece.index);
+    if (decision?.ok) {
+      keptFactual += 1;
+      kept.push(factual[piece.index].claim);
+      for (const id of decision.ids) usedIds.add(id);
+    } else {
+      dropped.push(factual[piece.index].claim);
+    }
+  }
+  if (!keptFactual || !usedIds.size) return null;
+  if ([...usedIds].some((id) => !eligible.has(id))) return null;
+
+  const disclosed = [
+    ...(result.unresolved || []),
+    ...dropped.map((claim) => `this part: “${claim.replace(/[.!?]+$/, "")}”`),
+  ];
+  // Coverage: every part of the question must be answered or disclosed. The verifier was not
+  // reachable, so there is nothing more to check and the verified sentences stand.
+  if (needsCoverage && verified) {
+    let coverage = verified.coverage === true;
+    if (dropped.length) {
+      const keptExpected = verifiable.flatMap((item, position) =>
+        decisions.get(item.index)?.ok ? [expectedClaims[position]] : [],
       );
+      let coverageVerdict: unknown = null;
+      try {
+        coverageVerdict = await answer.verifyGrounding(keptExpected, verificationEvidence, prog, null, {
+          requestCoverage: { ...coverageRequest, unresolved: disclosed },
+        });
+      } catch (error: unknown) {
+        log.debug("grounding", `coverage verifier failed: ${error instanceof Error ? error.message : String(error)}`);
+        coverageVerdict = null;
+      }
+      if (coverageVerdict === null || coverageVerdict === undefined) {
+        coverage = true;
+      } else {
+        const parsedCoverage = grounding.parseGroundingVerdict(coverageVerdict);
+        coverage = Boolean(
+          parsedCoverage.ok &&
+          parsedCoverage.coverage === true &&
+          parsedCoverage.claims.length === keptExpected.length &&
+          parsedCoverage.claims.every(
+            (claim, index) => claim.supported && claimKey(claim.claim) === claimKey(keptExpected[index].claim),
+          ) &&
+          grounding.validatePassageClaims({
+            verdict: { ...parsedCoverage, verdict: "supported" },
+            expectedClaims: keptExpected,
+            evidence: verificationEvidence,
+            programId,
+          }).supported,
+        );
+      }
     }
     if (!coverage) {
       log.debug("grounding", "answer did not cover the current question and unresolved parts");
       return null;
     }
   }
-  const supportedSentences = supportedIndexes.map((index) => sentenceParts[index]);
-  const usedIds = new Set(supportedClaims.flatMap((claim) => claim.evidenceIds));
+
   const validity = grounding.validatePassageCitations({
     citations: [...usedIds],
     evidence: verificationEvidence,
     programId,
   });
   if (!validity.supported) return null;
-  const cited = new Map([...usedIds].map((id) => [String(id), eligible.get(String(id))!]));
-  result.answer = supportedSentences
-    .map((sentence, index) => {
-      const claim = claims[supportedIndexes[index]].claim;
-      if (
-        !numericClaimsGrounded(claim, supportedClaims[index].evidenceIds.map((id) => eligible.get(id)!.text).join("\n"))
-      )
-        return "";
-      return claim;
-    })
-    .join(" ");
-  if (!result.answer) return null;
+  const cited = new Map([...usedIds].map((id) => [id, eligible.get(id)!]));
+  const groundedText = kept.join(" ").trim();
+  if (!groundedText) return null;
+  result.groundedAnswer = groundedText;
+  result.answer = groundedText;
   result.source = cited.values().next().value?.source || result.source;
   result.citationEvidence = [...cited.values()];
   result.passageCitations = [...cited.keys()];
-  if (result.unresolved?.length) {
-    result.answer += `\n\nI couldn't confirm ${result.unresolved.join("; ")} in the docs, so I can't answer those parts.`;
+  if (disclosed.length) {
+    result.answer += `\n\nI couldn't confirm ${disclosed.join("; ")} in the docs, so I can't answer those parts.`;
   }
   if (result.personality) result.answer += `\n\n${result.personality}`;
   return result;
@@ -495,7 +625,11 @@ function exactClaimAllowed(result: AnswerResult | null, prog: ProgramLike | stri
   if (!source) return !isAuthoritativeOnlyTopic(question, result);
   const freshness = knowledge.sourceEligibility(source);
   if (!(freshness.exactClaimsAllowed || (structuredSupport && freshness.authority !== "dynamic"))) return false;
-  return numericClaimsGrounded(result.answer || "", corpus);
+  // Check only the factual sentences (not the UNRESOLVED note or personality line), against the cited
+  // passages when there are any. The user's question is never a source of a grounded number.
+  const cited = Array.isArray(result.citationEvidence) ? (result.citationEvidence as Array<{ text?: unknown }>) : [];
+  const citedText = cited.length ? cited.map((passage) => String(passage?.text || "")).join("\n") : corpus;
+  return numericClaimsGrounded(result.groundedAnswer ?? result.answer ?? "", citedText);
 }
 
 function applyGroundingBoundary(
@@ -517,8 +651,23 @@ function applyGroundingBoundary(
   return result;
 }
 
+// The bot's own name is not something people are asking about, so drop it from the
+// search query when real words remain. A bare "what is orry?" keeps its name.
+function withoutBotName(text: string) {
+  const brand = require("./brand");
+  const retrieve = require("./retrieve");
+  const names = [...new Set([brand.slug(), brand.name().toLowerCase()])].map((n) =>
+    n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  );
+  const stripped = text
+    .replace(new RegExp(`\\b(?:${names.join("|")})\\b[,:!?]*`, "gi"), " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return retrieve.tokenize(stripped).length > 0 ? stripped : text;
+}
+
 function retrievalQuery(question: string, contextPrompt = "", prog: ProgramLike | string | null = null) {
-  let q = (question || "").trim();
+  let q = withoutBotName((question || "").trim());
   if (!contextPrompt || !contextPrompt.trim()) return q;
 
   const resolved = typeof prog === "string" ? (programs.get(prog) as ProgramLike) : prog;

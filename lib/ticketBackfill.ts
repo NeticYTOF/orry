@@ -114,7 +114,7 @@ const getImportProgress = db.getHistoryImportProgress as (programId: string, cha
 
 const RULES_VERSION = 3;
 
-const MIN_INTERVAL_MS = Number(process.env.RIVET_HISTORY_IMPORT_SPACING_MS) || 1200;
+const MIN_INTERVAL_MS = Number((process.env.ORRY_HISTORY_IMPORT_SPACING_MS ?? process.env.RIVET_HISTORY_IMPORT_SPACING_MS)) || 1200;
 const BACKOFF_INTERVAL_MS = 3000;
 const QUIET_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 const STARTUP_DELAY_MS = 60 * 1000;
@@ -310,16 +310,16 @@ function addReplyEvents(
   ticket: AnyRow,
   program: AnyRow,
   messages: AnyRow[],
-): { helperMessages: AnyRow[]; rivetMessages: AnyRow[]; requesterMessages: AnyRow[] } {
+): { helperMessages: AnyRow[]; orryMessages: AnyRow[]; requesterMessages: AnyRow[] } {
   const helperMessages: AnyRow[] = [];
-  const rivetMessages: AnyRow[] = [];
+  const orryMessages: AnyRow[] = [];
   const requesterMessages: AnyRow[] = [];
   for (const message of messages || []) {
     if (!message.ts || String(message.ts) === String(ticket.thread_ts)) continue;
     const userId = message.user || null;
     if (messageIsBot(message)) {
-      if (recordEvent(ticket, "rivet_answer", userId, message)) rivetMessages.push(message);
-      else rivetMessages.push(message);
+      if (recordEvent(ticket, "rivet_answer", userId, message)) orryMessages.push(message);
+      else orryMessages.push(message);
       const recordFirstResponse = db.recordFirstResponse as (...args: unknown[]) => unknown;
       recordFirstResponse(ticket.id, false, tsMs(message.ts));
       continue;
@@ -341,7 +341,7 @@ function addReplyEvents(
       }
     }
   }
-  return { helperMessages, rivetMessages, requesterMessages };
+  return { helperMessages, orryMessages, requesterMessages };
 }
 
 function reactionConfirms(messages: AnyRow[], ticket: AnyRow, program: AnyRow): number | null {
@@ -369,12 +369,12 @@ async function resolveOrQueue(
   ticket: AnyRow,
   program: AnyRow,
   messages: AnyRow[],
-  replyState: { helperMessages: AnyRow[]; rivetMessages: AnyRow[]; requesterMessages: AnyRow[] },
+  replyState: { helperMessages: AnyRow[]; orryMessages: AnyRow[]; requesterMessages: AnyRow[] },
   now: number,
   options: AnyRow,
 ): Promise<{ resolved: boolean; closed: boolean; queued: boolean }> {
   if (!openStatus(ticket.status)) return { resolved: false, closed: false, queued: false };
-  const answerMessages = [...replyState.helperMessages, ...replyState.rivetMessages];
+  const answerMessages = [...replyState.helperMessages, ...replyState.orryMessages];
   const existingAnswer = (db.listTicketEvents(Number(ticket.id), 500) as AnyRow[]).some(
     (event: AnyRow) => event.event_type === "helper_reply" || event.event_type === "rivet_answer",
   );

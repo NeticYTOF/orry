@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, expect, beforeEach, beforeAll, afterAll } = require("bun:test");
 
@@ -74,7 +74,7 @@ const JEV: Record<string, { action: string; intent: string }> = {
   "give me a chocolate chip cookie recipe": { action: "engage", intent: "addressed_general_request" },
   "my submission got rejected, how do i resubmit?": { action: "engage", intent: "support_question" },
   "how do i get my personal grant code?": { action: "engage", intent: "support_question" },
-  "@ricky if you had to save @rivet or @pixorpheus who would you save?": {
+  "@ricky if you had to save @orry or @pixorpheus who would you save?": {
     action: "silence",
     intent: "human_conversation",
   },
@@ -138,21 +138,21 @@ function client() {
 }
 
 beforeAll(() => {
-  savedEnv = process.env.RIVET_PROGRAMS_JSON;
+  savedEnv = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   db.open(":memory:");
 });
 
 afterAll(() => {
   for (const [key, [obj, value]] of Object.entries(saved)) obj[key] = value;
-  if (savedEnv === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-  else process.env.RIVET_PROGRAMS_JSON = savedEnv;
+  if (savedEnv === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+  else process.env.ORRY_PROGRAMS_JSON = savedEnv;
   programs.invalidate();
 });
 
 function configure(overrides: ProgramOverride = {}) {
   const acme = { ...ACME, ...(overrides.acme || {}) };
   const beta = { ...BETA, ...(overrides.beta || {}) };
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([acme, beta]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([acme, beta]);
   programs.invalidate();
 }
 
@@ -185,9 +185,9 @@ beforeEach(() => {
     return legacyMode === "help"
       ? {
           verdict: intent.HELP_NEEDED,
-          addressedToRivet: false,
+          addressedToOrry: false,
           directedAtHuman: false,
-          recentRivetParticipation: false,
+          recentOrryParticipation: false,
           programRelevance: "relevant",
         }
       : null;
@@ -331,13 +331,23 @@ test("a clarification is asked once when the requester cannot choose", async () 
   );
 
   expect(await send({ channel: "C_ACME_MAIN", text: "how many points?", userId: "U_REQUESTER", threadTs })).toBe(true);
-  expect(await send({ channel: "C_ACME_MAIN", text: "I'm not sure", userId: "U_REQUESTER", threadTs })).toBe(true);
+  // The follow-up is ambient now, so the default is a quiet reaction, not a public reply.
+  expect(await send({ channel: "C_ACME_MAIN", text: "I'm not sure", userId: "U_REQUESTER", threadTs })).toBe(false);
   expect(postedText().match(/Quick clarification:/g)).toHaveLength(1);
-  expect(postedText()).toContain("I couldn't verify that from the Acme docs");
+  expect(postedText()).not.toContain("I couldn't verify that");
 });
 
 test("Loadout points ambiguity names Bolts and Track XP", async () => {
-  configure({ acme: { id: "loadout", name: "Loadout" } });
+  // Same CLARIFY rule as loadout/program.json pinnedRules.
+  configure({
+    acme: {
+      id: "loadout",
+      name: "Loadout",
+      pinnedRules: [
+        "CLARIFY: \\bpoints?\\b | \\bbolts?\\b|\\btrack\\s*xp\\b | Do you mean Bolts (spendable currency) or Track XP (permanent progress)?",
+      ],
+    },
+  });
   stub(jevDecision, "evaluateSupportDecision", async () => ({
     action: "engage",
     intent: "direct_program_question",
@@ -356,7 +366,7 @@ test("a clarification survives reseeding the thread from Slack", async () => {
   seedClient.conversations.replies = async () => ({
     messages: [
       { user: "U_REQUESTER", text: originalQuestion, ts: "10.1" },
-      { bot_id: "B_RIVET", text: "Quick clarification: Do you mean Bolts or Track XP?\n\nLoadout", ts: "10.2" },
+      { bot_id: "B_ORRY", text: "Quick clarification: Do you mean Bolts or Track XP?\n\nLoadout", ts: "10.2" },
     ],
   });
   stub(jevDecision, "evaluateSupportDecision", async (args: DecisionArgs) => {
@@ -600,8 +610,8 @@ test("addressed: a cookie recipe gets a general-purpose answer", async () => {
   expect(answerCalls[0].allowWebSearch).toBe(true);
 });
 
-test("addressed: banter that @mentions Rivet gets a conversational reply, not 'couldn't verify'", async () => {
-  const text = "@ricky if you had to save @rivet or @pixorpheus who would you save?";
+test("addressed: banter that @mentions Orry gets a conversational reply, not 'couldn't verify'", async () => {
+  const text = "@ricky if you had to save @orry or @pixorpheus who would you save?";
   expect(await send({ channel: "C_ACME_MAIN", text, addressed: true })).toBe(true);
   expect(postedText()).toContain("Pixorpheus can swim");
   expect(postedText()).not.toMatch(/couldn't verify/i);
@@ -612,7 +622,7 @@ test("addressed: exact payout gets transparent uncertainty, never an amount", as
   expect(
     await send({ channel: "C_ACME_MAIN", text: "what is my exact payout amount right now?", addressed: true }),
   ).toBe(true);
-  expect(postedText()).toMatch(/couldn't verify/i);
+  expect(postedText()).toMatch(/can't confirm/i);
   expect(postedText()).not.toMatch(/\$\s*\d|\d+\s*(?:usd|dollars)/i);
   expect(handOffs).toHaveLength(0);
 });
@@ -635,7 +645,7 @@ test("addressed: classifier outage still answers, docs or not", async () => {
 });
 
 test("addressed: 'who are you' needs no classifier call", async () => {
-  stub(lookup, "answerOrChat", async () => ({ answer: "I'm Rivet!", source: "NONE" }));
+  stub(lookup, "answerOrChat", async () => ({ answer: "I'm Orry!", source: "NONE" }));
   expect(await send({ channel: "C_ACME_MAIN", text: "who are you?", addressed: true })).toBe(true);
   expect(jevCalls).toHaveLength(0);
 });
@@ -811,7 +821,7 @@ test("organizer channel: never volunteers, answers when addressed, files no tick
   expect(await send({ channel: "C_ACME_ORG", text: "how do i get my personal grant code?", addressed: true })).toBe(
     true,
   );
-  expect(postedText()).toMatch(/couldn't verify/i);
+  expect(postedText()).toMatch(/can't confirm/i);
   expect(ticketCalls).toHaveLength(0);
   expect(handOffs).toHaveLength(0);
 });
@@ -834,7 +844,7 @@ test("conversationContextFor labels speakers, keeps order, and appends the threa
     userId: "U_ME",
     recentMessages: [
       { speaker: "human", userId: "U_ME", text: "my code  came through" },
-      { speaker: "rivet", userId: "U_BOT", text: "nice" },
+      { speaker: "orry", userId: "U_BOT", text: "nice" },
       { speaker: "human", userId: "U_X", text: "x".repeat(500) },
     ],
     threadContext: "user: hi",
@@ -842,7 +852,7 @@ test("conversationContextFor labels speakers, keeps order, and appends the threa
   const lines = ctx.split("\n");
   expect(lines[0]).toBe("Recent channel messages:");
   expect(lines[1]).toBe("same sender: my code came through");
-  expect(lines[2]).toBe("rivet: nice");
+  expect(lines[2]).toBe("orry: nice");
   expect(lines[3].length).toBeLessThanOrEqual("other member: ".length + 200);
   expect(ctx.endsWith("Thread:\nuser: hi")).toBe(true);
   expect(conversationContextFor({ recentMessages: [], threadContext: "" })).toBe("");

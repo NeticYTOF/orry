@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");
@@ -113,7 +113,7 @@ test("buildTicketCardBlocks reflects status changes, unclaiming, and reopening",
 });
 
 test("escalation acknowledgement never names the program support identity", async () => {
-  for (const supportName of ["Sandbox Rivet", "Acme Help"]) {
+  for (const supportName of ["Sandbox Orry", "Acme Help"]) {
     const posted = [];
     const client = {
       chat: {
@@ -811,7 +811,7 @@ test("publicResolveTicket is idempotent on an already-resolved ticket", async ()
   assert.equal(again.deduped, true);
 });
 
-test("publicTicketsEnabled = false skips ticket creation from the help channel but Rivet still answers (returns null, no throw)", async () => {
+test("publicTicketsEnabled = false skips ticket creation from the help channel but Orry still answers (returns null, no throw)", async () => {
   const client = { chat: { postMessage: async () => ({ ts: "1.0" }) } };
   db.saveProgram({
     id: "notix",
@@ -2536,7 +2536,7 @@ test("[epoch] ticketless: a roster helper replying in the thread stops every lat
   assert.equal(posts.length, 1);
 });
 
-test("[epoch] a helper replying in their own thread does not silence Rivet there", () => {
+test("[epoch] a helper replying in their own thread does not silence Orry there", () => {
   const program = pingHelper("epoch-self-thread", ["UHELPER4"]);
   tickets.noteThreadActivity({
     channel: "C-epoch-self-thread",

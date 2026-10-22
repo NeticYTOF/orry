@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -12,7 +12,7 @@ test("normalize collapses punctuation, case, spacing and filler", () => {
 });
 
 test("normalize drops user mentions so a ping does not split the key", () => {
-  assert.equal(cache.normalize("<@U0RIVET> whats the deadline"), "deadline");
+  assert.equal(cache.normalize("<@U0ORRY> whats the deadline"), "deadline");
 });
 
 test("keyFor treats a contraction and its apostrophe form as one question", () => {

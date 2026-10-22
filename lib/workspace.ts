@@ -11,7 +11,7 @@ interface SlackBody {
 const DEFAULT_WORKSPACE = "default";
 
 function configuredWorkspaceId() {
-  return (process.env.RIVET_WORKSPACE_ID || "").trim() || null;
+  return ((process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID) || "").trim() || null;
 }
 
 function teamOfBody(body: SlackBody = {}): string | null {

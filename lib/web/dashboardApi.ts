@@ -259,7 +259,7 @@ function metricsOverview(programId: string, query: DashboardParams = {}) {
   const resolveLags = rows
     .filter((r: MetricTicketRow) => r.status === "resolved" && r.resolved_at)
     .map((r: MetricTicketRow) => r.resolved_at! - r.created_at);
-  const rivetAnswered = rows.filter((r: MetricTicketRow) => r.first_response_at && !r.first_human_response_at).length;
+  const orryAnswered = rows.filter((r: MetricTicketRow) => r.first_response_at && !r.first_human_response_at).length;
   const humanHandled = rows.filter((r: MetricTicketRow) => r.first_human_response_at).length;
 
   const metricRows = db
@@ -317,7 +317,7 @@ function metricsOverview(programId: string, query: DashboardParams = {}) {
     firstResponse: { medianMs: totals.medianFirstResponseMs, averageMs: average(firstLags), n: firstLags.length },
     resolution: { medianMs: totals.medianResolveMs, averageMs: average(resolveLags), n: resolveLags.length },
     volumeByDay: volumeByDay(rows, cutoff, now),
-    answers: { rivetAnswered, humanHandled },
+    answers: { orryAnswered, humanHandled },
     grounding: { blocked, byReason, answered, blockRate: rate(blocked, blocked + answered) },
     helpers,
   };

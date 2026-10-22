@@ -1,6 +1,6 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
-process.env.RIVET_INTERNAL_TOKEN = "test-internal-token-sec";
+process.env.ORRY_DB_PATH = ":memory:";
+process.env.ORRY_INTERNAL_TOKEN = "test-internal-token-sec";
 
 const { test, before, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
@@ -364,8 +364,8 @@ test("grounded answer and escalation are mutually exclusive (grounded -> no esca
   };
   db.saveProgram(prog);
   db.claimProgramChannel({ programId: prog.id, channelId: prog.helpChannel, kind: "help" });
-  const savedProgramsJson = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([prog]);
+  const savedProgramsJson = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([prog]);
   programs.invalidate();
 
   try {
@@ -392,8 +392,8 @@ test("grounded answer and escalation are mutually exclusive (grounded -> no esca
     answer.verifyGrounding = origVerifier;
     knowledge.getEvidenceContext = origEvidence;
     db.deleteProgram(prog.id);
-    if (savedProgramsJson === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedProgramsJson;
+    if (savedProgramsJson === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedProgramsJson;
     programs.invalidate();
   }
 });

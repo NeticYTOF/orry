@@ -1,4 +1,4 @@
-// Migrate a legacy dedicated Rivet SQLite database into a shared hosted
+// Migrate a legacy dedicated Orry SQLite database into a shared hosted
 // Core database. Idempotent: re-running skips rows that already arrived
 // (tickets by (workspace, thread), facts/gaps by normalized question).
 //

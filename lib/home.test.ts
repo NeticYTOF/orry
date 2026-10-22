@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -77,7 +77,7 @@ test("approve action promotes the fact and republishes the view", async () => {
 });
 
 test("drop action deletes the candidate", async () => {
-  const id = seedPending("does rivet read links", "yes, it fetches public URLs");
+  const id = seedPending("does orry read links", "yes, it fetches public URLs");
 
   await reviewAction(
     learn.forget,

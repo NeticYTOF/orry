@@ -109,8 +109,46 @@ test("selectChunks skips an oversized top passage to retain a smaller relevant p
   const budget = second.chunk.text.length + 5;
   assert.ok(budget < top.chunk.text.length, "test setup: top chunk must not fit in the budget");
 
+  // The oversized top passage is now truncated to fit rather than skipped, so Small no longer fits after it.
+  const chunks = retrieve.selectChunks(localIndex, "gizmo", budget);
   assert.deepEqual(
-    retrieve.selectChunks(localIndex, "gizmo", budget).map((c: { source: string }) => c.source),
+    chunks.map((c: { source: string }) => c.source),
+    ["Big"],
+  );
+  assert.ok(chunks[0].text.length <= budget);
+});
+
+test("selectChunks truncates an oversized top passage at a boundary instead of skipping it", () => {
+  const TOP = `${"Quasar calibration uses the tuning wheel and a steady hand. ".repeat(8)}Log data.`;
+  assert.equal(TOP.length, 489, "test setup: top chunk must be 489 characters");
+  const WEAK = "Quasar is a small planet.";
+
+  const localIndex = retrieve.buildIndex(
+    retrieve.chunkSections([
+      ["Calibration", TOP],
+      ["Planet", WEAK],
+    ]),
+  );
+
+  const [top] = retrieve.selectChunks(localIndex, "quasar calibration", 200);
+  assert.equal(top.source, "Calibration");
+  assert.ok(top.text.length > 0 && top.text.length <= 200, `truncated to ${top.text.length} chars`);
+  assert.ok(TOP.startsWith(top.text), "truncated passage must be a prefix of the top chunk");
+  assert.match(TOP[top.text.length], /\s/, "truncation must land on a boundary, not mid-word");
+  assert.match(top.text, /^Quasar calibration/);
+  assert.doesNotMatch(top.text, /small planet/);
+});
+
+test("selectChunks does not truncate when a smaller chunk was already selected", () => {
+  const localIndex = retrieve.buildIndex(
+    retrieve.chunkSections([
+      ["Small", "gizmo widget short note."],
+      ["Big", `gizmo ${"filler words here ".repeat(60)}`],
+    ]),
+  );
+  const chunks = retrieve.selectChunks(localIndex, "gizmo widget", 120);
+  assert.deepEqual(
+    chunks.map((c: { source: string }) => c.source),
     ["Small"],
   );
 });
@@ -127,7 +165,7 @@ test("selectContext can require a matching evidence chunk", () => {
 });
 
 const GENERATED = [
-  ["About rivet", "Q: Who are you?\nA: I'm rivet."],
+  ["About orry", "Q: Who are you?\nA: I'm orry."],
   ["Program timeline", "Acme launches at some point."],
 ];
 
@@ -139,7 +177,7 @@ test("selectContext always includes every generated section", () => {
     question: "how do i export a sprite",
   });
 
-  assert.match(context, /### About rivet/);
+  assert.match(context, /### About orry/);
   assert.match(context, /### Program timeline/);
   assert.match(context, /native size/);
 });
@@ -177,7 +215,7 @@ test("selectContext falls back to the full corpus when nothing matches", () => {
 
   assert.match(context, /native size/);
   assert.match(context, /Prizes ship to your door/);
-  assert.match(context, /### About rivet/);
+  assert.match(context, /### About orry/);
 });
 
 test("selectContext with generatedLast puts retrieved passages before generated boilerplate", () => {
@@ -223,6 +261,10 @@ test("tokenize leaves short words and double-s words alone", () => {
 test("tokenize leaves ambiguous -uses plurals unfolded", () => {
   assert.deepEqual(tokenize("bonus"), ["bonus"]);
   assert.deepEqual(tokenize("status"), ["status"]);
+});
+
+test("tokenize keeps the bot name orry as a search term", () => {
+  assert.ok(tokenize("What is Orry?").includes("orry"));
 });
 
 test("tokenize splits hyphenated words so components match", () => {
@@ -486,7 +528,7 @@ test("budget constants pin the per-section and total contract", () => {
 
 test("selectContext never exceeds the total budget, even with unbounded generated sections", () => {
   const huge = [
-    ["About rivet", `identity ${"i".repeat(5000)}`],
+    ["About orry", `identity ${"i".repeat(5000)}`],
     ["Program timeline", `timeline ${"t".repeat(3000)}`],
     ["Learned answers", `taught ${"l".repeat(14000)}`],
   ];
@@ -498,7 +540,7 @@ test("selectContext never exceeds the total budget, even with unbounded generate
   });
 
   assert.ok(context.length <= retrieve.TOTAL_CONTEXT_BUDGET, `context is ${context.length} chars`);
-  assert.match(context, /### About rivet/);
+  assert.match(context, /### About orry/);
   assert.match(context, /### Program timeline/);
   assert.match(context, /### Learned answers/);
   assert.match(context, /native size/);
@@ -520,7 +562,7 @@ test("selectContext keeps retrieved evidence when the learned section alone woul
 
 test("selectContext fallback stays within the total budget when nothing matches", () => {
   const context = retrieve.selectContext({
-    generated: [["About rivet", `identity ${"i".repeat(5000)}`]],
+    generated: [["About orry", `identity ${"i".repeat(5000)}`]],
     learned: [["Learned answers", `taught ${"l".repeat(5000)}`]],
     index,
     sources: [["Big Docs", `docs ${"d".repeat(20000)}`]],
@@ -604,7 +646,7 @@ test("selectContext exclude drops a banned source from chunks and fallback", () 
 
 test("selectContext passes generated sections through unranked and first", () => {
   const gen = [
-    ["About rivet", "identity text here"],
+    ["About orry", "identity text here"],
     ["Program timeline", "timeline text here"],
   ];
   const localIndex = retrieve.buildIndex(retrieve.chunkSections([["Docs", "some docs about gizmos and widgets"]]));
@@ -614,7 +656,7 @@ test("selectContext passes generated sections through unranked and first", () =>
     sources: [["Docs", "some docs"]],
     question: "zzzz qqqq",
   });
-  assert.ok(ctx.indexOf("### About rivet") < ctx.indexOf("### Docs") || ctx.includes("### Docs") === false);
+  assert.ok(ctx.indexOf("### About orry") < ctx.indexOf("### Docs") || ctx.includes("### Docs") === false);
   assert.match(ctx, /identity text here/);
 });
 

@@ -1,5 +1,5 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -36,7 +36,7 @@ function withBrand(vars: Record<string, string | undefined>, fn: () => void) {
 }
 
 test("the manifest advertises exactly the commands the bot listens for", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol", RIVET_BOT_SLUG: "sol" }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol", ORRY_BOT_SLUG: "sol" }, () => {
     const advertised = manifest().features.slash_commands.map((c: TestAny) => c.command);
     const registered = registeredCommands();
 
@@ -49,7 +49,7 @@ test("the manifest advertises exactly the commands the bot listens for", () => {
 });
 
 test("commands and the shortcut id follow the bot's slug", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol", RIVET_BOT_SLUG: "sol" }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol", ORRY_BOT_SLUG: "sol" }, () => {
     const m = manifest();
     assert.equal(m.display_information.name, "Sol");
     assert.equal(m.features.bot_user.display_name, "Sol");
@@ -59,7 +59,7 @@ test("commands and the shortcut id follow the bot's slug", () => {
 });
 
 test("no unprefixed command is advertised", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol", RIVET_BOT_SLUG: "sol" }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol", ORRY_BOT_SLUG: "sol" }, () => {
     const advertised = manifest().features.slash_commands.map((c: TestAny) => c.command);
     assert.ok(!advertised.includes("/guide"));
   });
@@ -71,7 +71,7 @@ test("no two advertised commands share a name", () => {
 });
 
 test("with nothing set the manifest uses Orry's display name and commands", () => {
-  withBrand({ RIVET_BOT_NAME: undefined, RIVET_BOT_SLUG: undefined }, () => {
+  withBrand({ ORRY_BOT_NAME: undefined, ORRY_BOT_SLUG: undefined }, () => {
     const advertised = manifest().features.slash_commands.map((c: TestAny) => c.command);
     assert.equal(manifest().display_information.name, "Orry the ore Maulwürf");
     assert.ok(advertised.includes("/orry"));
@@ -100,8 +100,45 @@ test("the scopes the bot actually calls are all requested", () => {
   }
 });
 
+test("the default manifest requests every bot scope the runtime needs", () => {
+  withBrand({ ORRY_BOT_NAME: undefined, ORRY_BOT_SLUG: undefined }, () => {
+    const scopes = manifest().oauth_config.scopes.bot;
+    for (const needed of [
+      "chat:write",
+      "channels:history",
+      "groups:history",
+      "im:history",
+      "mpim:history",
+      "reactions:read",
+      "reactions:write",
+      "users:read",
+      "app_mentions:read",
+      "commands",
+    ]) {
+      assert.ok(scopes.includes(needed), `missing scope ${needed}`);
+    }
+  });
+});
+
+test("every slash command is /orry or /orry-*", () => {
+  withBrand({ ORRY_BOT_NAME: undefined, ORRY_BOT_SLUG: undefined }, () => {
+    const advertised = manifest().features.slash_commands.map((c: TestAny) => c.command);
+    assert.ok(advertised.length > 0);
+    for (const c of advertised) {
+      assert.ok(c === "/orry" || c.startsWith("/orry-"), `command ${c} is not /orry or /orry-*`);
+    }
+  });
+});
+
+test("reaction events, interactivity and the Ask-a-helper button path are enabled", () => {
+  const m = manifest();
+  assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_added"));
+  assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_removed"));
+  assert.equal(m.settings.interactivity.is_enabled, true);
+});
+
 test("the manifest is valid JSON at any brand", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol Helper Bot", RIVET_BOT_SLUG: undefined }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol Helper Bot", ORRY_BOT_SLUG: undefined }, () => {
     const round = JSON.parse(JSON.stringify(manifest()));
     assert.equal(round.features.slash_commands[0].command, "/sol-helper-bot");
     assert.equal(brand.slug(), "sol-helper-bot");

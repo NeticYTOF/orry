@@ -32,7 +32,7 @@ const COMPLETE_ENV = {
   SLACK_APP_TOKEN: "xapp-" + SECRET,
   SLACK_HELP_CHANNEL: "C0HELP0001",
   SLACK_FAQ_CHANNELS: "C0HELP0001",
-  RIVET_DASHBOARD_PASSCODE: "correct-horse-" + SECRET,
+  ORRY_DASHBOARD_PASSCODE: "correct-horse-" + SECRET,
   SLACK_CLIENT_ID: "1234567890.9876543210",
 };
 
@@ -66,7 +66,7 @@ test("a complete, healthy configuration passes every check", () => {
   const r = report({
     env: {
       ...COMPLETE_ENV,
-      RIVET_PROGRAMS_JSON: JSON.stringify([
+      ORRY_PROGRAMS_JSON: JSON.stringify([
         {
           id: "acme",
           name: "Acme",
@@ -114,7 +114,7 @@ test("the report includes a channel-role check, the one the engine refuses to bo
 
 test("a program that claims no channel warns, because it can never answer", () => {
   const r = report({
-    env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: JSON.stringify([{ id: "acme", name: "Acme", sources: [] }]) },
+    env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: JSON.stringify([{ id: "acme", name: "Acme", sources: [] }]) },
     files: [],
   });
 
@@ -128,7 +128,7 @@ test("a program claiming only a helpChannel counts as claimed", () => {
   const r = report({
     env: {
       ...COMPLETE_ENV,
-      RIVET_PROGRAMS_JSON: JSON.stringify([{ id: "acme", helpChannel: "C0HELP0001", sources: [] }]),
+      ORRY_PROGRAMS_JSON: JSON.stringify([{ id: "acme", helpChannel: "C0HELP0001", sources: [] }]),
     },
     files: [],
   });
@@ -147,7 +147,7 @@ test("a missing required variable fails and is named, never valued", () => {
   assert.ok(!check.detail.includes("SLACK_BOT_TOKEN"), "should not list vars that are present");
 });
 
-test("doctor identifies the Pixl HTTP signing secret in Rivet's Socket Mode token field", () => {
+test("doctor identifies the Pixl HTTP signing secret in Orry's Socket Mode token field", () => {
   const r = report({ env: { ...COMPLETE_ENV, SLACK_APP_TOKEN: "signing-secret" } });
   const check = r.checks.find((c) => c.name === "Slack token formats");
   assert.ok(check, "report should validate Socket Mode token formats");
@@ -160,7 +160,7 @@ test("doctor warns when FAQ channels are not claimed by a configured program", (
   const r = report({
     env: {
       ...COMPLETE_ENV,
-      RIVET_PROGRAMS_JSON: JSON.stringify([{ id: "loadout", channels: ["C0LOADOUT"], sources: [] }]),
+      ORRY_PROGRAMS_JSON: JSON.stringify([{ id: "loadout", channels: ["C0LOADOUT"], sources: [] }]),
     },
     files: [],
   });
@@ -202,7 +202,7 @@ test("a renamed corpus file is a failure naming the path", () => {
   const r = report({
     env: {
       ...COMPLETE_ENV,
-      RIVET_PROGRAMS_JSON: JSON.stringify([
+      ORRY_PROGRAMS_JSON: JSON.stringify([
         {
           id: "acme",
           sources: [
@@ -228,7 +228,7 @@ test("a renamed corpus file is a failure naming the path", () => {
 test("a file:// source outside the app root fails instead of being read", () => {
   const loaded = loadConfiguredPrograms({
     env: {
-      RIVET_PROGRAMS_JSON: JSON.stringify([
+      ORRY_PROGRAMS_JSON: JSON.stringify([
         { id: "acme", sources: [{ name: "elsewhere", url: "file://../../../etc/passwd" }] },
       ]),
     },
@@ -241,10 +241,10 @@ test("a file:// source outside the app root fails instead of being read", () => 
 });
 
 test("the default dashboard passcode warns, a custom one passes, unset warns", () => {
-  const missing = lineFor(report({ env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: undefined } }), "dashboard passcode");
+  const missing = lineFor(report({ env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: undefined } }), "dashboard passcode");
   assert.equal(missing.status, "warn");
 
-  const fallback = lineFor(report({ env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: "rivet" } }), "dashboard passcode");
+  const fallback = lineFor(report({ env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: "rivet" } }), "dashboard passcode");
   assert.equal(fallback.status, "warn");
   assert.ok(fallback.detail.includes("default"));
 
@@ -258,7 +258,7 @@ test("a configured program is reported, none at all warns", () => {
   assert.ok(none.detail.includes("no program configured"));
 
   const configured = lineFor(
-    report({ env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: JSON.stringify([{ id: "acme", name: "Acme" }]) } }),
+    report({ env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: JSON.stringify([{ id: "acme", name: "Acme" }]) } }),
     "program config",
   );
   assert.equal(configured.status, "pass");
@@ -267,7 +267,7 @@ test("a configured program is reported, none at all warns", () => {
 
 test("the { programs: [...] } shape is accepted, like loadEnvPrograms()", () => {
   const loaded = loadConfiguredPrograms({
-    env: { RIVET_PROGRAMS_JSON: JSON.stringify({ programs: [{ id: "acme" }, { id: "beta" }] }) },
+    env: { ORRY_PROGRAMS_JSON: JSON.stringify({ programs: [{ id: "acme" }, { id: "beta" }] }) },
     readFile: () => null,
   });
   assert.equal(loaded.error, null);
@@ -275,27 +275,27 @@ test("the { programs: [...] } shape is accepted, like loadEnvPrograms()", () => 
 });
 
 test("unparseable program JSON fails the check and explains the fallback", () => {
-  const r = report({ env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: "{not json" } });
+  const r = report({ env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: "{not json" } });
   const check = lineFor(r, "program config");
   assert.equal(check.status, "fail");
   assert.ok(check.detail.includes("not valid JSON"), check.detail);
 });
 
 test("a program config whose shape is wrong fails", () => {
-  const check = lineFor(report({ env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: '"just a string"' } }), "program config");
+  const check = lineFor(report({ env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: '"just a string"' } }), "program config");
   assert.equal(check.status, "fail");
   assert.ok(check.detail.includes("array"), check.detail);
 });
 
 test("the dashboard passcode warns when unset or left at the default", () => {
   const missing = lineFor(
-    report({ env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: undefined } }),
+    report({ env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: undefined } }),
     "dashboard passcode",
   );
   assert.equal(missing.status, "warn");
   assert.ok(missing.detail.includes("passcode login is disabled"), missing.detail);
 
-  const fallback = lineFor(report({ env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: "rivet" } }), "dashboard passcode");
+  const fallback = lineFor(report({ env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: "rivet" } }), "dashboard passcode");
   assert.equal(fallback.status, "warn");
   assert.ok(fallback.detail.includes("default"), fallback.detail);
 
@@ -312,11 +312,11 @@ test("config/programs.json is the fallback when the env var is unset", () => {
   const both = lineFor(
     report({
       programsFile: JSON.stringify([{ id: "fromfile" }]),
-      env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: JSON.stringify([{ id: "fromenv" }]) },
+      env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: JSON.stringify([{ id: "fromenv" }]) },
     }),
     "program config",
   );
-  assert.ok(both.detail.includes("RIVET_PROGRAMS_JSON"), both.detail);
+  assert.ok(both.detail.includes("ORRY_PROGRAMS_JSON"), both.detail);
 });
 
 test("the dev-testing client id warns, and says what makes the bypass live", () => {
@@ -347,12 +347,12 @@ test("no secret value is ever printed, in any configuration", () => {
   ]);
   const cases: Seam[] = [
     { env: COMPLETE_ENV },
-    { env: COMPLETE_ENV, RIVET_PROGRAMS_JSON: brokenProgram },
-    { env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: "rivet" } },
-    { env: { ...COMPLETE_ENV, RIVET_DASHBOARD_PASSCODE: undefined } },
+    { env: COMPLETE_ENV, ORRY_PROGRAMS_JSON: brokenProgram },
+    { env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: "rivet" } },
+    { env: { ...COMPLETE_ENV, ORRY_DASHBOARD_PASSCODE: undefined } },
     { env: { ...COMPLETE_ENV, SLACK_CLIENT_ID: "dev-testing" } },
     { env: {} },
-    { env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: "{not json" } },
+    { env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: "{not json" } },
     { env: COMPLETE_ENV, programsFile: JSON.stringify([{ id: "acme" }]) },
   ];
 
@@ -369,7 +369,7 @@ test("no secret value is ever printed, in any configuration", () => {
 test("every check renders a literal PASS / FAIL / WARN word, not colour", () => {
   const outputs = [
     render(report()),
-    render(report({ env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: "{bad" } })),
+    render(report({ env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: "{bad" } })),
   ].join("\n");
 
   assert.ok(outputs.includes("PASS"), outputs);
@@ -379,11 +379,11 @@ test("every check renders a literal PASS / FAIL / WARN word, not colour", () => 
 });
 
 test("the rendered report ends with a one-line verdict carrying the counts", () => {
-  const r = report({ env: { ...COMPLETE_ENV, RIVET_PROGRAMS_JSON: "{bad", RIVET_DASHBOARD_PASSCODE: "rivet" } });
+  const r = report({ env: { ...COMPLETE_ENV, ORRY_PROGRAMS_JSON: "{bad", ORRY_DASHBOARD_PASSCODE: "rivet" } });
   const lines = render(r).trimEnd().split("\n");
   const last = lines[lines.length - 1];
 
-  assert.ok(last.startsWith("Rivet will not start as configured:"), last);
+  assert.ok(last.startsWith("Orry will not start as configured:"), last);
   assert.ok(last.includes(`${r.failures} failure${r.failures === 1 ? "" : "s"}`), last);
   assert.ok(last.includes(`${r.warnings} warning${r.warnings === 1 ? "" : "s"}`), last);
   assert.ok(!last.includes("\n"));

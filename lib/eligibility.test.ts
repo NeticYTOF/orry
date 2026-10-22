@@ -2,8 +2,8 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const elig = require("./eligibility");
 
-const BOT = "U0RIVET";
-const NAMES = ["rivet"];
+const BOT = "U0ORRY";
+const NAMES = ["orry"];
 const U1 = "<@U111>";
 const U2 = "<@U222>";
 
@@ -21,7 +21,7 @@ test("shared crisis matcher catches direct and indirect self-harm language witho
 });
 
 function run(f: any) {
-  return elig.shouldRivetRespond({
+  return elig.shouldOrryRespond({
     text: f.text,
     userId: "U-asker",
     botUserId: BOT,
@@ -69,19 +69,19 @@ const FIXTURES = [
   ["help: fragment", { text: "the thing with the stuff", help: true }, "reply", "help_channel_ask"],
   ["mention: how does RE work", { text: `<@${BOT}> how does RE work?` }, "reply", "addressed"],
   ["mention: ping + please", { text: `please <@${BOT}> check my repo` }, "reply", "addressed"],
-  ["name: rivet help with submit", { text: "rivet help with submit", help: true }, "reply", "help_channel_ask"],
-  ["name: hey rivet question", { text: "hey rivet, where is the dashboard" }, "reply", "addressed"],
+  ["name: orry help with submit", { text: "orry help with submit", help: true }, "reply", "help_channel_ask"],
+  ["name: hey orry question", { text: "hey orry, where is the dashboard" }, "reply", "addressed"],
   ["mention: can you", { text: `<@${BOT}> can you look at this error` }, "reply", "addressed"],
   ["dm: anything", { text: "yo what up", dm: true }, "reply", "dm"],
   ["dm: greeting", { text: "hi", dm: true }, "reply", "dm"],
-  ["ref: ask rivet next time", { text: "ask @Rivet next time lol" }, "silent", "referential_mention"],
-  ["ref: rivet already answered", { text: "rivet already answered this above" }, "silent", "referential_mention"],
-  ["human: quoted by human lead", { text: `${U1} Rivet said to reinstall` }, "human_defer", "human_directed"],
-  ["ref: replace bot with rivet", { text: "we should replace pixo with rivet tbh" }, "silent", "referential_mention"],
-  ["ref: thank rivet", { text: `thank <@${BOT}> for the help everyone` }, "silent", "referential_mention"],
-  ["ref: rivet knows", { text: "rivet knows all the deadlines" }, "silent", "referential_mention"],
-  ["ref: ignore rivet", { text: "just ignore rivet on this one" }, "silent", "referential_mention"],
-  ["ref: ping rivet later", { text: `ping <@${BOT}> later if it breaks again` }, "silent", "referential_mention"],
+  ["ref: ask orry next time", { text: "ask @Orry next time lol" }, "silent", "referential_mention"],
+  ["ref: orry already answered", { text: "orry already answered this above" }, "silent", "referential_mention"],
+  ["human: quoted by human lead", { text: `${U1} Orry said to reinstall` }, "human_defer", "human_directed"],
+  ["ref: replace bot with orry", { text: "we should replace pixo with orry tbh" }, "silent", "referential_mention"],
+  ["ref: thank orry", { text: `thank <@${BOT}> for the help everyone` }, "silent", "referential_mention"],
+  ["ref: orry knows", { text: "orry knows all the deadlines" }, "silent", "referential_mention"],
+  ["ref: ignore orry", { text: "just ignore orry on this one" }, "silent", "referential_mention"],
+  ["ref: ping orry later", { text: `ping <@${BOT}> later if it breaks again` }, "silent", "referential_mention"],
   ["human: direct mention ask", { text: `${U1} can I use this grant?` }, "human_defer", "human_directed"],
   ["human: bare deferral", { text: "asking ricky specifically, what tier is this" }, "human_defer", "human_directed"],
   ["human: reviewers", { text: "can one of the reviewers check this?" }, "human_defer", "human_directed"],
@@ -91,7 +91,7 @@ const FIXTURES = [
   ["human: defer to", { text: "defer to gabin on eligibility calls" }, "human_defer", "human_directed"],
   ["human: will answer", { text: "gabin will answer when hes online" }, "human_defer", "human_directed"],
   [
-    "human+rivet: both mentioned, rivet asked",
+    "human+orry: both mentioned, orry asked",
     { text: `${U1} what do you think? <@${BOT}> what does the doc say` },
     "reply",
     "addressed",
@@ -139,14 +139,14 @@ const FIXTURES = [
     "takeover_reactivated",
   ],
   [
-    "takeover: a bare greeting to Rivet is answered",
+    "takeover: a bare greeting to Orry is answered",
     { text: `<@${BOT}> hiiiiiii`, thread: { takeover: true } },
     "reply",
     "takeover_direct_address",
   ],
   [
     "takeover: named greeting is answered",
-    { text: "yo rivet wsg", thread: { takeover: true } },
+    { text: "yo orry wsg", thread: { takeover: true } },
     "reply",
     "takeover_direct_address",
   ],
@@ -156,7 +156,7 @@ const FIXTURES = [
     "reply",
     "takeover_direct_address",
   ],
-  ["mute: stfu rivet", { text: "stfu rivet", help: true }, "reply", "help_channel_ask"],
+  ["mute: stfu orry", { text: "stfu orry", help: true }, "reply", "help_channel_ask"],
   ["muted: chatter", { text: "still broken", thread: { muted: true } }, "silent", "muted"],
   ["muted: question without invite", { text: "what about the pcb though", thread: { muted: true } }, "silent", "muted"],
   [
@@ -166,8 +166,8 @@ const FIXTURES = [
     "muted_direct_address",
   ],
   ["muted: reactivation clears", { text: `<@${BOT}> come back`, thread: { muted: true } }, "reply", "reactivated"],
-  ["muted: rivet help reactivates", { text: "rivet help", thread: { muted: true } }, "reply", "reactivated"],
-  ["muted: repeat shush stays quiet", { text: "shut up rivet", thread: { muted: true } }, "silent", "muted"],
+  ["muted: orry help reactivates", { text: "orry help", thread: { muted: true } }, "reply", "reactivated"],
+  ["muted: repeat shush stays quiet", { text: "shut up orry", thread: { muted: true } }, "silent", "muted"],
   ["noise: hi", { text: "hi", help: true }, "silent", "greeting"],
   ["noise: hello", { text: "hello everyone", help: true }, "silent", "greeting"],
   ["noise: test", { text: "test", help: true }, "silent", "greeting"],
@@ -186,29 +186,29 @@ const FIXTURES = [
   ],
   ["general: chatter reaches the classifier", { text: "just shipped my project!!" }, "reply", "ambient_candidate"],
   ["general: love this", { text: "yo i love this program" }, "silent", "greeting"],
-  ["general: addressed answers", { text: "rivet where are the docs" }, "reply", "addressed"],
+  ["general: addressed answers", { text: "orry where are the docs" }, "reply", "addressed"],
   ["general: mention answers", { text: `<@${BOT}> deadline?` }, "reply", "addressed"],
   ["general: social reaches the classifier", { text: "who is going to the meetup" }, "reply", "ambient_candidate"],
   ["general: human ask stays quiet", { text: `${U1} are you coming` }, "human_defer", "human_directed"],
   [
     "thread: followup answered before",
-    { text: "tried that, got a new error", thread: { rivetSpoke: true } },
+    { text: "tried that, got a new error", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
-  ["thread: thanks after answer", { text: "thanks!", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
-  ["thread: got it", { text: "got it", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
-  ["thread: nvm", { text: "nvm figured it out", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
+  ["thread: thanks after answer", { text: "thanks!", thread: { orrySpoke: true } }, "silent", "acknowledged"],
+  ["thread: got it", { text: "got it", thread: { orrySpoke: true } }, "silent", "acknowledged"],
+  ["thread: nvm", { text: "nvm figured it out", thread: { orrySpoke: true } }, "silent", "acknowledged"],
   [
     "thread: new question continues",
-    { text: "ok now how do i test it?", thread: { rivetSpoke: true } },
+    { text: "ok now how do i test it?", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
-  ["thread: cold thread no rivet", { text: "same issue here", thread: {} }, "silent", "main_thread_not_joined"],
+  ["thread: cold thread no orry", { text: "same issue here", thread: {} }, "silent", "main_thread_not_joined"],
   [
     "thread: help followup",
-    { text: "still failing, logs attached", thread: { rivetSpoke: true }, help: true },
+    { text: "still failing, logs attached", thread: { orrySpoke: true }, help: true },
     "reply",
     "help_thread_followup",
   ],
@@ -300,14 +300,14 @@ const FIXTURES = [
   ],
   [
     "bug: followup clarification",
-    { text: "it happens right after i press submit", thread: { rivetSpoke: true } },
+    { text: "it happens right after i press submit", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
   ["bug: addressed to human", { text: `${U1} can you repro this crash?` }, "human_defer", "human_directed"],
-  ["ref: rivet said no", { text: "rivet said no exceptions though", help: true }, "silent", "referential_mention"],
-  ["ref: ask rivet", { text: "you should ask rivet about that", help: true }, "silent", "referential_mention"],
-  ["invoke: rivet what", { text: "rivet what is RE?", help: true }, "reply", "help_channel_ask"],
+  ["ref: orry said no", { text: "orry said no exceptions though", help: true }, "silent", "referential_mention"],
+  ["ref: ask orry", { text: "you should ask orry about that", help: true }, "silent", "referential_mention"],
+  ["invoke: orry what", { text: "orry what is RE?", help: true }, "reply", "help_channel_ask"],
   [
     "invoke: mention please help",
     { text: `hey <@${BOT}>, please help with verification`, help: true },
@@ -321,26 +321,26 @@ const FIXTURES = [
     "help_channel_ask",
   ],
   [
-    "tricky: human first then rivet question",
+    "tricky: human first then orry question",
     { text: `${U1} nvm — <@${BOT}> how do i submit`, help: true },
     "reply",
     "help_channel_ask",
   ],
   [
-    "tricky: rivet mentioned mid-sentence as subject",
-    { text: "i think rivet is down right now", help: true },
+    "tricky: orry mentioned mid-sentence as subject",
+    { text: "i think orry is down right now", help: true },
     "reply",
     "help_channel_ask",
   ],
   [
-    "tricky: thanks rivet + new question",
-    { text: "thanks rivet! where do i upload?", thread: { rivetSpoke: true } },
+    "tricky: thanks orry + new question",
+    { text: "thanks orry! where do i upload?", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
   [
     "tricky: leave alone",
-    { text: "leave it, ill figure it out", thread: { rivetSpoke: true } },
+    { text: "leave it, ill figure it out", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
@@ -380,8 +380,8 @@ const FIXTURES = [
     "help_channel_ask",
   ],
   [
-    "tricky: unnamed bot still matches rivet",
-    { text: "rivetbot what is this", help: true },
+    "tricky: unnamed bot still matches orry",
+    { text: "orrybot what is this", help: true },
     "reply",
     "help_channel_ask",
   ],
@@ -395,16 +395,16 @@ const FIXTURES = [
   ["tricky: dots", { text: "...", help: true }, "silent", "greeting"],
   ["tricky: single emoji word", { text: "fire", help: true }, "silent", "greeting"],
   ["tricky: number only", { text: "42", help: true }, "silent", "greeting"],
-  ["tricky: ok with text", { text: "ok sending logs now", thread: { rivetSpoke: true } }, "reply", "thread_followup"],
-  ["tricky: yes", { text: "yes", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
-  ["tricky: no", { text: "no", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
-  ["tricky: k", { text: "k", thread: { rivetSpoke: true } }, "silent", "acknowledged"],
-  ["tricky: why not", { text: "why not", thread: { rivetSpoke: true } }, "reply", "thread_followup"],
-  ["tricky: how", { text: "how", thread: { rivetSpoke: true } }, "reply", "thread_followup"],
-  ["tricky: what", { text: "what", thread: { rivetSpoke: true } }, "reply", "thread_followup"],
+  ["tricky: ok with text", { text: "ok sending logs now", thread: { orrySpoke: true } }, "reply", "thread_followup"],
+  ["tricky: yes", { text: "yes", thread: { orrySpoke: true } }, "silent", "acknowledged"],
+  ["tricky: no", { text: "no", thread: { orrySpoke: true } }, "silent", "acknowledged"],
+  ["tricky: k", { text: "k", thread: { orrySpoke: true } }, "silent", "acknowledged"],
+  ["tricky: why not", { text: "why not", thread: { orrySpoke: true } }, "reply", "thread_followup"],
+  ["tricky: how", { text: "how", thread: { orrySpoke: true } }, "reply", "thread_followup"],
+  ["tricky: what", { text: "what", thread: { orrySpoke: true } }, "reply", "thread_followup"],
   [
     "tricky: escalated + ack",
-    { text: "ok thanks", thread: { rivetSpoke: true, ticketOpen: true } },
+    { text: "ok thanks", thread: { orrySpoke: true, ticketOpen: true } },
     "silent",
     "acknowledged",
   ],
@@ -456,7 +456,7 @@ const FIXTURES = [
     "human_directed",
   ],
   [
-    "tricky: sensitive addressed to rivet",
+    "tricky: sensitive addressed to orry",
     { text: `<@${BOT}> am i eligible for a refund`, help: true, program: { sensitiveCategories: ["refund"] } },
     "escalate",
     "sensitive_escalation",
@@ -531,10 +531,10 @@ const FIXTURES = [
     "human_defer",
     "human_directed",
   ],
-  ["extra: bot praise is noise", { text: "rivet is goated", help: true }, "silent", "greeting"],
+  ["extra: bot praise is noise", { text: "orry is goated", help: true }, "silent", "greeting"],
   [
     "extra: praise with question flows",
-    { text: "rivet is goated, but when is the deadline", help: true },
+    { text: "orry is goated, but when is the deadline", help: true },
     "reply",
     "help_channel_ask",
   ],
@@ -546,7 +546,7 @@ const FIXTURES = [
   ],
   [
     "extra: thread broadcast ask",
-    { text: "update: still broken after reinstall, ideas?", thread: { rivetSpoke: true } },
+    { text: "update: still broken after reinstall, ideas?", thread: { orrySpoke: true } },
     "reply",
     "thread_followup",
   ],
@@ -618,25 +618,25 @@ test("release gates: zero misfires on protected classes", () => {
 });
 
 test("general-channel bare reference is currently addressed", () => {
-  const got = run({ text: "i think rivet is down right now" });
+  const got = run({ text: "i think orry is down right now" });
   assert.equal(got.decision, "reply");
   assert.equal(got.reason, "addressed");
-  const inv = elig.invocationAnalysis("i think rivet is down right now", { botUserId: BOT, botNames: NAMES });
+  const inv = elig.invocationAnalysis("i think orry is down right now", { botUserId: BOT, botNames: NAMES });
   assert.equal(inv.addressed, true);
   assert.equal(inv.invocation, true);
 });
 
 test("short HELP_ONLY inputs pin current verdict", () => {
   assert.deepEqual(
-    ((r: any) => [r.decision, r.reason])(run({ text: "how", thread: { rivetSpoke: true }, help: true })),
+    ((r: any) => [r.decision, r.reason])(run({ text: "how", thread: { orrySpoke: true }, help: true })),
     ["reply", "help_thread_followup"],
   );
   assert.deepEqual(
-    ((r: any) => [r.decision, r.reason])(run({ text: "what", thread: { rivetSpoke: true }, help: true })),
+    ((r: any) => [r.decision, r.reason])(run({ text: "what", thread: { orrySpoke: true }, help: true })),
     ["reply", "help_thread_followup"],
   );
   assert.deepEqual(
-    ((r: any) => [r.decision, r.reason])(run({ text: "ok", thread: { rivetSpoke: true }, help: true })),
+    ((r: any) => [r.decision, r.reason])(run({ text: "ok", thread: { orrySpoke: true }, help: true })),
     ["silent", "acknowledged"],
   );
 });
@@ -675,7 +675,7 @@ test("mention in already-escalated thread pins ALWAYS-reply", () => {
     ((r: any) => [r.decision, r.reason])(run({ text: `<@${BOT}> still stuck`, thread: { ticketOpen: true } })),
     ["reply", "addressed"],
   );
-  const mentionPath = elig.shouldRivetRespond({
+  const mentionPath = elig.shouldOrryRespond({
     text: `<@${BOT}> still stuck`,
     userId: "U-asker",
     botUserId: BOT,
@@ -684,7 +684,7 @@ test("mention in already-escalated thread pins ALWAYS-reply", () => {
     isTopLevel: false,
     posture: "active",
     program: null,
-    thread: { muted: false, takeover: false, rivetSpoke: false, ticketOpen: false },
+    thread: { muted: false, takeover: false, orrySpoke: false, ticketOpen: false },
   });
   assert.equal(mentionPath.decision, "reply");
 });
@@ -704,28 +704,28 @@ test("long social counts as substantiveQuestion", () => {
 });
 
 test("complimentOnly boundary pins current", () => {
-  assert.deepEqual(((r: any) => [r.decision, r.reason])(run({ text: "rivet is goated", help: true })), [
+  assert.deepEqual(((r: any) => [r.decision, r.reason])(run({ text: "orry is goated", help: true })), [
     "silent",
     "greeting",
   ]);
-  assert.deepEqual(((r: any) => [r.decision, r.reason])(run({ text: "rivet is goated love you", help: true })), [
+  assert.deepEqual(((r: any) => [r.decision, r.reason])(run({ text: "orry is goated love you", help: true })), [
     "silent",
     "greeting",
   ]);
   assert.deepEqual(
-    ((r: any) => [r.decision, r.reason])(run({ text: "rivet is goated, but when is the deadline", help: true })),
+    ((r: any) => [r.decision, r.reason])(run({ text: "orry is goated, but when is the deadline", help: true })),
     ["reply", "help_channel_ask"],
   );
 });
 
 test("B1 invocation proximity preserved", () => {
   assert.equal(
-    elig.invocationAnalysis("rivet where are the docs", { botUserId: BOT, botNames: NAMES }).invocation,
+    elig.invocationAnalysis("orry where are the docs", { botUserId: BOT, botNames: NAMES }).invocation,
     true,
   );
-  assert.equal(elig.invocationAnalysis("rivetbot what is this", { botUserId: BOT, botNames: NAMES }).invocation, true);
+  assert.equal(elig.invocationAnalysis("orrybot what is this", { botUserId: BOT, botNames: NAMES }).invocation, true);
   assert.equal(
-    elig.invocationAnalysis("rivet already answered this above", { botUserId: BOT, botNames: NAMES }).invocation,
+    elig.invocationAnalysis("orry already answered this above", { botUserId: BOT, botNames: NAMES }).invocation,
     false,
   );
 });
@@ -738,7 +738,7 @@ test("bare deferral pins current human_directed", () => {
 });
 
 test("a direct ping from either Slack event is answered once", async () => {
-  process.env.RIVET_DB_PATH = ":memory:";
+  process.env.ORRY_DB_PATH = ":memory:";
   const db = require("./db");
   try {
     db.open(":memory:");
@@ -865,7 +865,7 @@ test("a direct ping from either Slack event is answered once", async () => {
 });
 
 test("onAppMention in escalated thread answers ALWAYS", async () => {
-  process.env.RIVET_DB_PATH = ":memory:";
+  process.env.ORRY_DB_PATH = ":memory:";
   const db = require("./db");
   try {
     db.open(":memory:");
@@ -950,12 +950,12 @@ test("canonical: stripBotMention matches handlers behavior", () => {
   assert.equal(elig.stripBotMention("  hello  ", null), "hello");
   assert.equal(elig.directMention(`<@${BOT}> hi`, BOT), true);
   assert.equal(elig.directMention("<@U0ELSE> hi", BOT), false);
-  assert.ok(elig.botNamePattern(["rivet"]).includes("rivet"));
-  assert.equal(elig.botNamePattern([]), "rivet");
+  assert.ok(elig.botNamePattern(["orry"]).includes("orry"));
+  assert.equal(elig.botNamePattern([]), "orry");
 });
 
 test("B4: ping escalate runs gap/escalate exactly once", async () => {
-  process.env.RIVET_DB_PATH = ":memory:";
+  process.env.ORRY_DB_PATH = ":memory:";
   const db = require("./db");
   try {
     db.open(":memory:");
@@ -1018,4 +1018,72 @@ test("B4: ping escalate runs gap/escalate exactly once", async () => {
     config.slack.botUserId = savedBot;
   }
 });
+test("ordinary programming words are never a human review request", () => {
+  assert.equal(elig.humanReviewRequest("exception"), false);
+  assert.equal(elig.sensitiveHit("exception", null), false);
+  for (const phrase of [
+    "How do I catch an exception in Python?",
+    "How do I make a function in JavaScript?",
+    "Can I connect my ESP32 to wifi?",
+    "what does an exception in java mean?",
+    "how do i throw an exception in java",
+    "why does my code raise a stack trace error",
+  ]) {
+    assert.equal(elig.humanReviewRequest(phrase), false, phrase);
+    assert.equal(elig.sensitiveHit(phrase, null), false, phrase);
+    assert.equal(run({ text: phrase, help: true }).decision, elig.REPLY, phrase);
+  }
+});
+
+test("policy and account requests still need a person", () => {
+  for (const phrase of [
+    "can you make an exception for my project?",
+    "can I get an exception to the shop rules?",
+    "can you approve my account to get the grant?",
+  ]) {
+    assert.equal(elig.humanReviewRequest(phrase), true, phrase);
+    assert.equal(run({ text: phrase, help: true }).decision, elig.ESCALATE, phrase);
+  }
+});
+
+test("can someone make a function in python is not a human review", () => {
+  for (const phrase of [
+    "can someone make a function in python?",
+    "help me with a for loop",
+    "can someone help me with a for loop?",
+    "can someone make a for loop in python?",
+  ]) {
+    assert.equal(elig.humanReviewRequest(phrase), false, phrase);
+    assert.equal(explicitHuman(phrase), false, phrase);
+    assert.equal(run({ text: phrase, help: true }).reason, "help_channel_ask", phrase);
+  }
+});
+
+test("asking a person to decide or personally help is an explicit human request", () => {
+  for (const phrase of [
+    "can a person look at my project submission?",
+    "can someone check my submission?",
+    "can someone approve my grant extension?",
+    "can someone help me with my account?",
+    "can a human decide whether my build counts?",
+    "I need an organizer to approve this",
+    "human please",
+  ]) {
+    assert.equal(explicitHuman(phrase), true, phrase);
+    assert.equal(run({ text: phrase, help: true }).decision, elig.HUMAN_DEFER, phrase);
+  }
+});
+
+test("checking a balance is self-service, but asking someone to check a locked account is a human review", () => {
+  assert.equal(elig.humanReviewRequest("how do I check my account balance?"), false);
+  assert.equal(run({ text: "how do I check my account balance?", help: true }).decision, elig.REPLY);
+  assert.equal(elig.accountRequest("check my account, it's locked"), true);
+  assert.equal(elig.humanReviewRequest("can someone check my account, it's locked?"), true);
+  assert.equal(run({ text: "can someone check my account, it's locked?", help: true }).decision, elig.HUMAN_DEFER);
+});
+
+function explicitHuman(text: string): boolean {
+  return elig.humanReviewRequest(text) && run({ text, help: true }).reason === "human_review_request";
+}
+
 export {};

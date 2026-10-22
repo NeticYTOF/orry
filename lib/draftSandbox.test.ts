@@ -1,5 +1,5 @@
-process.env.RIVET_DB_PATH = ":memory:";
-process.env.RIVET_PROGRAMS_JSON = "[]";
+process.env.ORRY_DB_PATH = ":memory:";
+process.env.ORRY_PROGRAMS_JSON = "[]";
 
 interface PostedMessage {
   channel?: string;
@@ -17,7 +17,7 @@ beforeEach(() => {
   db.close();
   db.open(":memory:");
   sandbox.clear();
-  process.env.RIVET_PROGRAMS_JSON = "[]";
+  process.env.ORRY_PROGRAMS_JSON = "[]";
   programs.invalidate();
 });
 
@@ -34,7 +34,7 @@ test("draft bindings are explicit and do not become production channel claims", 
   assert.equal(db.listProgramChannels("demo").length, 0);
 });
 
-test("draft binding resolves across workspaces (production RIVET_WORKSPACE_ID unset)", () => {
+test("draft binding resolves across workspaces (production ORRY_WORKSPACE_ID unset)", () => {
   sandbox.register({
     id: "demo",
     status: "suspended",

@@ -132,7 +132,7 @@ const KNOWN_PRICING = Object.freeze({
 function costFor(model: string, usage: Usage) {
   let prices: Record<string, Price> = { ...KNOWN_PRICING };
   try {
-    const configured = JSON.parse(process.env.RIVET_LLM_PRICING_JSON || "{}");
+    const configured = JSON.parse((process.env.ORRY_LLM_PRICING_JSON ?? process.env.RIVET_LLM_PRICING_JSON) || "{}");
     if (configured && typeof configured === "object")
       prices = { ...KNOWN_PRICING, ...(configured as Record<string, Price>) };
   } catch (_error: unknown) {

@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface TestRow {
   createdAt?: number;
@@ -186,7 +186,7 @@ test("metrics overview counts ops figures from stored rows only", () => {
   assert.equal(m.resolution.medianMs, 9000);
   assert.equal(m.resolution.averageMs, 7000);
   assert.equal(m.resolution.n, 2);
-  assert.equal(m.answers.rivetAnswered, 1);
+  assert.equal(m.answers.orryAnswered, 1);
   assert.equal(m.answers.humanHandled, 1);
   assert.equal(m.grounding.blocked, 2);
   assert.equal(m.grounding.byReason.ungrounded, 1);

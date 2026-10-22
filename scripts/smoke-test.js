@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 //
-// Smoke-test a freshly-deployed rivet. Run after `bun run migrate:write`
+// Smoke-test a freshly-deployed orry. Run after `bun run migrate:write`
 // has pushed the new env and the new Railway service has had a moment
 // to boot. Four checks, in order:
 //
@@ -27,13 +27,13 @@
 //               real source, and not a decline. The question is one the
 //               LOADOUT corpus answers (loadout/corpus/02-tracks.md,
 //               03-economy.md); deploy a different program and point
-//               RIVET_SMOKE_QUESTION at something its docs cover.
+//               ORRY_SMOKE_QUESTION at something its docs cover.
 //
 // Setup:
 //
 //   RAILWAY_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID
 //   in your shell. The script does the rest. Check 4 additionally needs
-//   `bun` on PATH and RIVET_PROGRAMS_JSON set on the service; it says so
+//   `bun` on PATH and ORRY_PROGRAMS_JSON set on the service; it says so
 //   and skips rather than failing when either is missing.
 //
 // Exits 0 on full pass, non-zero on first failure with a clear message.
@@ -52,7 +52,7 @@ const REPO_ROOT = path.join(__dirname, "..");
 
 // Checked against the deployed corpus, so a source list that loaded but has
 // nothing about the currency is a real failure, not a pass.
-const SMOKE_QUESTION = process.env.RIVET_SMOKE_QUESTION || "what is the program's currency?";
+const SMOKE_QUESTION = (process.env.ORRY_SMOKE_QUESTION ?? process.env.RIVET_SMOKE_QUESTION) || "what is the program's currency?";
 
 // The bot's own "I won't guess" replies, all of which mean it did not answer.
 // lib/respond.ts:97-99 are the canned fallbacks, lib/respond.ts:452-457 is
@@ -208,7 +208,7 @@ function runAsk(question, env) {
     // engine installed and a corpus built). What we CAN do is run a small
     // node script that uses the same env to:
     //   1. resolve the question through the engine's intent classifier
-    //   2. confirm RIVET_PROGRAMS_JSON parses and the program is loadable
+    //   2. confirm ORRY_PROGRAMS_JSON parses and the program is loadable
     // These are the things a Slack reply depends on, and they're the things
     // that quietly break when env vars are partial.
     const script = `
@@ -253,11 +253,11 @@ async function checkAnswer() {
   const keyLine = out.split("\n").find((l) => l.startsWith("HAS_ANSWER_KEY="));
 
   if (!programLine) {
-    console.error("FAIL: engine started but no program loaded — RIVET_PROGRAMS_JSON may be malformed.");
+    console.error("FAIL: engine started but no program loaded — ORRY_PROGRAMS_JSON may be malformed.");
     process.exit(1);
   }
   if (sourceLine && Number(sourceLine.split("=")[1]) === 0) {
-    console.error("WARN: no sources loaded. RIVET_PROGRAMS_JSON might be missing or empty.");
+    console.error("WARN: no sources loaded. ORRY_PROGRAMS_JSON might be missing or empty.");
     // Not a hard fail — a bot can still answer with a knowledge gap
   }
   if (keyLine && keyLine.split("=")[1] === "no") {
@@ -274,7 +274,7 @@ async function checkAnswer() {
 const SOURCE_PROBE = `
   const programs = require("./lib/programs");
   const knowledge = require("./lib/knowledge");
-  const id = process.env.RIVET_SMOKE_PROGRAM;
+  const id = (process.env.ORRY_SMOKE_PROGRAM ?? process.env.RIVET_SMOKE_PROGRAM);
   const prog = programs.get(id);
   if (!prog) {
     console.log("PROGRAM_MISSING=1");
@@ -304,18 +304,18 @@ const SOURCE_PROBE = `
 const GROUNDED_PROBE = `
   const respond = require("./lib/respond");
   const grounded = respond.isGroundedAnswer({
-    source: process.env.RIVET_SMOKE_SOURCE,
-    answer: process.env.RIVET_SMOKE_ANSWER,
+    source: (process.env.ORRY_SMOKE_SOURCE ?? process.env.RIVET_SMOKE_SOURCE),
+    answer: (process.env.ORRY_SMOKE_ANSWER ?? process.env.RIVET_SMOKE_ANSWER),
   });
   console.log("GROUNDED=" + (grounded ? "yes" : "no"));
 `;
 
 function smokeEnv(vars) {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "rivet-smoke-"));
+  const dir = mkdtempSync(path.join(os.tmpdir(), "orry-smoke-"));
   // A throwaway database so the check reads the deployed config and nothing
   // else: no local answer cache to hit, no local program rows to shadow the
   // env. It also means this never writes to the repo's rivet.db.
-  const env = { ...process.env, ...vars, RIVET_DB_PATH: path.join(dir, "rivet.db") };
+  const env = { ...process.env, ...vars, ORRY_DB_PATH: path.join(dir, "rivet.db") };
   return { dir, env };
 }
 
@@ -356,9 +356,9 @@ async function checkGrounded() {
   }
 
   const vars = await fetchVars();
-  const raw = (vars.RIVET_PROGRAMS_JSON || "").trim();
+  const raw = (vars.ORRY_PROGRAMS_JSON || "").trim();
   if (!raw) {
-    console.log("     SKIP: RIVET_PROGRAMS_JSON is not set on this service.");
+    console.log("     SKIP: ORRY_PROGRAMS_JSON is not set on this service.");
     console.log("     nothing is configured for the bot to answer from. See deploy/slack/README.md.");
     return;
   }
@@ -368,21 +368,21 @@ async function checkGrounded() {
     const parsed = JSON.parse(raw);
     configured = Array.isArray(parsed) ? parsed : parsed && Array.isArray(parsed.programs) ? parsed.programs : null;
   } catch (err) {
-    console.error(`FAIL: RIVET_PROGRAMS_JSON on the service is not valid JSON: ${err.message}`);
+    console.error(`FAIL: ORRY_PROGRAMS_JSON on the service is not valid JSON: ${err.message}`);
     process.exit(1);
   }
   if (!configured) {
-    console.error("FAIL: RIVET_PROGRAMS_JSON on the service is neither an array nor { programs: [...] }.");
+    console.error("FAIL: ORRY_PROGRAMS_JSON on the service is neither an array nor { programs: [...] }.");
     process.exit(1);
   }
 
-  const wanted = process.env.RIVET_SMOKE_PROGRAM;
+  const wanted = (process.env.ORRY_SMOKE_PROGRAM ?? process.env.RIVET_SMOKE_PROGRAM);
   const program =
     (wanted && configured.find((p) => p && p.id === wanted)) ||
     configured.find((p) => p && Array.isArray(p.sources) && p.sources.length > 0);
   if (!program) {
     console.log("     SKIP: no configured program declares any sources.");
-    console.log("     set RIVET_PROGRAMS_JSON with a sources array. See deploy/slack/README.md.");
+    console.log("     set ORRY_PROGRAMS_JSON with a sources array. See deploy/slack/README.md.");
     return;
   }
   if (!Array.isArray(program.sources) || program.sources.length === 0) {
@@ -392,7 +392,7 @@ async function checkGrounded() {
 
   const { dir, env } = smokeEnv(vars);
   try {
-    const probeEnv = { ...env, RIVET_SMOKE_PROGRAM: program.id };
+    const probeEnv = { ...env, ORRY_SMOKE_PROGRAM: program.id };
     const probe = await capture("bun", ["-e", SOURCE_PROBE], probeEnv);
     if (probe.code !== 0) {
       console.error("FAIL: the engine could not load the deployed program.");
@@ -401,14 +401,14 @@ async function checkGrounded() {
       process.exit(1);
     }
     if (lineValue(probe.out, "PROGRAM_MISSING") === "1") {
-      console.error(`FAIL: program "${program.id}" is in RIVET_PROGRAMS_JSON but did not load.`);
+      console.error(`FAIL: program "${program.id}" is in ORRY_PROGRAMS_JSON but did not load.`);
       process.exit(1);
     }
     const loaded = Number(lineValue(probe.out, "LOADED_SOURCES") || 0);
     const configuredCount = Number(lineValue(probe.out, "CONFIGURED_SOURCES") || 0);
     if (configuredCount === 0 || loaded === 0) {
       console.error(`FAIL: program "${program.id}" declares ${configuredCount} source(s) and loaded none of them.`);
-      console.error("  check the source urls in RIVET_PROGRAMS_JSON and any volume-mounted files they point at.");
+      console.error("  check the source urls in ORRY_PROGRAMS_JSON and any volume-mounted files they point at.");
       process.exit(1);
     }
     const unloaded = lineValue(probe.out, "UNLOADED");
@@ -426,14 +426,14 @@ async function checkGrounded() {
       process.exit(1);
     }
 
-    const rawSource = afterLabelLine(ask.out, "[rivet] source:");
-    const answer = afterLabelRest(ask.out, "[rivet] answer:");
+    const rawSource = afterLabelLine(ask.out, "[orry] source:");
+    const answer = afterLabelRest(ask.out, "[orry] answer:");
     if (rawSource === null || answer === null) {
       // index.ts:144 prints the fallback instead of an answer when --ask
       // found nothing grounded — the clearest decline signal there is.
       if (/would show the fallback/.test(ask.out)) {
         console.error(`FAIL: the bot declined "${SMOKE_QUESTION}" — it had nothing grounded to say.`);
-        console.error("  the corpus covers this question — fix the sources in RIVET_PROGRAMS_JSON, then re-run.");
+        console.error("  the corpus covers this question — fix the sources in ORRY_PROGRAMS_JSON, then re-run.");
         process.exit(1);
       }
       console.error(`FAIL: --ask printed no answer for "${SMOKE_QUESTION}".`);
@@ -444,8 +444,8 @@ async function checkGrounded() {
     const declines = DECLINE_MARKERS.filter((re) => re.test(answer)).map((re) => String(re));
     const grounded = await capture("bun", ["-e", GROUNDED_PROBE], {
       ...env,
-      RIVET_SMOKE_SOURCE: rawSource === "(conversational — not in docs)" ? "" : rawSource,
-      RIVET_SMOKE_ANSWER: answer,
+      ORRY_SMOKE_SOURCE: rawSource === "(conversational — not in docs)" ? "" : rawSource,
+      ORRY_SMOKE_ANSWER: answer,
     });
     if (grounded.code !== 0) {
       console.error("FAIL: could not evaluate the answer with lib/respond.isGroundedAnswer.");
@@ -458,7 +458,7 @@ async function checkGrounded() {
       console.error(`  answer: ${answer.slice(0, 300)}`);
       if (rawSource) console.error(`  source: ${rawSource}`);
       if (declines.length > 0) console.error(`  matched the bot's own decline wording: ${declines.join(", ")}`);
-      console.error("  the corpus covers this question — fix the sources in RIVET_PROGRAMS_JSON, then re-run.");
+      console.error("  the corpus covers this question — fix the sources in ORRY_PROGRAMS_JSON, then re-run.");
       process.exit(1);
     }
 

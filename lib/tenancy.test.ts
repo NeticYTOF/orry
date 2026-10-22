@@ -1,6 +1,6 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
-process.env.RIVET_INTERNAL_TOKEN = "test-internal-token";
+process.env.ORRY_DB_PATH = ":memory:";
+process.env.ORRY_INTERNAL_TOKEN = "test-internal-token";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -70,10 +70,10 @@ const TNT_BLOB = JSON.stringify([
 test("two tenants: same question resolves to different programs and knowledge", async () => {
   seedPrograms();
 
-  const savedBlob = process.env.RIVET_PROGRAMS_JSON;
+  const savedBlob = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const axios = require("axios");
   const realGet = axios.get;
-  process.env.RIVET_PROGRAMS_JSON = TNT_BLOB;
+  process.env.ORRY_PROGRAMS_JSON = TNT_BLOB;
   programs.invalidate();
   knowledge.invalidate();
   axios.get = async () => {
@@ -83,8 +83,8 @@ test("two tenants: same question resolves to different programs and knowledge", 
     await knowledge.refreshCorpus();
   } finally {
     axios.get = realGet;
-    if (savedBlob === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedBlob;
+    if (savedBlob === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedBlob;
     programs.invalidate();
     knowledge.invalidate();
   }

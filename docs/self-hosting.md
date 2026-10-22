@@ -1,6 +1,6 @@
 # Run your own copy
 
-Rivet is one program. What makes it *your* program's bot is configuration —
+Orry is one program. What makes it *your* program's bot is configuration —
 nothing in this repo needs editing. Fork it, set some variables, deploy. About
 twenty minutes, most of it waiting on Slack's UI.
 
@@ -29,14 +29,14 @@ bun install
 bun run manifest
 ```
 
-The default slug is `rivet`, producing `/rivet`, `/rivet-teach`, `/rivet-gaps`,
+The default slug is `orry`, producing `/orry`, `/orry-teach`, `/orry-gaps`,
 and the other commands. If you choose another slug, set the same
-`RIVET_BOT_SLUG` in the deployment environment before generating the manifest;
+`ORRY_BOT_SLUG` in the deployment environment before generating the manifest;
 the installed commands and runtime listeners must match.
 
-One constraint that matters if your workspace already has a rivet-like bot in it:
+One constraint that matters if your workspace already has a orry-like bot in it:
 **slash command names are unique per workspace.** Two bots can't both own
-`/rivet`. If the name is taken, choose another slug before generating the
+`/orry`. If the name is taken, choose another slug before generating the
 manifest.
 
 Then, in Slack:
@@ -77,7 +77,7 @@ One JSON value carries the whole thing — channels, docs, behaviour:
 }]
 ```
 
-Minified, that becomes `RIVET_PROGRAMS_JSON`. Set it to override the ignored
+Minified, that becomes `ORRY_PROGRAMS_JSON`. Set it to override the ignored
 `config/programs.json` fallback — the bundled `loadout/program.json` is an
 example and is not loaded automatically.
 
@@ -120,20 +120,20 @@ SLACK_FAQ_CHANNELS=C_MAIN             # must match a configured program channel
 SLACK_HELP_CHANNEL=C_HELP              # optional dedicated help channel
 OPENCODE_API_KEY=...
 
-RIVET_BOT_NAME=rivet
-RIVET_BOT_SLUG=rivet
-RIVET_ADMIN_USER_IDS=U01ABCDEF        # your Slack user ID
-RIVET_DB_PATH=/data/rivet.db
-RIVET_PROGRAMS_JSON=[{"id":"example",...}]
+ORRY_BOT_NAME=orry
+ORRY_BOT_SLUG=orry
+ORRY_ADMIN_USER_IDS=U01ABCDEF        # your Slack user ID
+ORRY_DB_PATH=/data/rivet.db
+ORRY_PROGRAMS_JSON=[{"id":"example",...}]
 ```
 
 The four listed provider and Slack values are validated at boot; the process
 refuses to start without them and names anything missing. `SLACK_HELP_CHANNEL`
 is optional; set it only for a dedicated channel that should reply to every
 top-level post. The `SLACK_APP_TOKEN` must be the Socket Mode `xapp-` token with
-`connections:write`; a Pixl `SLACK_SIGNING_SECRET` is not used by Rivet.
+`connections:write`; a Pixl `SLACK_SIGNING_SECRET` is not used by Orry.
 
-`RIVET_ADMIN_USER_IDS` **fails closed**: leave it empty and nobody, including
+`ORRY_ADMIN_USER_IDS` **fails closed**: leave it empty and nobody, including
 you, can teach the bot anything. Your Slack ID is in your Slack profile → three
 dots → Copy member ID.
 
@@ -148,10 +148,10 @@ A green build only means the process started.
 
 Invite the bot to any private channels by hand — it self-joins public ones on
 boot. Then ask it something your docs cover and confirm an answer comes back.
-`/rivet-sources` (or `/<your-slug>-sources`) shows what it managed to load, which is the fastest way to spot a
+`/orry-sources` (or `/<your-slug>-sources`) shows what it managed to load, which is the fastest way to spot a
 docs URL that 404s.
 
-If it's quiet: `RIVET_DEBUG=1` for per-message logging, and check `posture` isn't
+If it's quiet: `ORRY_DEBUG=1` for per-message logging, and check `posture` isn't
 `muted`.
 
 ---
@@ -184,15 +184,15 @@ way to tell whether your sources are actually loading.
 
 Three ways, in increasing order of effort.
 
-**Teach it directly.** `/rivet-teach how do i submit :: open a PR against the
-projects repo`. Available to `RIVET_ADMIN_USER_IDS` only, and it takes effect
+**Teach it directly.** `/orry-teach how do i submit :: open a PR against the
+projects repo`. Available to `ORRY_ADMIN_USER_IDS` only, and it takes effect
 immediately.
 
 **Let it capture answers.** When a human answers a question the bot couldn't, it
-notices and queues that answer for review. `/rivet-pending` lists the queue,
-`/rivet-approve <n>` accepts one. Nothing enters the corpus unapproved.
+notices and queues that answer for review. `/orry-pending` lists the queue,
+`/orry-approve <n>` accepts one. Nothing enters the corpus unapproved.
 
-**Fix the docs.** `/rivet-gaps` is the list of questions your documentation
+**Fix the docs.** `/orry-gaps` is the list of questions your documentation
 couldn't answer, ranked by how often they were asked. That's a to-do list rather
 than a bug list — the point of the bot is partly to generate it.
 
@@ -228,7 +228,7 @@ temporary-error response.
 
 **It can be wrong.** Everything is grounded in your docs and it's built
 throughout to say "I'm not sure" rather than guess — but a docs page that's out
-of date produces a confidently out-of-date answer. `/rivet-reload` re-fetches
+of date produces a confidently out-of-date answer. `/orry-reload` re-fetches
 without a restart.
 
 **Get the slug right the first time.** It's the one field that's genuinely

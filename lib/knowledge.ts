@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const axios = require("axios");
-axios.defaults.headers.common["User-Agent"] = "RivetBot";
+axios.defaults.headers.common["User-Agent"] = "OrryBot";
 const retrieve = require("./retrieve");
 const log = require("./log");
 const programs = require("./programs");
@@ -998,9 +998,31 @@ function getContext(question: string, programId: string | null = null) {
 function getEvidenceContext(question: string, programId: string | null = null) {
   const sources = sourceSections(programId);
   const generated = generatedSections(programId, question);
-  const index = retrieve.buildIndex(retrieve.chunkSections([...generated, ...sources]));
   const programSourceNames = new Set(sources.map(([name]) => name.toLowerCase()));
-  const passages = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET).map((passage) => ({
+  const program = programId ? programs.get(programId) : null;
+  const budget = program?.evidenceBudget || retrieve.DEFAULT_BUDGET;
+  const fillUnmatched = Boolean(program?.evidenceBudget);
+  // Program sources go first so a large generated section cannot push them out.
+  // Generated sections only get whatever budget the sources left.
+  const sourcePassages = retrieve.selectEvidence(
+    retrieve.buildIndex(retrieve.chunkSections(sources)),
+    question,
+    budget,
+    null,
+    fillUnmatched,
+  );
+  const remaining = budget - sourcePassages.reduce((size, passage) => size + passage.text.length, 0);
+  const generatedPassages =
+    remaining > 0
+      ? retrieve.selectEvidence(
+          retrieve.buildIndex(retrieve.chunkSections(generated)),
+          question,
+          remaining,
+          null,
+          fillUnmatched,
+        )
+      : [];
+  const passages = [...sourcePassages, ...generatedPassages].map((passage) => ({
     ...passage,
     programId,
     kind: programSourceNames.has(passage.source.toLowerCase()) ? "source" : "generated",

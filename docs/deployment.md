@@ -1,19 +1,19 @@
-# Rivet Hosted Deployment
+# Orry Hosted Deployment
 
-One shared Rivet Core serves many programs. One Slack app, one `@Rivet`.
+One shared Orry Core serves many programs. One Slack app, one `@Rivet`.
 
 ## What runs
 
-- **Rivet Core** (`bun index.ts`): Slack Socket Mode, answer engine, tickets,
+- **Orry Core** (`bun index.ts`): Slack Socket Mode, answer engine, tickets,
   background jobs (knowledge refresh, gap judging, weekly report, SLA loop,
   SQLite sweeper). Single replica is fine; several can run behind the same
   Slack app for read scale — runtime truth lives in the database, and
   destructive jobs take single-flight leases (`job_leases`).
-- **Rivet Wizard** (Next.js): control plane for programs, tickets, knowledge,
+- **Orry Wizard** (Next.js): control plane for programs, tickets, knowledge,
   macros, analytics, incidents, retention. Optional at runtime — Core serves
   Slack from last-synced state while Wizard is down.
 - **Postgres**: control-plane authority (programs, channels, helpers,
-  audit). **SQLite** (`RIVET_DB_PATH`, on a persistent volume): runtime state,
+  audit). **SQLite** (`ORRY_DB_PATH`, on a persistent volume): runtime state,
   caches, source-cache fallback.
 
 ## Environment (Core)
@@ -29,21 +29,21 @@ per-key cooldowns. HCAI task-specific models are controlled by `HCAI_MODEL`,
 `HCAI_VISION_MODEL`; legacy intent defaults to `gpt-4.1-nano`. Ticketing works
 with every provider down.
 
-Hosted extras: `RIVET_WORKSPACE_ID` (Slack team id for tenant boundaries),
-`RIVET_INTERNAL_TOKEN` (long random; enables `/internal/v1/*` for Wizard —
-without it the dashboard cannot sync or act). `RIVET_SLA_CHECK_MIN` (default
-15; 0 disables the stale-ticket loop). `RIVET_DB_PATH=/data/rivet.db` on the
+Hosted extras: `ORRY_WORKSPACE_ID` (Slack team id for tenant boundaries),
+`ORRY_INTERNAL_TOKEN` (long random; enables `/internal/v1/*` for Wizard —
+without it the dashboard cannot sync or act). `ORRY_SLA_CHECK_MIN` (default
+15; 0 disables the stale-ticket loop). `ORRY_DB_PATH=/data/rivet.db` on the
 volume.
 
 ## Slack app scopes
 
 `chat:write`, **`chat:write.customize`** (program support identity; without a
-re-authorization after adding it, branding falls back to plain Rivet),
+re-authorization after adding it, branding falls back to plain Orry),
 `channels:history`, `groups:history`, `channels:join`, `app_mentions:read`,
 `reactions:read`, `reactions:write`, `commands`, `im:history`, `im:write`,
 `channels:read`, `groups:read`, `files:read`. Socket Mode on, Interactivity
 on, and `app_mention` subscribed. Generate the manifest with `bun run manifest` — command names derive from
-`RIVET_BOT_SLUG`; command names use that configured slug, including the sources
+`ORRY_BOT_SLUG`; command names use that configured slug, including the sources
 and administration commands.
 
 Regenerate + re-install the app only when scopes/commands change. Adding a
@@ -52,8 +52,8 @@ program never touches the manifest.
 ## Wizard env
 
 `DATABASE_URL`, `SESSION_SECRET`, `HCA_CLIENT_ID` + `HCA_CLIENT_SECRET` (Hack
-Club Auth), `RIVET_CORE_BASE_URL` + `RIVET_INTERNAL_TOKEN` (same token as
-Core), `RIVET_WORKSPACE_ID`, `BASE_URL`, `CRON_SECRET` (the reconcile cron
+Club Auth), `ORRY_CORE_BASE_URL` + `ORRY_INTERNAL_TOKEN` (same token as
+Core), `ORRY_WORKSPACE_ID`, `BASE_URL`, `CRON_SECRET` (the reconcile cron
 refuses to run without it).
 Wizard database migrations are versioned under `rivet-wizard/db/migrations/` and
 run explicitly with `bun run migrate` from `rivet-wizard/`. The command uses
@@ -68,8 +68,8 @@ Wizard production deployment target: Railway service `rivet-wizard`, root
 directory `rivet-wizard`, build handled by Railpack, runtime `next start`.
 Core is a separate Railway service named `rivet` and must not be redeployed for
 Wizard-only changes. Required Wizard environment includes `DATABASE_URL`,
-`SESSION_SECRET`, Hack Club Auth credentials, `RIVET_CORE_BASE_URL`,
-`RIVET_INTERNAL_TOKEN`, `RIVET_WORKSPACE_ID`, `BASE_URL`, and `CRON_SECRET`.
+`SESSION_SECRET`, Hack Club Auth credentials, `ORRY_CORE_BASE_URL`,
+`ORRY_INTERNAL_TOKEN`, `ORRY_WORKSPACE_ID`, `BASE_URL`, and `CRON_SECRET`.
 
 ## Health
 

@@ -12,6 +12,7 @@ const log = require("./lib/log");
 const doctor = require("./scripts/doctor.mjs");
 const programs = require("./lib/programs");
 const { startAfterReady } = require("./lib/startup");
+import type { SlackClient } from "./lib/types";
 
 const INITIAL_CORPUS_STARTUP_TIMEOUT_MS = 30_000;
 
@@ -30,6 +31,54 @@ function startKeepAlive() {
       headers: { Authorization: `Bearer ${key}` },
     }).catch((e) => log.debug("keepalive", `ping failed: ${errorText(e)}`));
   }, KEEPALIVE_INTERVAL_MS);
+}
+
+interface AskHelperArgs {
+  ack: () => Promise<void>;
+  body: { user?: { id?: string }; team?: { id?: string } };
+  action: { value?: string };
+  client: SlackClient;
+}
+
+// "Ask a helper" on a grounded answer. Opens the ticket through the existing
+// escalateTicket path, then confirms in the thread.
+async function askHelperAction({ ack, body, action, client }: AskHelperArgs): Promise<void> {
+  await ack();
+  try {
+    const [channel, threadTs] = String(action.value || "").split("|");
+    if (!channel || !threadTs) return;
+    const workspaceId = body.team?.id ?? null;
+    const prog = programs.forChannel(channel, workspaceId);
+    if (!prog?.helpChannel) return;
+
+    let question = "Asked for a helper from a bot answer";
+    try {
+      const history = await client.conversations.replies({ channel, ts: threadTs, limit: 1 });
+      const parent = history.messages?.[0]?.text;
+      if (parent) question = parent;
+    } catch (error: unknown) {
+      log.debug("tickets", `ask-a-helper could not read the thread: ${errorText(error)}`);
+    }
+
+    const tickets = require("./lib/tickets");
+    const ticket = await tickets.escalateTicket({
+      program: prog,
+      channel,
+      threadTs,
+      requesterId: body.user?.id || "unknown",
+      question,
+      client,
+      workspaceId,
+    });
+    if (!ticket) return;
+    await client.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: "I've asked a helper to take a look.",
+    });
+  } catch (error: unknown) {
+    log.warn("tickets", `ask-a-helper failed: ${errorText(error)}`);
+  }
 }
 
 async function startBot() {
@@ -75,6 +124,7 @@ async function startBot() {
   app.event("app_mention", handlers.onAppMention);
   app.event("reaction_added", handlers.onReactionAdded);
   app.event("reaction_removed", handlers.onReactionRemoved);
+  app.action(require("./lib/reply").ASK_HELPER_ACTION, askHelperAction);
   commands.register(app);
 
   app.error(async (error: Error) => {
@@ -156,24 +206,24 @@ async function runAskCli(question: string, programId: string | null): Promise<vo
   // program when there is exactly one.
   const program = programId ? programs.get(programId) : singleConfiguredProgram();
   if (programId && !program) {
-    console.error(`[rivet] no program with id "${programId}" — check RIVET_PROGRAMS_JSON`);
+    console.error(`[orry] no program with id "${programId}" — check ORRY_PROGRAMS_JSON`);
     process.exit(1);
   }
 
   await knowledge.refreshCorpus();
-  console.log(`[rivet] program: ${program ? program.id : "(shared)"}`);
+  console.log(`[orry] program: ${program ? program.id : "(shared)"}`);
 
   const result = await respond.answerOrChat(question, "", {
     program,
     inHelpChannel: Boolean(program),
   });
   if (result?.answer) {
-    console.log(`[rivet] source: ${result.source || "(conversational — not in docs)"}`);
-    console.log(`[rivet] answer: ${result.answer}`);
+    console.log(`[orry] source: ${result.source || "(conversational — not in docs)"}`);
+    console.log(`[orry] answer: ${result.answer}`);
     return;
   }
 
-  console.log(`[rivet] would show the fallback: "${respond.MENTION_FALLBACK}"`);
+  console.log(`[orry] would show the fallback: "${respond.MENTION_FALLBACK}"`);
 }
 
 function singleConfiguredProgram() {
@@ -185,7 +235,7 @@ function runDoctorCli() {
   const report = doctor.runDoctor();
   console.log(doctor.render(report));
   if (report.failures > 0) {
-    console.error("[rivet] fix the FAIL lines above, then start the bot again");
+    console.error("[orry] fix the FAIL lines above, then start the bot again");
     process.exit(1);
   }
 }
@@ -207,7 +257,7 @@ function main() {
     runAskCli(question, programId)
       .then(() => process.exit(0))
       .catch((e) => {
-        console.error("[rivet] --ask failed:", errorText(e));
+        console.error("[orry] --ask failed:", errorText(e));
         process.exit(1);
       });
     return;
@@ -217,14 +267,14 @@ function main() {
     try {
       runDoctorCli();
     } catch (e) {
-      console.error("[rivet] --doctor failed:", errorText(e));
+      console.error("[orry] --doctor failed:", errorText(e));
       process.exit(1);
     }
     process.exit(0);
   }
 
   startBot().catch((e) => {
-    console.error(`[rivet] failed to start: ${errorText(e)}`);
+    console.error(`[orry] failed to start: ${errorText(e)}`);
     process.exit(1);
   });
 }

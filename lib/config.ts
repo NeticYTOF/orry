@@ -8,11 +8,11 @@ interface KeyPoolState {
   now: number;
 }
 type RateLimitHandler = (key: string | undefined, ms?: number) => void;
-// The test runner sets RIVET_SKIP_DOTENV=1. dotenv.config() would otherwise
+// The test runner sets ORRY_SKIP_DOTENV=1. dotenv.config() would otherwise
 // re-read the developer's real .env inside every test child, undoing the
 // harness's env stripping — a configured workspace then makes tests that
 // assume no claimed channels fail, with no obvious link to the cause.
-if (process.env.RIVET_SKIP_DOTENV !== "1") dotenv.config();
+if ((process.env.ORRY_SKIP_DOTENV ?? process.env.RIVET_SKIP_DOTENV) !== "1") dotenv.config();
 
 const ZEN_BASE_URL = "https://opencode.ai/zen/v1";
 const DEFAULT_MODEL = "deepseek-v4-flash-free";
@@ -166,18 +166,41 @@ function veyConfig() {
   };
 }
 
+// Feedback reactions are on by default: each answer gets one up and one down
+// reaction pre-placed. ORRY_FEEDBACK_REACTIONS=a,b picks others; 0 or false
+// turns them off. Unset or blank means the default.
+const DEFAULT_FEEDBACK_REACTIONS = ["thumbsup", "thumbsdown"];
+
+function feedbackReactionsFrom(raw: string | undefined): string[] {
+  const value = (raw ?? "").trim();
+  if (value === "") return [...DEFAULT_FEEDBACK_REACTIONS];
+  if (/^(0|false|off)$/i.test(value)) return [];
+  return value
+    .split(",")
+    .map((r) => r.replace(/:/g, "").trim())
+    .filter(Boolean);
+}
+
+// What an unaddressed, ungrounded program question gets in a busy main channel.
+const AMBIENT_UNCERTAIN_REPLY_MODES = ["react", "silent", "reply"];
+
+function ambientUncertainReplyFrom(raw: string | undefined): string {
+  const value = (raw ?? "").trim().toLowerCase();
+  return AMBIENT_UNCERTAIN_REPLY_MODES.includes(value) ? value : "react";
+}
+
 const faqChannels = parseChannels(process.env.SLACK_FAQ_CHANNELS);
 
-const stagingOnlyChannels = parseChannels(process.env.RIVET_STAGING_ONLY_CHANNELS);
+const stagingOnlyChannels = parseChannels((process.env.ORRY_STAGING_ONLY_CHANNELS ?? process.env.RIVET_STAGING_ONLY_CHANNELS));
 
-const adminUserIds = parseChannels(process.env.RIVET_ADMIN_USER_IDS);
+const adminUserIds = parseChannels((process.env.ORRY_ADMIN_USER_IDS ?? process.env.RIVET_ADMIN_USER_IDS));
 
 const intentBaseUrl = normalizeBaseUrl(
   process.env.INTENT_CLASSIFIER_BASE_URL,
   process.env.GROQ_API_KEY ? GROQ_BASE_URL : ZEN_BASE_URL,
 );
 const visionBaseUrl = normalizeBaseUrl(
-  process.env.RIVET_VISION_BASE_URL || process.env.OPENCODE_BASE_URL,
+  (process.env.ORRY_VISION_BASE_URL ?? process.env.RIVET_VISION_BASE_URL) || process.env.OPENCODE_BASE_URL,
   ZEN_BASE_URL,
 );
 
@@ -272,16 +295,16 @@ const DEFAULT_PRIMARY_MODEL = "kr/claude-sonnet-4.5";
 const DEFAULT_FALLBACK_MODEL = "ag/gemini-3.6-flash-low";
 
 const nineRouterSecondaryFallbackTier = {
-  apiKey: () => process.env.RIVET_ANSWER_API_KEY || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl(process.env.RIVET_ANSWER_BASE_URL, NINE_ROUTER_BASE_URL),
-  model: process.env.RIVET_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL,
-  fallback: standbyFallback(normalizeBaseUrl(process.env.RIVET_ANSWER_BASE_URL, NINE_ROUTER_BASE_URL), DEFAULT_MODEL),
+  apiKey: () => (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
+  baseUrl: normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
+  model: (process.env.ORRY_FALLBACK_MODEL ?? process.env.RIVET_FALLBACK_MODEL) || DEFAULT_FALLBACK_MODEL,
+  fallback: standbyFallback(normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL), DEFAULT_MODEL),
 };
 
 const nineRouterAnswerTier = {
-  apiKey: () => process.env.RIVET_ANSWER_API_KEY || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl(process.env.RIVET_ANSWER_BASE_URL, NINE_ROUTER_BASE_URL),
-  model: process.env.RIVET_MODEL || DEFAULT_PRIMARY_MODEL,
+  apiKey: () => (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
+  baseUrl: normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
+  model: (process.env.ORRY_MODEL ?? process.env.RIVET_MODEL) || DEFAULT_PRIMARY_MODEL,
   fallback: process.env.OPENROUTER_API_KEY
     ? {
         apiKey: () => process.env.OPENROUTER_API_KEY,
@@ -303,12 +326,12 @@ const openRouterAnswerTier = process.env.OPENROUTER_API_KEY
 
 const nineRouterPingTier = {
   apiKey: () =>
-    process.env.RIVET_PING_API_KEY ||
-    process.env.RIVET_ANSWER_API_KEY ||
+    (process.env.ORRY_PING_API_KEY ?? process.env.RIVET_PING_API_KEY) ||
+    (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) ||
     process.env.INTENT_CLASSIFIER_API_KEY ||
     process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl(process.env.RIVET_PING_BASE_URL || process.env.RIVET_ANSWER_BASE_URL, NINE_ROUTER_BASE_URL),
-  model: process.env.RIVET_PING_MODEL || process.env.RIVET_MODEL || DEFAULT_PRIMARY_MODEL,
+  baseUrl: normalizeBaseUrl((process.env.ORRY_PING_BASE_URL ?? process.env.RIVET_PING_BASE_URL) || (process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
+  model: (process.env.ORRY_PING_MODEL ?? process.env.RIVET_PING_MODEL) || (process.env.ORRY_MODEL ?? process.env.RIVET_MODEL) || DEFAULT_PRIMARY_MODEL,
   fallback: openRouterAnswerTier,
 };
 
@@ -329,7 +352,7 @@ const legacyIntentTier = {
 const legacyVisionTier = {
   apiKey: () => process.env.VISION_API_KEY || nextZenApiKey(),
   baseUrl: visionBaseUrl,
-  model: process.env.RIVET_VISION_MODEL || DEFAULT_VISION_MODEL,
+  model: (process.env.ORRY_VISION_MODEL ?? process.env.RIVET_VISION_MODEL) || DEFAULT_VISION_MODEL,
   fallback: standbyFallback(visionBaseUrl, DEFAULT_VISION_MODEL),
   onRateLimited: penalizeZenKey,
 };
@@ -372,30 +395,31 @@ const config = {
       ? hcaiTier(process.env.HCAI_VISION_MODEL || DEFAULT_HCAI_VISION_MODEL, legacyVisionTier)
       : legacyVisionTier,
 
-  reportChannel: process.env.RIVET_REPORT_CHANNEL || null,
+  reportChannel: (process.env.ORRY_REPORT_CHANNEL ?? process.env.RIVET_REPORT_CHANNEL) || null,
 
   refreshIntervalMin: positiveNumber(process.env.REFRESH_INTERVAL_MIN, DEFAULT_REFRESH_INTERVAL_MIN),
-  debug: process.env.RIVET_DEBUG === "1" || process.env.RIVET_DEBUG === "true",
+  debug: (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "1" || (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "true",
 
   web: {
-    baseUrl: process.env.RIVET_WEB_BASE_URL || `http://localhost:${process.env.RIVET_WEB_PORT || 4100}`,
+    baseUrl: (process.env.ORRY_WEB_BASE_URL ?? process.env.RIVET_WEB_BASE_URL) || `http://localhost:${(process.env.ORRY_WEB_PORT ?? process.env.RIVET_WEB_PORT) || 4100}`,
   },
 
-  escalateReaction: (process.env.RIVET_ESCALATE_REACTION || "").replace(/:/g, "").trim() || null,
+  escalateReaction: ((process.env.ORRY_ESCALATE_REACTION ?? process.env.RIVET_ESCALATE_REACTION) || "").replace(/:/g, "").trim() || null,
 
   ticketOpenReaction:
-    process.env.RIVET_TICKET_REACTION === ""
+    (process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) === ""
       ? null
-      : (process.env.RIVET_TICKET_REACTION || "ticket").replace(/:/g, "").trim() || null,
+      : ((process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) || "ticket").replace(/:/g, "").trim() || null,
   ticketResolvedReaction:
-    process.env.RIVET_TICKET_REACTION === ""
+    (process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) === ""
       ? null
-      : (process.env.RIVET_TICKET_RESOLVED_REACTION || "white_check_mark").replace(/:/g, "").trim() || null,
+      : ((process.env.ORRY_TICKET_RESOLVED_REACTION ?? process.env.RIVET_TICKET_RESOLVED_REACTION) || "white_check_mark").replace(/:/g, "").trim() || null,
 
-  feedbackReactions: (process.env.RIVET_FEEDBACK_REACTIONS ?? "")
-    .split(",")
-    .map((r) => r.replace(/:/g, "").trim())
-    .filter(Boolean),
+  feedbackReactions: feedbackReactionsFrom(process.env.ORRY_FEEDBACK_REACTIONS ?? process.env.RIVET_FEEDBACK_REACTIONS),
+
+  ambientUncertainReply: ambientUncertainReplyFrom(
+    process.env.ORRY_AMBIENT_UNCERTAIN_REPLY ?? process.env.RIVET_AMBIENT_UNCERTAIN_REPLY,
+  ),
 
   jev: jevConfig(),
   vey: veyConfig(),

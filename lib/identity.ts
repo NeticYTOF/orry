@@ -18,12 +18,12 @@ function sourceName() {
 
 function makerLine(programName: string) {
   if (programName === "Loadout") {
-    return `A: ${botName()} was built by Netic. Netic also built Rivet, Loadout's Slack bot. Loadout itself is led by Jerry, with Fazin / Wind and Netic as co-organizers.`;
+    return `A: ${botName()} was built by Netic. Netic also built Orry for Loadout. Loadout itself is led by Jerry, with Fazin / Wind and Netic as co-organizers.`;
   }
   return `A: This bot is configured to help with ${programName}.`;
 }
 
-const REPO_URL = process.env.RIVET_REPO_URL || "https://github.com/NeticYTOF/orry";
+const REPO_URL = (process.env.ORRY_REPO_URL ?? process.env.RIVET_REPO_URL) || "https://github.com/NeticYTOF/orry";
 
 function repoPair() {
   return [
@@ -138,8 +138,8 @@ function otherProgramNames(currentId: string) {
 }
 
 function corpusSection(program: IdentityProgram | null = null) {
-  if (process.env.RIVET_IDENTITY_OVERRIDE) {
-    return process.env.RIVET_IDENTITY_OVERRIDE;
+  if ((process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE)) {
+    return (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE);
   }
   if (!program || !program.name) {
     return defaultIdentity();

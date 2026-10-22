@@ -29,6 +29,8 @@ export interface Program {
   ticketsEnabled: boolean;
   autoEscalate: boolean;
   sensitiveCategories: string[];
+  /** Optional contact details appended to the supportive self-harm reply. Never invented by the bot. */
+  crisisResources?: { label: string; detail: string }[];
   supportActive: boolean;
   autoAssign: boolean;
   helperPing: boolean;
@@ -51,6 +53,8 @@ export interface Program {
   behavior: Record<string, unknown> | null;
   status: ProgramStatus | null;
   requireGroundedAnswer?: boolean;
+  /** Characters of program docs the answer model may see. Set to the corpus size to send all of it. */
+  evidenceBudget?: number | null;
   organizer_channel?: string;
   organizer_channel_id?: string;
   workspace_id?: string | null;

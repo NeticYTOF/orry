@@ -26,7 +26,7 @@ test("requireAdmin returns 403 for non-admin when session exists", () => {
 
 test("loginUrl includes client_id and state", () => {
   process.env.SLACK_CLIENT_ID = "test-client-123";
-  process.env.RIVET_WEB_URL = "http://localhost:4100";
+  process.env.ORRY_WEB_URL = "http://localhost:4100";
   const url = auth.loginUrl("/");
   assert.ok(url.includes("test-client-123"));
   assert.ok(url.includes("openid"));
@@ -34,13 +34,13 @@ test("loginUrl includes client_id and state", () => {
 });
 
 test("handleLogout sets an expired cookie", () => {
-  const result = auth.handleLogout(new Request("https://rivet.example.com/auth/logout"));
+  const result = auth.handleLogout(new Request("https://orry.example.com/auth/logout"));
   assert.equal(result.status, 302);
   assert.ok(result.headers["Set-Cookie"]?.includes("Max-Age=0"));
 });
 
 test("session cookie is Secure except over plain-HTTP loopback", () => {
-  const https = auth.sessionCookie("tok", 604800, new Request("https://rivet.example.com/auth/callback"));
+  const https = auth.sessionCookie("tok", 604800, new Request("https://orry.example.com/auth/callback"));
   assert.match(https, /; Secure$/, "https sessions must be Secure");
   assert.ok(https.includes("HttpOnly") && https.includes("SameSite=Lax"), "existing hardening is preserved");
 
@@ -54,7 +54,7 @@ test("session cookie is Secure except over plain-HTTP loopback", () => {
     assert.ok(!auth.sessionCookie("tok", 604800, new Request(plain)).includes("Secure"), `${plain} is local dev`);
   }
 
-  for (const remote of ["http://rivet.example.com/login", "http://192.168.1.9:4100/login"]) {
+  for (const remote of ["http://orry.example.com/login", "http://192.168.1.9:4100/login"]) {
     assert.ok(
       auth.sessionCookie("tok", 604800, new Request(remote)).includes("Secure"),
       `${remote} is not loopback, so Secure applies even on plain HTTP`,
@@ -79,15 +79,15 @@ test("expired sessions and sessions without userId are rejected", () => {
   const crypto = require("crypto");
   const good = auth.signSession("U-exp", "Exp", "user");
   assert.ok(auth.verifySession(good));
-  const saved = process.env.RIVET_SESSION_SECRET;
+  const saved = (process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET);
   try {
-    process.env.RIVET_SESSION_SECRET = "char-secret-a";
+    process.env.ORRY_SESSION_SECRET = "char-secret-a";
     const a = auth.signSession("U-x", "X", "user");
-    process.env.RIVET_SESSION_SECRET = "char-secret-b";
+    process.env.ORRY_SESSION_SECRET = "char-secret-b";
     assert.equal(auth.verifySession(a), null, "rotating the secret must invalidate old cookies");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_SESSION_SECRET;
-    else process.env.RIVET_SESSION_SECRET = saved;
+    if (saved === undefined) delete process.env.ORRY_SESSION_SECRET;
+    else process.env.ORRY_SESSION_SECRET = saved;
   }
 });
 
@@ -137,20 +137,20 @@ test("dev-testing only unlocks the passcode-free admin session under NODE_ENV=de
 
 test("loginUrl needs Slack env; handleLogout clears the session cookie", () => {
   const cSaved = process.env.SLACK_CLIENT_ID;
-  const wSaved = process.env.RIVET_WEB_URL;
+  const wSaved = (process.env.ORRY_WEB_URL ?? process.env.RIVET_WEB_URL);
   try {
     delete process.env.SLACK_CLIENT_ID;
-    delete process.env.RIVET_WEB_URL;
+    delete process.env.ORRY_WEB_URL;
     assert.equal(auth.loginUrl("/"), null);
     process.env.SLACK_CLIENT_ID = "cid-char";
-    process.env.RIVET_WEB_URL = "http://localhost:4100";
+    process.env.ORRY_WEB_URL = "http://localhost:4100";
     const url = auth.loginUrl("/");
     assert.ok(url.includes("cid-char") && url.includes("state="));
   } finally {
     if (cSaved === undefined) delete process.env.SLACK_CLIENT_ID;
     else process.env.SLACK_CLIENT_ID = cSaved;
-    if (wSaved === undefined) delete process.env.RIVET_WEB_URL;
-    else process.env.RIVET_WEB_URL = wSaved;
+    if (wSaved === undefined) delete process.env.ORRY_WEB_URL;
+    else process.env.ORRY_WEB_URL = wSaved;
   }
   const out = auth.handleLogout(new Request("http://localhost:4100/auth/logout"));
   assert.equal(out.status, 302);

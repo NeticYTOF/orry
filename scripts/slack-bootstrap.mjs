@@ -12,7 +12,7 @@
 //   2. Prints the Slack app manifest by calling scripts/manifest.cjs, the same
 //      module `bun run manifest` prints from. Scopes, events and the twelve
 //      slash commands are read from that module, never restated here: they
-//      come from RIVET_BOT_SLUG (lib/brand.ts) and lib/commands.ts, and a
+//      come from ORRY_BOT_SLUG (lib/brand.ts) and lib/commands.ts, and a
 //      second copy in a setup script is how the two drift apart.
 //   3. Prints the remaining manual steps as plain text.
 //
@@ -212,7 +212,7 @@ function main() {
 
   section("Slack app manifest");
   console.log("Paste the JSON below into api.slack.com/apps → Create New App → From a manifest.");
-  console.log("Regenerate it with `bun run manifest` after changing RIVET_BOT_NAME or RIVET_BOT_SLUG.\n");
+  console.log("Regenerate it with `bun run manifest` after changing ORRY_BOT_NAME or ORRY_BOT_SLUG.\n");
   const { manifest } = require("./manifest.cjs");
   console.log(JSON.stringify(manifest(), null, 2));
 
@@ -227,13 +227,13 @@ function main() {
     "  channel. SLACK_HELP_CHANNEL is optional for a dedicated support channel.",
     "Set OPENCODE_API_KEY for the default intent/fallback tiers. HCAI_API_KEY is",
     "  optional; see docs/slack-setup.md for the provider model settings.",
-    "Load a program so it has something to answer from: RIVET_PROGRAMS_JSON takes",
+    "Load a program so it has something to answer from: ORRY_PROGRAMS_JSON takes",
     "  the program's JSON inline, not a file path — see docs/slack-setup.md.",
     "Verify without Slack: bun index.ts --ask \"how do I get started\"",
-    "Then in Slack: /rivet-sources to see what loaded, and /rivet <question> for a",
-    "  private answer — the question is the whole argument, so type /rivet what is",
-    "  the deadline rather than /rivet ask what is the deadline. The prefix on",
-    "  every command is whatever RIVET_BOT_SLUG says; if the app and the process",
+    "Then in Slack: /orry-sources to see what loaded, and /orry <question> for a",
+    "  private answer — the question is the whole argument, so type /orry what is",
+    "  the deadline rather than /orry ask what is the deadline. The prefix on",
+    "  every command is whatever ORRY_BOT_SLUG says; if the app and the process",
     "  disagree, the command silently does nothing.",
     "",
     "Full walkthrough, including the two footguns: docs/slack-setup.md",

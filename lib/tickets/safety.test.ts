@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");
@@ -89,7 +89,7 @@ test("safety: the requester is never selected as helper, even as the top expert"
   assert.equal(pings(c2.posts).length, 0);
 });
 
-test("safety: Rivet's own bot user is never selected, even on the roster", async () => {
+test("safety: Orry's own bot user is never selected, even on the roster", async () => {
   const saved = config.slack.botUserId;
   config.slack.botUserId = "U-BOT";
   try {

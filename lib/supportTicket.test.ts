@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
@@ -93,11 +93,11 @@ const realIntent = intent.classifyIntent;
 before(() => {
   db.close();
   db.open(":memory:");
-  savedBlob = process.env.RIVET_PROGRAMS_JSON;
+  savedBlob = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
 });
 
 beforeEach(() => {
-  process.env.RIVET_PROGRAMS_JSON = FLEET;
+  process.env.ORRY_PROGRAMS_JSON = FLEET;
   programs.invalidate();
   intent.classifyIntent = async () => intent.HELP_NEEDED;
   answer.verifyGrounding = async (...args: unknown[]) => {
@@ -121,8 +121,8 @@ afterEach(() => {
   answer.getAnswerOrChat = realAnswer;
   answer.verifyGrounding = realVerifier;
   intent.classifyIntent = realIntent;
-  if (savedBlob === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-  else process.env.RIVET_PROGRAMS_JSON = savedBlob;
+  if (savedBlob === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+  else process.env.ORRY_PROGRAMS_JSON = savedBlob;
   programs.invalidate();
 });
 
@@ -158,7 +158,7 @@ test("knows the answer: ticket opens, answer posts in the same thread, ticket st
   await ask(client, "t-knows", "does my repo need to be public?");
 
   const ticket = db.getTicketByThreadTs("t-knows");
-  assert.ok(ticket, "a ticket exists even though Rivet answered");
+  assert.ok(ticket, "a ticket exists even though Orry answered");
   assert.equal(ticket.status, "open");
 
   const texts = client.posts.map((p) => p.text || "");
@@ -168,7 +168,7 @@ test("knows the answer: ticket opens, answer posts in the same thread, ticket st
   );
   assert.ok(
     texts.some((t) => /public/.test(t)),
-    "Rivet's answer in the same thread",
+    "Orry's answer in the same thread",
   );
   const uiMsg = client.posts.find((p) => /Someone will be here/.test(p.text || ""));
   assert.ok(uiMsg.blocks.find((b) => b.type === "actions")?.elements.some((e) => e.action_id === "st_resolve"));
@@ -326,7 +326,7 @@ test("tickets and their organizer channel belong to the question's own program",
   assert.ok(card, "card goes to this program's organizer channel, not another's");
 });
 
-test("a classified support message Rivet can't answer still opens a ticket", async () => {
+test("a classified support message Orry can't answer still opens a ticket", async () => {
   intent.classifyIntent = async () => intent.HELP_NEEDED;
   answer.getAnswerOrChat = answer.getAnswerOrChatStream = async () => ({ source: null, answer: "", unclear: true });
   const client = clientSpy();

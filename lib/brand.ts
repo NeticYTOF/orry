@@ -6,17 +6,18 @@ const NON_SLUG_CHARS = /[^a-z0-9-]+/g;
 const EDGE_DASHES = /^-+|-+$/g;
 
 function envValue(name: string): string | null {
-  return (process.env[name] || "").trim();
+  const legacy = name.replace(/^ORRY_/, "RIVET_");
+  return ((process.env[name] ?? process.env[legacy]) || "").trim();
 }
 
 function name() {
-  return envValue("RIVET_BOT_NAME") || DEFAULT_NAME;
+  return envValue("ORRY_BOT_NAME") || DEFAULT_NAME;
 }
 
 function rawSlug() {
-  const configuredSlug = envValue("RIVET_BOT_SLUG");
+  const configuredSlug = envValue("ORRY_BOT_SLUG");
   if (configuredSlug) return configuredSlug;
-  const configuredName = envValue("RIVET_BOT_NAME");
+  const configuredName = envValue("ORRY_BOT_NAME");
   return configuredName && configuredName !== DEFAULT_NAME ? configuredName : DEFAULT_SLUG;
 }
 

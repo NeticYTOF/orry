@@ -23,7 +23,7 @@ function notify(kind: string, scope: string, args: unknown[]) {
 }
 
 function format(scope: string, args: unknown[]): unknown[] {
-  return [`[rivet/${scope}]`, ...args];
+  return [`[orry/${scope}]`, ...args];
 }
 
 function emit(print: ((...args: unknown[]) => void) | null, kind: string, scope: string, args: unknown[]): void {

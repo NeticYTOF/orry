@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -130,14 +130,14 @@ test("a changed program source clears only that program's cached answers", async
     sharedSources: false,
     sources: [{ name: "Inline docs", type: "text", content }],
   });
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const question = "how many sample devices?";
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([source("There is 1 sample device.")]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([source("There is 1 sample device.")]);
   programs.invalidate();
   answerCache.put(question, { source: "Inline docs", answer: "1 sample device." }, undefined, "program-refresh-cache");
   answerCache.put(question, { source: "Other Docs", answer: "Other answer." }, undefined, "other-program");
   try {
-    process.env.RIVET_PROGRAMS_JSON = JSON.stringify([source("There are 2 sample devices.")]);
+    process.env.ORRY_PROGRAMS_JSON = JSON.stringify([source("There are 2 sample devices.")]);
     programs.invalidate();
     const refresh = knowledge.refreshProgramSources("program-refresh-cache", { force: true });
     assert.equal(refresh.started, true);
@@ -145,8 +145,8 @@ test("a changed program source clears only that program's cached answers", async
     assert.equal(answerCache.get(question, "program-refresh-cache"), null);
     assert.equal(answerCache.get(question, "other-program")?.answer, "Other answer.");
   } finally {
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
   }
 });
@@ -156,9 +156,9 @@ test("a changed shared source clears cached answers for every program that inher
   const originalFetch = sourceGuard.fetchSourceUrl;
   const source = { name: "Shared refresh", type: "gdoc", url: "https://example.invalid/shared" };
   const sourceKey = knowledge.sourceCacheKey(source);
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const question = "what does the shared guide say?";
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "shared", sources: [source] },
     { id: "shared-consumer-a", sharedSources: true },
     { id: "shared-consumer-b", sharedSources: true },
@@ -181,8 +181,8 @@ test("a changed shared source clears cached answers for every program that inher
     assert.equal(answerCache.get(question, "shared-opt-out")?.answer, "unrelated answer");
   } finally {
     sourceGuard.fetchSourceUrl = originalFetch;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
     knowledge.invalidate();
   }
@@ -191,7 +191,7 @@ test("a changed shared source clears cached answers for every program that inher
 test("source removal clears cached answers even when only the persisted source cache remains", async () => {
   const oldSource = { name: "Removed Docs", type: "url", url: "https://example.invalid/removed" };
   const currentSource = { name: "Current Docs", type: "text", content: "Current source text." };
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const oldKey = knowledge.sourceCacheKey(oldSource);
   const currentKey = knowledge.sourceCacheKey(currentSource);
   db.saveSourceText(oldKey, "Removed source text.");
@@ -203,7 +203,7 @@ test("source removal clears cached answers even when only the persisted source c
     undefined,
     "removed-source-program",
   );
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "removed-source-program", sources: [currentSource], sharedSources: false },
   ]);
   programs.invalidate();
@@ -212,19 +212,19 @@ test("source removal clears cached answers even when only the persisted source c
     assert.equal(answerCache.get(question, "removed-source-program"), null);
     assert.equal(db.loadSourceText(oldKey), null);
   } finally {
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
   }
 });
 
 test("refresh preserves a legacy bare-name source cache alias while that source is active", async () => {
   const source = { name: "Legacy Docs", type: "url", url: "https://example.invalid/legacy" };
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const sourceGuard = require("./sourceGuard");
   const originalFetch = sourceGuard.fetchSourceUrl;
   db.saveSourceText(source.name, "Last-known-good legacy source.");
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "legacy-cache-program", sources: [source], sharedSources: false },
   ]);
   programs.invalidate();
@@ -237,8 +237,8 @@ test("refresh preserves a legacy bare-name source cache alias while that source 
     assert.match(knowledge.getCorpus("legacy-cache-program"), /Last-known-good legacy source/);
   } finally {
     sourceGuard.fetchSourceUrl = originalFetch;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
   }
 });
@@ -251,9 +251,9 @@ test("a restored dynamic source is not exact-claim fresh before this boot refres
 });
 
 test("lazy disk restoration of dynamic context does not make it exact-claim fresh", () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const source = { name: "Lazy dynamic", type: "url", url: "https://example.invalid/lazy", dynamic: true };
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "lazy-prog", name: "Lazy", sources: [source] }]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "lazy-prog", name: "Lazy", sources: [source] }]);
   programs.invalidate();
   knowledge.invalidate();
   db.saveSourceText(knowledge.sourceCacheKey(source), "A dynamically changing exact value is 17.");
@@ -261,8 +261,8 @@ test("lazy disk restoration of dynamic context does not make it exact-claim fres
     assert.match(knowledge.getContext("what is the exact value", "lazy-prog"), /exact value is 17/);
     assert.equal(knowledge.sourceEligibility(source).exactClaimsAllowed, false);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }
@@ -278,8 +278,8 @@ test("refreshSource reports failures while retaining last-good source text", asy
 });
 
 test("refreshCorpus keeps answer cache when every source body is unchanged", async () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "unchanged", name: "Unchanged", sources: [{ name: "Stable body", type: "text", content: "same text" }] },
   ]);
   programs.invalidate();
@@ -289,16 +289,16 @@ test("refreshCorpus keeps answer cache when every source body is unchanged", asy
     await knowledge.refreshCorpus(true);
     assert.equal(answerCache.get("cache survives refresh").answer, "still valid");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }
 });
 
 test("operator sources load from configured programs", async () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     {
       id: "demo",
       name: "Demo",
@@ -314,16 +314,16 @@ test("operator sources load from configured programs", async () => {
     await knowledge.refreshSource(programs.get("demo").sources[0], true);
     assert.match(knowledge.getCorpus("demo"), /demo body/);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }
 });
 
 test("program source corpora remain isolated", async () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "acme", name: "Acme", sources: [{ name: "Acme docs", type: "text", content: "acme-only" }] },
     { id: "beta", name: "Beta", sources: [{ name: "Beta docs", type: "text", content: "beta-only" }] },
   ]);
@@ -337,20 +337,56 @@ test("program source corpora remain isolated", async () => {
     assert.match(knowledge.getEvidenceContext("acme facts", "acme").context, /acme-only/);
     assert.doesNotMatch(knowledge.getEvidenceContext("acme facts", "beta").context, /acme-only/);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
+    programs.invalidate();
+    knowledge.invalidate();
+  }
+});
+
+test("program source passages survive a large generated section under a tight evidence budget", async () => {
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
+    {
+      id: "gadget",
+      name: "Gadget",
+      sharedSources: false,
+      evidenceBudget: 300,
+      sources: [
+        {
+          name: "Gadget docs",
+          type: "text",
+          content:
+            "Gadget cost is twelve credits for a standard build, including the frame and the assembly instructions for every kit.",
+        },
+      ],
+    },
+  ]);
+  programs.invalidate();
+  knowledge.invalidate();
+  try {
+    await knowledge.refreshSource(programs.get("gadget").sources[0], true);
+    // "who are you" only matches the large generated identity section, so the source is
+    // reached only through the unmatched fill, which used to be cut once the identity filled the budget.
+    const { passages } = knowledge.getEvidenceContext("who are you?", "gadget");
+    const source = passages.filter((passage: { kind: string }) => passage.kind === "source");
+    assert.ok(source.some((passage: { text: string }) => /twelve credits/.test(passage.text)));
+    assert.ok(passages.reduce((size: number, passage: { text: string }) => size + passage.text.length, 0) <= 300);
+  } finally {
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }
 });
 
 test("personal questions retrieve the matching parts of Orry's full canon", () => {
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
-  const savedBotName = process.env.RIVET_BOT_NAME;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedBotName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", name: "Loadout", supportName: "Orry the ore Maulwürf", sharedSources: false, sources: [] },
   ]);
-  process.env.RIVET_BOT_NAME = "Orry the ore Maulwürf";
+  process.env.ORRY_BOT_NAME = "Orry the ore Maulwürf";
   programs.invalidate();
   knowledge.invalidate();
   try {
@@ -361,18 +397,18 @@ test("personal questions retrieve the matching parts of Orry's full canon", () =
     assert.match(treasure, /Goose wants the risk and adventure; I want the treasure/i);
     assert.doesNotMatch(treasure, /Goose sees their rivalry as playful/i);
   } finally {
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
-    if (savedBotName === undefined) delete process.env.RIVET_BOT_NAME;
-    else process.env.RIVET_BOT_NAME = savedBotName;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
+    if (savedBotName === undefined) delete process.env.ORRY_BOT_NAME;
+    else process.env.ORRY_BOT_NAME = savedBotName;
     programs.invalidate();
     knowledge.invalidate();
   }
 });
 
 test("refreshSource invalidates cached source sections", async () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "cache-demo", name: "Cache Demo", sources: [{ name: "Docs", type: "text", content: "version-one token" }] },
   ]);
   programs.invalidate();
@@ -388,37 +424,37 @@ test("refreshSource invalidates cached source sections", async () => {
     assert.match(refreshed, /version-two token/);
     assert.doesNotMatch(refreshed, /version-one token/);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }
 });
 
 test("program invalidation drops cached source-section views", async () => {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const sourceA = { name: "Docs A", type: "text", content: "alpha-source token" };
   const sourceB = { name: "Docs B", type: "text", content: "beta-source token" };
 
   await knowledge.refreshSource(sourceA, true);
   await knowledge.refreshSource(sourceB, true);
 
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "versioned", name: "Versioned", sources: [sourceA] }]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "versioned", name: "Versioned", sources: [sourceA] }]);
   programs.invalidate();
   knowledge.invalidate();
 
   try {
     assert.match(knowledge.getContext("alpha source", "versioned"), /alpha-source token/);
 
-    process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "versioned", name: "Versioned", sources: [sourceB] }]);
+    process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "versioned", name: "Versioned", sources: [sourceB] }]);
     programs.invalidate();
 
     const refreshed = knowledge.getContext("beta source", "versioned");
     assert.match(refreshed, /beta-source token/);
     assert.doesNotMatch(refreshed, /alpha-source token/);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }

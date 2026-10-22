@@ -2,7 +2,7 @@
 // Jev decision gate on representative messages WITHOUT posting to Slack and
 // WITHOUT generating answers. Needs AI_GATEWAY_API_KEY + JEV_ENABLED=true to
 // reach the real model; otherwise it reports the existing decision only.
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const db = require("../lib/db");
 const intent = require("../lib/intent");

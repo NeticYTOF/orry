@@ -1,6 +1,6 @@
-# Rivet — Architecture
+# Orry — Architecture
 
-Rivet answers help-channel questions in Slack from a program's own documentation,
+Orry answers help-channel questions in Slack from a program's own documentation,
 routes what it can't answer to human helpers, and learns from the resolutions.
 
 Two deployables, one direction of coupling:
@@ -11,7 +11,7 @@ Two deployables, one direction of coupling:
 | **Wizard** | `rivet-wizard/` | Next.js 16 + Postgres | **All configuration.** Program rows, channel claims, helper roster, entitlements |
 
 Wizard never imports Core. It pushes config over Core's `/internal/v1/*` HTTP
-bridge (`rivet-wizard/lib/rivetCore.ts`, bearer `RIVET_INTERNAL_TOKEN`) and tracks
+bridge (`rivet-wizard/lib/rivetCore.ts`, bearer `ORRY_INTERNAL_TOKEN`) and tracks
 delivery in `core_sync_state`; a daily cron (`0 9 * * *`) re-sends anything not `synced`.
 
 ## Request lifecycle (a question in a help channel)
@@ -26,12 +26,12 @@ delivery in `core_sync_state`; a daily cron (`0 9 * * *`) re-sends anything not 
 3. **Thread rule** — `const threadTs = event.thread_ts || event.ts` (`handlers.ts:887`).
    Every reply carries `thread_ts`; only DM posts top-level.
 4. **Resolve tenant** — `lib/workspace.ts` maps the event to a workspace id (team id, else
-   `RIVET_WORKSPACE_ID`), `lib/programs.ts:340` resolves channel → program through the
+   `ORRY_WORKSPACE_ID`), `lib/programs.ts:340` resolves channel → program through the
    `program_channels` claim table whose composite primary key
    `(workspace_id, channel_id)` (`lib/schema.ts:256`) enforces one owner per channel.
 5. **Channel role** — `lib/channelPolicy.ts:35` resolves DM > help > organizer > main and
    forces ambient replies / tickets / helper escalation **off** in an organizer channel.
-6. **Should we speak?** — `lib/eligibility.ts:271` `shouldRivetRespond` is a deterministic
+6. **Should we speak?** — `lib/eligibility.ts:271` `shouldOrryRespond` is a deterministic
    regex gate returning `reply | silent | escalate | human_defer`. It terminates mute,
    human takeover, greetings, acknowledgement, thread chatter, referential mentions, and
    sensitive-topic hits.
@@ -42,7 +42,7 @@ delivery in `core_sync_state`; a daily cron (`0 9 * * *`) re-sends anything not 
 8. **Retrieve** — `lib/knowledge.ts` assembles the corpus, `lib/retrieve.ts` scores it with
    hand-rolled **BM25** (K1=1.2, B=0.75). There is no embedding model and no vector store.
    Corpus = per-source fetched text cached in SQLite `source_cache`, plus generated
-   sections (identity "About rivet", program timeline, approved learned facts).
+   sections (identity "About orry", program timeline, approved learned facts).
 9. **Answer** — `lib/lookup.ts:242` → `lib/answer.ts:210` `systemPrompt`, through
    `lib/llm.ts` (blocking or SSE streaming, 3 attempts, exponential backoff, 25s timeout,
    every call metered into `llm_usage`).
@@ -51,7 +51,7 @@ delivery in `core_sync_state`; a daily cron (`0 9 * * *`) re-sends anything not 
     (recomputes support from same-program evidence) → `respond.isGroundedAnswer` (source ≠
     `NONE`, no hedge phrases, no `UNCLEAR`) → `messagePolicy.finalAction` returns
     `reply | uncertain | escalate | escalate_and_uncertain | escalate_and_reply_chat | silence`.
-    `RIVET_REQUIRE_GROUNDED_ANSWER` additionally disables streaming and chat replies.
+    `ORRY_REQUIRE_GROUNDED_ANSWER` additionally disables streaming and chat replies.
 11. **Escalate** — `lib/tickets.ts` `ensureSupportTicket` files a ticket from the thread,
     `lib/helperRoute.ts` ranks helpers (expertise match, load, recency, ping fatigue),
     `lib/assignmentLifecycle.ts` tracks offer/claim/decline/release/timeout epochs.
@@ -84,7 +84,7 @@ uses it for coverage checks. Supersession is explicit (`superseded_by`, `superse
 
 `lib/teachThread.ts` is a read-only summarizer — it renders the thread transcript and asks
 the answer model for exactly one `question :: answer` line; it never writes. The write goes
-through `/rivet-teach` → `learn.captureFromThread`, pending unless auto-approve is on.
+through `/orry-teach` → `learn.captureFromThread`, pending unless auto-approve is on.
 
 ## Identity and permissions
 
@@ -93,14 +93,14 @@ Three checks, layered:
 1. **Wizard browser session** — HMAC cookie `rivet_wizard_session` from Hack Club Auth OAuth,
    carrying `hcaId`/`email`/`slackId`; allowlists plus per-program relationship
    (owner → admin → helper → public) in `rivet-wizard/lib/programAccess.ts`.
-2. **Core bridge** — single static bearer `RIVET_INTERNAL_TOKEN`, constant-time compare;
+2. **Core bridge** — single static bearer `ORRY_INTERNAL_TOKEN`, constant-time compare;
    404 when unset (`lib/web/api.ts:818`).
 3. **Core re-check** — every program-scoped bridge call re-verifies `actorId` with
    `tickets.isActorAllowed` (`isAdmin || db.isHelper`). A forged or stale Wizard session
    cannot mutate Core outside the helper roster.
 
 Roles resolve via `lib/commandRegistry.ts:253` `authorize()` — `config.isAdmin`
-(env allowlist `RIVET_ADMIN_USER_IDS`) or the per-program roster.
+(env allowlist `ORRY_ADMIN_USER_IDS`) or the per-program roster.
 
 ## Analytics
 
@@ -150,7 +150,7 @@ Two suites, deliberately different runners.
 - **Core** — 83 files under `lib/`. `bun run test` is **not** `bun test`: it runs
   `scripts/run-tests.mjs`, which spawns one `bun test <file>` process per file
   (concurrency 4, hermetic env) so no file's `mock.module` registrations or DB rows leak
-  sideways. `lib/test-setup.ts` pins `RIVET_DB_PATH=":memory:"` via `bunfig.toml` preload.
+  sideways. `lib/test-setup.ts` pins `ORRY_DB_PATH=":memory:"` via `bunfig.toml` preload.
 - **Wizard** — 19 files, `bun:test`, Postgres replaced by pg-mem, Core HTTP faked by
   `globalThis.fetch` mocks or `mock.module("@/lib/rivetCore", …)`.
   **Known issue:** `rivet-wizard/package.json` sets `"test": "bun test"` — a bare
@@ -169,10 +169,10 @@ Two suites, deliberately different runners.
   generation, no version negotiation. Response types, `OPEN_STATUSES`, the ticket status
   groups and the behavior defaults are all duplicated across both packages.
 - **The dashboard is console-locked unless configured.** Passcode login is disabled outright
-  when `RIVET_DASHBOARD_PASSCODE` is unset, and the `dev-testing` auto-signin additionally
+  when `ORRY_DASHBOARD_PASSCODE` is unset, and the `dev-testing` auto-signin additionally
   requires `NODE_ENV=development` (`lib/web/auth.ts:11-16`). Deliberately fail-closed: with
   neither set there is no way in, which is the correct production posture but surprises anyone
-  who expected the old `"rivet"` default. Session cookies carry `Secure` except on plain-HTTP
+  who expected the old `"orry"` default. Session cookies carry `Secure` except on plain-HTTP
   loopback (`lib/web/auth.ts:18-34`).
 - **Quota is reported, never enforced by Core.** Usage is metered in `llm_usage`; the
   allowance lives only in Wizard's `wizard_entitlements`.

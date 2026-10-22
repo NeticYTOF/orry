@@ -233,7 +233,7 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rivet Dashboard Login</title>
+  <title>Orry Dashboard Login</title>
   <link rel="stylesheet" href="/style.css">
   <style>
     body {
@@ -353,7 +353,7 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 </head>
 <body>
   <div class="login-card">
-    <div class="login-logo">🧚 RIVET</div>
+    <div class="login-logo">🧚 ORRY</div>
     <div class="login-sub">Control Center & Live Analytics</div>
 
     ${error ? `<div class="login-error">${error}</div>` : ""}
@@ -381,11 +381,11 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 }
 
 const PASSCODE_UNCONFIGURED =
-  "Passcode login is disabled: this server has no RIVET_DASHBOARD_PASSCODE set. Set it in the environment and restart Rivet.";
+  "Passcode login is disabled: this server has no ORRY_DASHBOARD_PASSCODE set. Set it in the environment and restart Orry.";
 
 // Null (never a guessable default) when the operator has not chosen a passcode.
 function dashboardPasscode(): string | null {
-  const configured = (process.env.RIVET_DASHBOARD_PASSCODE || "").trim();
+  const configured = ((process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE) || "").trim();
   return configured ? configured : null;
 }
 
@@ -402,7 +402,7 @@ async function handleAuth(req: Request): Promise<Response | null> {
     if (req.method === "POST") {
       const expected = dashboardPasscode();
       if (!expected) {
-        log.error("web", "RIVET_DASHBOARD_PASSCODE is not set — refusing passcode login");
+        log.error("web", "ORRY_DASHBOARD_PASSCODE is not set — refusing passcode login");
         return htmlResponse(renderLoginPage({ error: PASSCODE_UNCONFIGURED, slackUrl: auth.loginUrl("/") }), {}, 503);
       }
       try {
@@ -1099,7 +1099,7 @@ function start() {
     log.info("web", "SLACK_CLIENT_ID not set — passcode auth & screenshot serving enabled");
   }
 
-  const port = Number(process.env.PORT) || Number(process.env.RIVET_WEB_PORT) || 4100;
+  const port = Number(process.env.PORT) || Number((process.env.ORRY_WEB_PORT ?? process.env.RIVET_WEB_PORT)) || 4100;
 
   startLogFeed();
   startMetricTicks();

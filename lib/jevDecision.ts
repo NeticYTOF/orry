@@ -140,12 +140,12 @@ const INTENT_CHOICES = {
   direct_program_question:
     "A clear question about the program, its process, policy, grants, shipping, submissions, or participation.",
   addressed_general_request:
-    "Addressed to Rivet but not about the program, e.g. a recipe, a joke, or a general question.",
-  addressed_smalltalk: "The sender directly addresses Rivet for greeting, thanks, or light conversation.",
+    "Addressed to Orry but not about the program, e.g. a recipe, a joke, or a general question.",
+  addressed_smalltalk: "The sender directly addresses Orry for greeting, thanks, or light conversation.",
   ambiguous_followup: "A follow-up whose meaning depends on a clear recent or thread referent.",
-  unrelated_chatter: "A reaction, joke, unrelated chat, or message Rivet should not enter.",
+  unrelated_chatter: "A reaction, joke, unrelated chat, or message Orry should not enter.",
   human_conversation:
-    "Humans talking to each other rather than asking Rivet for help, including a statement that replies to or continues an earlier member message.",
+    "Humans talking to each other rather than asking Orry for help, including a statement that replies to or continues an earlier member message.",
 };
 
 function buildJevQuestions() {
@@ -153,11 +153,11 @@ function buildJevQuestions() {
     intent: {
       type: "choice",
       instructions: [
-        "You route messages for Rivet, the support assistant of one Hack Club program (named in state.program). Classify what kind of message this is; never judge whether Rivet knows the answer — later steps check the docs.",
-        "state.channelPosture: 'main' is the program's own community channel (mostly members chatting); 'help' is its support channel; 'dm' is a private message. state.addressed is true when the sender @mentioned or named Rivet.",
+        "You route messages for Orry, the support assistant of one Hack Club program (named in state.program). Classify what kind of message this is; never judge whether Orry knows the answer — later steps check the docs.",
+        "state.channelPosture: 'main' is the program's own community channel (mostly members chatting); 'help' is its support channel; 'dm' is a private message. state.addressed is true when the sender @mentioned or named Orry.",
         "In a main or help channel, a genuine information-seeking question (what / how / when / where / can I / does / is there ...) about how something works, a term, a rule, a deadline, rewards, shipping, submissions, hardware, or participation is a program question EVEN IF you do not recognize the term: unfamiliar nouns in a program channel are almost always program-specific concepts.",
         "Questions one member asks another about their own life or project ('did you finish your game?', 'when did yours arrive?') are human_conversation. Reactions, jokes and banter ('lmao gg', 'that's insane') are unrelated_chatter.",
-        "If addressed and the request is not about the program (a recipe, a joke, general knowledge), choose addressed_general_request; greetings/thanks to Rivet are addressed_smalltalk.",
+        "If addressed and the request is not about the program (a recipe, a joke, general knowledge), choose addressed_general_request; greetings/thanks to Orry are addressed_smalltalk.",
         "A vague follow-up ('how do i do this', 'what about that') is ambiguous_followup; it only deserves engagement when state.conversationContext makes the referent clear.",
         "Read state.conversationContext (the channel's recent messages and any thread) before classifying. A statement or fragment that continues or answers an earlier member message ('it expires tomorrow', 'yeah same', 'mine arrived monday', 'nvm got it') is human_conversation, even when it mentions a program term. A statement is not a program question unless it describes a problem the sender needs help with.",
       ].join(" "),
@@ -166,7 +166,7 @@ function buildJevQuestions() {
     shouldEngage: {
       type: "boolean",
       instructions:
-        "Should Rivet look this up in the program's docs? True for program questions and support requests (including unfamiliar program terms), for any request addressed to Rivet, and for a follow-up whose referent is clear from state.conversationContext. False for banter, reactions, members talking to each other, statements that reply to an earlier member message, and vague follow-ups with no clear referent. Do not consider whether the docs contain the answer.",
+        "Should Orry look this up in the program's docs? True for program questions and support requests (including unfamiliar program terms), for any request addressed to Orry, and for a follow-up whose referent is clear from state.conversationContext. False for banter, reactions, members talking to each other, statements that reply to an earlier member message, and vague follow-ups with no clear referent. Do not consider whether the docs contain the answer.",
       criteria: {
         true: "Program/support question, addressed request, or follow-up with a clear referent.",
         false: "Chatter, human conversation, or a vague follow-up without a referent.",

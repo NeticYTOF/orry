@@ -236,6 +236,34 @@ function createGroundingValidator({ parse = parseGroundingVerdict }: { parse?: (
   };
 }
 
+// A sentence ends at . ! or ? followed by whitespace and a capital letter or digit, with any passage
+// citations that belong to it kept attached. Common abbreviations never end a sentence.
+const SENTENCE_END = /[.!?](?:\s*\[E\d+\])*(?=\s+[A-Z0-9])/g;
+const ABBREVIATION_BEFORE_PERIOD = /(?:^|[^A-Za-z])(?:e\.g|i\.e|vs|etc)$/i;
+
+function splitAnswerSentences(text: unknown): string[] {
+  const sentences: string[] = [];
+  for (const line of String(text || "").split(/\n+/)) {
+    let start = 0;
+    for (const match of line.matchAll(SENTENCE_END)) {
+      const index = match.index ?? 0;
+      if (ABBREVIATION_BEFORE_PERIOD.test(line.slice(0, index))) continue;
+      const end = index + match[0].length;
+      sentences.push(line.slice(start, end));
+      start = end;
+    }
+    sentences.push(line.slice(start));
+  }
+  return sentences.map((sentence) => sentence.trim()).filter(Boolean);
+}
+
+// Hedges such as "Assuming you mean..." frame a question rather than state a document fact.
+const HEDGE_START = /^(?:assuming|if you mean|going by|i['’]m guessing)\b/i;
+
+function isHedgeSentence(sentence: unknown) {
+  return HEDGE_START.test(String(sentence || "").trim());
+}
+
 export = {
   decodeJson,
   parseGroundingVerdict,
@@ -243,4 +271,6 @@ export = {
   validatePassageCitations,
   validatePassageClaims,
   createGroundingValidator,
+  splitAnswerSentences,
+  isHedgeSentence,
 };

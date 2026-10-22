@@ -20,6 +20,7 @@ interface LoadoutProgram {
   helpChannel?: string;
   sources: LoadoutSource[];
   pinnedRules: string[];
+  evidenceBudget?: number;
 }
 
 function loadout(): LoadoutProgram {
@@ -40,6 +41,20 @@ test("every LOADOUT source is a named markdown file inside the repo", () => {
     expect(source.type).toBe("markdown");
     expect(source.url!.startsWith("file://loadout/corpus/")).toBe(true);
   }
+});
+
+test("the Loadout evidence budget covers the whole program corpus", () => {
+  const program = loadout();
+  const corpusBytes = program.sources
+    .filter((s) => (s.url || "").startsWith("file://"))
+    .reduce((sum, s) => sum + fs.statSync(path.join(ROOT, s.url!.replace("file://", ""))).size, 0);
+  expect(program.evidenceBudget ?? 0).toBeGreaterThanOrEqual(corpusBytes);
+});
+
+test("the not-verified page is a source and the pinned rule points at it", () => {
+  const program = loadout();
+  expect(program.sources.some((s) => s.url === "file://loadout/corpus/11-unverified.md")).toBe(true);
+  expect(program.pinnedRules.some((r) => /not verified yet/i.test(r))).toBe(true);
 });
 
 test("the LOADOUT program claims explicit Slack channels", () => {
@@ -64,9 +79,9 @@ test("LOADOUT pins the canonical economy rules that the corpus is graded on", ()
   expect(rules).toContain("Research Mode is a modifier");
 });
 
-test("the bot displays as Rivet and signs nothing", () => {
+test("the bot displays as Orry and signs nothing", () => {
   const program = loadout();
-  expect(program.supportName).toBe("Rivet");
+  expect(program.supportName).toBe("Orry");
   expect(program.replySignature || "").toBe("");
 });
 

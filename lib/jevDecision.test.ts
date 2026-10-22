@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
@@ -87,7 +87,7 @@ test("clear program questions engage without retrieved documentation", async () 
 });
 
 test("addressed general requests engage when addressed", async () => {
-  const res = await jev.evaluateSupportDecision(input("rivet, tell me a joke", { addressed: true }), {
+  const res = await jev.evaluateSupportDecision(input("orry, tell me a joke", { addressed: true }), {
     config: CFG,
     evaluateFn: async () => result("addressed_general_request", 0.9),
   });

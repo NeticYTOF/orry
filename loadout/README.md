@@ -1,6 +1,6 @@
-# Rivet × LOADOUT
+# Orry × LOADOUT
 
-Rivet is configured here as the helper bot for **LOADOUT**, the YSWS where every project levels you up as a builder. Everything a builder asks in `#loadout` is answered from `corpus/`, so Rivet stays grounded in the actual program rules instead of improvising.
+Orry is configured here as the helper bot for **LOADOUT**, the YSWS where every project levels you up as a builder. Everything a builder asks in `#loadout` is answered from `corpus/`, so Orry stays grounded in the actual program rules instead of improvising.
 
 ## What is in here
 
@@ -17,13 +17,13 @@ Rivet is configured here as the helper bot for **LOADOUT**, the YSWS where every
 ## Wire it up
 
 `program.json` is a **single program object**, so wrap it depending on how you supply it.
-`RIVET_PROGRAMS_JSON` accepts only an array or `{ "programs": [...] }` — handing it the bare
+`ORRY_PROGRAMS_JSON` accepts only an array or `{ "programs": [...] }` — handing it the bare
 object logs a warning and silently falls back to files, so the program never loads.
 
 **Option A — env var.** Wrap the contents in an array:
 
 ```powershell
-$env:RIVET_PROGRAMS_JSON = "[" + (Get-Content .\loadout\program.json -Raw) + "]"
+$env:ORRY_PROGRAMS_JSON = "[" + (Get-Content .\loadout\program.json -Raw) + "]"
 bun index.ts --doctor   # confirms the program and all 7 sources resolved
 bun index.ts
 ```
@@ -41,15 +41,15 @@ If your channel has a different ID, update both values in the program and env.
 For additional program channels, use:
 
 ```
-/rivet-program channels add C0000000000,C1111111111
+/orry-program channels add C0000000000,C1111111111
 ```
 
-`program.json` ships with `"scope": "program"`; Rivet ignores channels the
+`program.json` ships with `"scope": "program"`; Orry ignores channels the
 program has not claimed.
 
 ## Ground rules the bot enforces
 
-`pinnedRules` in `program.json` plus `requireGroundedAnswer` are what stop Rivet from confidently getting LOADOUT wrong. The load-bearing ones:
+`pinnedRules` in `program.json` plus `requireGroundedAnswer` are what stop Orry from confidently getting LOADOUT wrong. The load-bearing ones:
 
 - Bolts are the global spendable currency; Track XP is separate, non-spendable, and permanent.
 - Four tracks: Tools, Systems, Compute, Hardware. Research Mode is a modifier, not a track.
@@ -64,11 +64,11 @@ Because `requireGroundedAnswer` is on, a question the corpus does not cover prod
 Edit the markdown, then force a refresh:
 
 ```
-/rivet-sources
-/rivet-reload
+/orry-sources
+/orry-reload
 ```
 
-Rivet re-reads `file://` sources from disk, so no restart is needed. Any change to the economy numbers is a maintainer decision — do not edit the economy numbers without the maintainers confirming them first.
+Orry re-reads `file://` sources from disk, so no restart is needed. Any change to the economy numbers is a maintainer decision — do not edit the economy numbers without the maintainers confirming them first.
 
 ## Canonical source
 

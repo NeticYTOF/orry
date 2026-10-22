@@ -11,7 +11,7 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_CONTENT_LENGTH = 2 * 1024 * 1024;
 const MAX_TEXT_BUDGET = 6000;
 
-const FETCH_USER_AGENT = "RivetBot/1.0";
+const FETCH_USER_AGENT = "OrryBot/1.0";
 const FETCH_ACCEPT = "text/html,application/xhtml+xml,text/plain,application/json;q=0.9";
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -19,7 +19,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 function blocked() {
   return {
     blocked: true,
-    reason: "rivet can only open public URLs — localhost on your machine isn't reachable from the bot",
+    reason: "orry can only open public URLs — localhost on your machine isn't reachable from the bot",
   };
 }
 

@@ -66,7 +66,7 @@ interface MacroTrigger {
 }
 interface ThreadCrowd {
   othersPresent: boolean;
-  rivetIn: boolean;
+  orryIn: boolean;
 }
 interface HandlerDb {
   claimMessage(ts: string, channel?: string | null): boolean;
@@ -196,13 +196,12 @@ function escapeRegex(value: string): string {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function mentionsRivetByName(text: string): boolean {
-  const customNames = (process.env.RIVET_BOT_ALIASES || "")
+function mentionsOrryByName(text: string): boolean {
+  const customNames = ((process.env.ORRY_BOT_ALIASES ?? process.env.RIVET_BOT_ALIASES) || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const legacyName = brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [];
-  const names = [...new Set([brand.name(), brand.slug(), ...legacyName, ...customNames])];
+  const names = [...new Set([brand.name(), brand.slug(), ...customNames])];
   const pattern = require("./eligibility").botNamePattern(names);
   return new RegExp(`\\b(?:${pattern})\\w*\\b`, "i").test(text || "");
 }
@@ -233,7 +232,7 @@ function sumPattern(mentionOnly = false): RegExp {
   return new RegExp(`^\\s*(?:${base})\\b`, "i");
 }
 
-function mentionsRivetDirectly(text: string): boolean {
+function mentionsOrryDirectly(text: string): boolean {
   return require("./eligibility").directMention(text, config.slack.botUserId);
 }
 
@@ -291,11 +290,11 @@ async function handleImage({ event, client, imageFile, program = null }: ImageAr
       context.getThreadContext(threadTs),
       config.slack.botToken,
       docs,
-      Boolean(program?.requireGroundedAnswer || process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1"),
+      Boolean(program?.requireGroundedAnswer || (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1"),
     );
 
     const requiresGrounding = Boolean(
-      program?.requireGroundedAnswer || process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1",
+      program?.requireGroundedAnswer || (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1",
     );
     const groundedReply = reply && requiresGrounding ? vision.groundedImageReply(reply, question, docs) : reply;
     if (reply && requiresGrounding && !groundedReply) {
@@ -341,7 +340,7 @@ async function untaggedThreadTurn({ event, client }: HandlerArgs): Promise<strin
     parentUserId: event.parent_user_id || null,
   });
   if (crowd.othersPresent) return "humans_talking";
-  return crowd.rivetIn ? "addressed" : "ambient";
+  return crowd.orryIn ? "addressed" : "ambient";
 }
 
 function stayOutOfHumanThread({
@@ -355,15 +354,39 @@ function stayOutOfHumanThread({
   question: string;
   prog: Program;
 }): void {
-  log.debug("intent", "skipping thread reply — other people are talking and nobody called rivet");
+  log.debug("intent", "skipping thread reply — other people are talking and nobody called orry");
   context.addToThread(threadTs, "user", question, event.user, event.channel);
   db.recordMetric("silent", null, "thread_humans_talking", prog.id);
 }
 
-const HUMAN_ONLY_REPLY =
-  "That one needs a person to decide, so I won't guess. A helper or organizer can sort it out :oke:";
-const HUMAN_ONLY_PINGED_REPLY =
-  "That one needs a person to decide, so I won't guess. I've asked a helper to take a look :oke:";
+// Self-harm gets a supportive in-thread reply, never the generic refusal line.
+// It is sent whether or not the bot was addressed: a person in distress always gets a reply.
+async function postCrisisReply({
+  client,
+  prog,
+  event,
+  threadTs,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+}): Promise<void> {
+  const text = require("./crisisReply").buildCrisisReply(prog.crisisResources);
+  try {
+    await require("./slackMessages").sendProgramMessage({
+      client,
+      program: prog,
+      channel: event.channel,
+      threadTs,
+      text: replyText.plainDashes(text),
+    });
+    context.addToThread(threadTs, "assistant", text, null, event.channel);
+    db.recordMetric("fallback", null, "self_harm_crisis_reply", prog.id);
+  } catch (e: unknown) {
+    log.warn("handlers", `crisis reply failed: ${errorMessage(e)}`);
+  }
+}
 
 async function escalateSensitive({
   event,
@@ -402,8 +425,11 @@ async function escalateSensitive({
   } catch (e: unknown) {
     log.warn("handlers", `sensitive escalation ticket failed: ${errorMessage(e)}`);
   }
+  const elig = require("./eligibility");
+  const selfHarm = elig.selfHarmHit(question) || elig.selfHarmHit(event.text || "");
   if (ticket) {
-    db.recordMetric("silent", null, "eligibility:sensitive_escalation", prog.id);
+    if (selfHarm) await postCrisisReply({ client, prog, event, threadTs });
+    db.recordMetric("silent", null, `eligibility:${selfHarm ? elig.SELF_HARM : "sensitive_escalation"}`, prog.id);
     return;
   }
   let helper = null;
@@ -420,11 +446,19 @@ async function escalateSensitive({
   } catch (e: unknown) {
     log.warn("handlers", `sensitive escalation helper ping failed: ${errorMessage(e)}`);
   }
+  if (selfHarm) {
+    await postCrisisReply({ client, prog, event, threadTs });
+    return;
+  }
   if (!addressed) {
     db.recordMetric("silent", null, "eligibility:sensitive_escalation", prog.id);
     return;
   }
-  const text = helper ? HUMAN_ONLY_PINGED_REPLY : HUMAN_ONLY_REPLY;
+  const refusal = require("./refusalReply");
+  const reason = refusal.refusalReason(question);
+  const text = helper
+    ? refusal.pingedRefusalText(reason, { program: prog })
+    : refusal.refusalText(reason, { program: prog });
   await require("./slackMessages").sendProgramMessage({
     client,
     program: prog,
@@ -438,7 +472,7 @@ async function escalateSensitive({
 
 function threadRequiresMention(prog: Program | null): boolean {
   return (
-    process.env.RIVET_THREAD_REQUIRE_MENTION === "1" ||
+    (process.env.ORRY_THREAD_REQUIRE_MENTION ?? process.env.RIVET_THREAD_REQUIRE_MENTION) === "1" ||
     Boolean((prog as (Program & { threadRequireMention?: boolean }) | null)?.threadRequireMention)
   );
 }
@@ -446,9 +480,9 @@ function threadRequiresMention(prog: Program | null): boolean {
 function shouldConsiderThreadReply(event: HandlerEvent, prog: Program | null = null): boolean {
   if (!event.thread_ts || event.thread_ts === event.ts) return true;
   if (db.isThreadMuted(event.thread_ts)) {
-    return mentionsRivetDirectly(event.text);
+    return mentionsOrryDirectly(event.text);
   }
-  if (mentionsRivetByName(event.text) || mentionsRivetDirectly(event.text)) return true;
+  if (mentionsOrryByName(event.text) || mentionsOrryDirectly(event.text)) return true;
   if (threadRequiresMention(prog)) return false;
   return context.hasSpokenInThread(event.thread_ts);
 }
@@ -477,11 +511,11 @@ function checkEligibility({
   } catch (e: unknown) {
     log.debug("handlers", `ticket lookup in eligibility: ${errorMessage(e)}`);
   }
-  const decision = elig.shouldRivetRespond({
+  const decision = elig.shouldOrryRespond({
     text: question,
     userId: event.user,
     botUserId: config.slack.botUserId,
-    botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
+    botNames: [brand.name(), brand.slug()],
     isHelpChannel: channelPolicy.resolve(event.channel, workspaceId).role === "help",
     isTopLevel,
     isDM: isDm,
@@ -491,7 +525,7 @@ function checkEligibility({
       ? {
           muted: db.isThreadMuted(event.thread_ts),
           takeover: db.isTakeover(event.thread_ts),
-          rivetSpoke: context.hasSpokenInThread(event.thread_ts),
+          orrySpoke: context.hasSpokenInThread(event.thread_ts),
           ticketOpen,
         }
       : null,
@@ -544,7 +578,7 @@ async function refuseUnauthorizedCommand({
   const commandRegistry = require("./commandRegistry");
   const hit = commandRegistry.match(question, {
     botUserId: config.slack.botUserId,
-    botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
+    botNames: [brand.name(), brand.slug()],
   });
   if (!hit) return false;
   const verdict = commandRegistry.authorize(hit.command, {
@@ -873,8 +907,8 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   const threadTs = event.thread_ts || event.ts;
   const question = (event.text || "").trim();
   const isDm = isDirectMessage(event);
-  const named = mentionsRivetByName(question);
-  const pinged = mentionsRivetDirectly(question);
+  const named = mentionsOrryByName(question);
+  const pinged = mentionsOrryDirectly(question);
 
   const workspaceId = workspace.workspaceOf(event, body);
   if (await handleMacroTrigger({ event, client, workspaceId })) return;
@@ -1119,7 +1153,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
     }
 
     if (!shouldConsiderThreadReply(event, prog)) {
-      log.debug("intent", "skipping thread reply — rivet not in this thread / not addressed");
+      log.debug("intent", "skipping thread reply — orry not in this thread / not addressed");
       return;
     }
 
@@ -1132,7 +1166,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
 
     const turn = event.thread_ts ? await untaggedThreadTurn({ event, client }) : "ambient";
     if (turn === "humans_talking") return stayOutOfHumanThread({ event, threadTs, question, prog });
-    const toRivet = turn === "addressed";
+    const toOrry = turn === "addressed";
     if (!db.claimMessage(event.ts, event.channel)) return;
     await respond.respond({
       workspaceId,
@@ -1142,9 +1176,9 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
       userId: event.user,
       question,
       messageTs: event.ts,
-      mode: toRivet ? respond.ALWAYS : respond.HELP_ONLY,
-      addressed: toRivet,
-      addressedHow: toRivet ? "thread" : undefined,
+      mode: toOrry ? respond.ALWAYS : respond.HELP_ONLY,
+      addressed: toOrry,
+      addressedHow: toOrry ? "thread" : undefined,
       seedClient: client,
     });
     return;
@@ -1154,7 +1188,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
 
   if (event.thread_ts && !named) {
     if (!shouldConsiderThreadReply(event, prog)) {
-      log.debug("intent", "skipping help thread reply — rivet not in this thread / not addressed");
+      log.debug("intent", "skipping help thread reply — orry not in this thread / not addressed");
       return;
     }
 
@@ -1167,7 +1201,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
 
     const turn = await untaggedThreadTurn({ event, client });
     if (turn === "humans_talking") return stayOutOfHumanThread({ event, threadTs, question, prog });
-    const toRivet = turn === "addressed";
+    const toOrry = turn === "addressed";
     if (!db.claimMessage(event.ts, event.channel)) return;
     await respond.respond({
       workspaceId,
@@ -1177,10 +1211,10 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
       userId: event.user,
       question,
       messageTs: event.ts,
-      mode: toRivet ? respond.ALWAYS : respond.HELP_ONLY,
+      mode: toOrry ? respond.ALWAYS : respond.HELP_ONLY,
       seedClient: client,
-      addressed: toRivet,
-      addressedHow: toRivet ? "thread" : undefined,
+      addressed: toOrry,
+      addressedHow: toOrry ? "thread" : undefined,
     });
     return;
   }
@@ -1237,11 +1271,11 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
   if (event.thread_ts && (db.isThreadMuted(event.thread_ts) || db.isTakeover(event.thread_ts))) {
     if (db.wasAnswered(event.ts)) return;
     const elig = require("./eligibility");
-    const verdict = elig.shouldRivetRespond({
+    const verdict = elig.shouldOrryRespond({
       text: event.text,
       userId: event.user,
       botUserId: config.slack.botUserId,
-      botNames: [brand.name(), brand.slug(), ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : [])],
+      botNames: [brand.name(), brand.slug()],
       isHelpChannel: policy.role === "help",
       isTopLevel: false,
       posture: prog.posture,
@@ -1249,7 +1283,7 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
       thread: {
         muted: db.isThreadMuted(event.thread_ts),
         takeover: db.isTakeover(event.thread_ts),
-        rivetSpoke: context.hasSpokenInThread(event.thread_ts),
+        orrySpoke: context.hasSpokenInThread(event.thread_ts),
         ticketOpen: false,
       },
     });
@@ -1323,8 +1357,8 @@ export = {
   onReactionAdded: reactionHandlers.onReactionAdded,
   onReactionRemoved: reactionHandlers.onReactionRemoved,
   shouldConsiderThreadReply,
-  mentionsRivetByName,
-  mentionsRivetDirectly,
+  mentionsOrryByName,
+  mentionsOrryDirectly,
   stripBotMention,
   findImage,
   handleImage,

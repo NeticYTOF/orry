@@ -1,11 +1,11 @@
-# Orry the ore Maulwürf — Rivet handoff
+# Orry the ore Maulwürf — handoff
 
 Everything another agent needs to pick this repo up cold. For rules and
 architecture, read `AGENTS.md` first; this file is state, not policy.
 
 ## Where things stand
 
-Orry the ore Maulwürf is the public identity of Rivet, a Slack help-channel
+Orry the ore Maulwürf is a Slack help-channel
 bot (Bun + TS, Socket Mode) serving **Loadout**, a Hack Club YSWS. It answers
 from a program documentation corpus, escalates what it can't answer to human
 helpers, and learns from resolutions.
@@ -37,11 +37,11 @@ apply the new manifest or update the Slack bot profile.
   `SLACK_BOT_TOKEN` (`xoxb-`, Hack Club workspace, Slack profile still named
   `rivet` until its admin applies the new name),
   `SLACK_APP_TOKEN` (`xapp-`, `connections:write`), `SLACK_CLIENT_ID` /
-  `SLACK_CLIENT_SECRET` (dashboard OpenID only), `RIVET_DASHBOARD_PASSCODE`,
-  `RIVET_ANSWER_API_KEY` / `RIVET_ANSWER_BASE_URL` / `RIVET_MODEL` (route the
+  `SLACK_CLIENT_SECRET` (dashboard OpenID only), `ORRY_DASHBOARD_PASSCODE`,
+  `ORRY_ANSWER_API_KEY` / `ORRY_ANSWER_BASE_URL` / `ORRY_MODEL` (route the
   hardwired 9Router help/ping tiers through HCAI), `INTENT_CLASSIFIER_*`
   (base URL, key, `openai/gpt-4.1-nano`; `INTENT_TIMEOUT_MS=45000`),
-  `RIVET_REPORT_CHANNEL` (weekly report target), `VEY_ENABLED=0`
+  `ORRY_REPORT_CHANNEL` (weekly report target), `VEY_ENABLED=0`
   (sidecar stopped; see below).
 - `config/` — **gitignored** live deployment: `programs.json` with the real
   channel ids (`C0C5XUDMRH9` #loadout, `C0C6XBLM0M7` #loadout-help,
@@ -58,7 +58,7 @@ vs Track XP (per-track, permanent). Four tracks **Tools/Systems/Compute/
 Hardware**, LV.15 cap, Research Mode is a modifier. Requisitions
 LV.3/6/9/12/15. Custom tiers FIELD/POWER/ROOT/BARE METAL. AI cap 40%.
 Quality: Originality/Technical Depth/Execution/Documentation. **Jerry leads;
-Fazin/Wind and Netic co-organize; Netic built Rivet.**
+Fazin/Wind and Netic co-organize; Netic built Orry.**
 Program repo `jeremy341/loadout`, bot repo `NeticYTOF/orry`.
 Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 `lib/loadoutProgram.test.ts` fails the build on drift.
@@ -70,8 +70,7 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
   and state unresolved parts. Follow-up retrieval uses thread context while
   checking coverage against the current question; clarification keeps the
   requester's reply.
-- Voice/branding: public name is **Orry the ore Maulwürf**, prefix `/orry`;
-  legacy “Rivet” remains a spoken alias. Gentle German slang and mine-mole
+- Voice/branding: public name is **Orry the ore Maulwürf**, prefix `/orry`. Gentle German slang and mine-mole
   humor are prompt-guided; no profanity/controversy rule is deterministic.
   Generated Slack manifest has the new name, but the installed Slack profile
   still needs an admin update (`users.profile.set` returned `not_admin`).
@@ -88,7 +87,7 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 - Hardening: dashboard passcode fail-closed, dev bypass needs
   `NODE_ENV=development`, `Secure` cookies off loopback.
 - Reliability: `timeoutFetch` deadline race, 120s per-file test timeout,
-  failure-cached `conversations.list`, `RIVET_SKIP_DOTENV` for tests.
+  failure-cached `conversations.list`, `ORRY_SKIP_DOTENV` for tests.
 - `--ask --program <id>` (was shared-corpus-only), `--doctor` with role
   validation, `slack-bootstrap.mjs`, smoke check [4/4], CI covers wizard
   via `run-tests.mjs --wizard` (never bare `bun test`).

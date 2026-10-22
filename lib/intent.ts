@@ -16,19 +16,19 @@ const recentUserMessages = db.recentUserMessages as (
 
 interface ContextMessageInput {
   text: string;
-  isRivet?: boolean;
+  isOrry?: boolean;
   userId?: string;
   speaker?: string;
 }
 interface ContextItem {
   text: string;
-  speaker: "human" | "rivet";
+  speaker: "human" | "orry";
 }
 interface ContextResult {
   verdict: string;
-  addressedToRivet: boolean;
+  addressedToOrry: boolean;
   directedAtHuman: boolean;
-  recentRivetParticipation: boolean;
+  recentOrryParticipation: boolean;
   programRelevance: string;
   [key: string]: unknown;
 }
@@ -79,7 +79,7 @@ function intentSystemPrompt(
   const scopeRule = scoped
     ? `
 
-There is a third verdict here, because this channel only wants ${name} answers from rivet.
+There is a third verdict here, because this channel only wants ${name} answers from Orry.
 
 Answer OFF_TOPIC when someone genuinely needs help, but with something completely unrelated to ${name} or building projects for it — school homework, unrelated maths, relationship or life advice, an unrelated company, or another Hack Club program. Real question, wrong bot. A human in the channel will take it.
 
@@ -94,7 +94,7 @@ If you cannot tell whether a question is about ${name} or not, answer OFF_TOPIC.
 
 Output contract: emit ONLY the JSON object, with no prose, no markdown fence, and no field omitted. Use the shortest true value for every field — booleans rather than explanations, single words rather than phrases. Never restate the question or justify a choice.
 
-You are the gate for rivet, a Slack bot in the ${name} channels at Hack Club. Rivet replies only when someone is actually asking a question or genuinely waiting for help with their project/code/setup, and stays completely silent otherwise.
+You are the gate for orry, a Slack bot in the ${name} channels at Hack Club. Orry replies only when someone is actually asking a question or genuinely waiting for help with their project/code/setup, and stays completely silent otherwise.
 
 You are shown the last few messages from one person, then the ONE message you have to judge. The earlier messages are context only — never judge them. Judge the final message.
 
@@ -122,9 +122,9 @@ Answer CASUAL_CHAT when:
 When someone is merely venting or complaining about something failing (like a random download or third-party tool) without asking how to fix it or asking for help, classify as CASUAL_CHAT.${scopeRule}
 
 Return exactly one JSON object with exactly these keys and no markdown:
-{"verdict":"${scoped ? "HELP_NEEDED|CASUAL_CHAT|OFF_TOPIC" : "HELP_NEEDED|CASUAL_CHAT"}","addressedToRivet":true,"directedAtHuman":false,"recentRivetParticipation":false,"programRelevance":"relevant|unrelated|unclear"}
+{"verdict":"${scoped ? "HELP_NEEDED|CASUAL_CHAT|OFF_TOPIC" : "HELP_NEEDED|CASUAL_CHAT"}","addressedToOrry":true,"directedAtHuman":false,"recentOrryParticipation":false,"programRelevance":"relevant|unrelated|unclear"}
 
-Context may contain several speakers. Never attribute a human's words to Rivet, and never use a human-to-human request as evidence that Rivet was asked. Set directedAtHuman true only when the current message is semantically asking another person for their personal experience or response. A factual program question that mentions a person as evidence is not directedAtHuman. Direct Rivet targeting is strong evidence for HELP_NEEDED; recent Rivet participation is context, not a request by itself. If context is ambiguous or malformed, choose CASUAL_CHAT and programRelevance "unclear".
+Context may contain several speakers. Never attribute a human's words to Orry, and never use a human-to-human request as evidence that Orry was asked. Set directedAtHuman true only when the current message is semantically asking another person for their personal experience or response. A factual program question that mentions a person as evidence is not directedAtHuman. Direct Orry targeting is strong evidence for HELP_NEEDED; recent Orry participation is context, not a request by itself. If context is ambiguous or malformed, choose CASUAL_CHAT and programRelevance "unclear".
 
 When you genuinely cannot tell, choose CASUAL_CHAT. A missed question costs nothing — a human answers it. A reply nobody asked for is noise in the channel.`;
 }
@@ -134,7 +134,7 @@ function contextMessage(message: unknown): ContextItem | null {
   if (!message || typeof message !== "object") return null;
   const value = message as ContextMessageInput;
   if (typeof value.text !== "string" || !value.text.trim()) return null;
-  const speaker = value.isRivet || value.userId === "rivet" || value.speaker === "rivet" ? "rivet" : "human";
+  const speaker = value.isOrry || value.userId === "orry" || value.speaker === "orry" ? "orry" : "human";
   return { text: value.text.trim().slice(0, CONTEXT_TEXT_LIMIT), speaker };
 }
 
@@ -203,10 +203,10 @@ function parseContextResult(text: unknown, { scoped = false }: { scoped?: boolea
     return null;
   }
   const expected = [
-    "addressedToRivet",
+    "addressedToOrry",
     "directedAtHuman",
     "programRelevance",
-    "recentRivetParticipation",
+    "recentOrryParticipation",
     "verdict",
   ].sort();
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -217,9 +217,9 @@ function parseContextResult(text: unknown, { scoped = false }: { scoped?: boolea
   if (
     typeof record.verdict !== "string" ||
     !verdicts.includes(record.verdict) ||
-    typeof record.addressedToRivet !== "boolean" ||
+    typeof record.addressedToOrry !== "boolean" ||
     typeof record.directedAtHuman !== "boolean" ||
-    typeof record.recentRivetParticipation !== "boolean" ||
+    typeof record.recentOrryParticipation !== "boolean" ||
     typeof record.programRelevance !== "string" ||
     !PROGRAM_RELEVANCE.has(record.programRelevance)
   )
@@ -230,16 +230,16 @@ function parseContextResult(text: unknown, { scoped = false }: { scoped?: boolea
 function enrichContextResult(
   result: ContextResult | null,
   { addressed = false }: { addressed?: boolean } = {},
-): (ContextResult & { directedAtRivet: boolean; needsHelp: boolean; shouldAttemptAnswer: boolean }) | null {
+): (ContextResult & { directedAtOrry: boolean; needsHelp: boolean; shouldAttemptAnswer: boolean }) | null {
   if (!result) return null;
-  const directedAtRivet = addressed || result.addressedToRivet === true;
+  const directedAtOrry = addressed || result.addressedToOrry === true;
   const directedAtHuman = result.directedAtHuman === true;
   return {
     ...result,
-    directedAtRivet,
+    directedAtOrry,
     directedAtHuman,
     needsHelp: result.verdict === HELP_NEEDED,
-    shouldAttemptAnswer: !directedAtHuman && (result.verdict === HELP_NEEDED || directedAtRivet),
+    shouldAttemptAnswer: !directedAtHuman && (result.verdict === HELP_NEEDED || directedAtOrry),
   };
 }
 
@@ -252,9 +252,9 @@ function normalizeIntentResult(
     return enrichContextResult(
       {
         verdict: result,
-        addressedToRivet: addressed,
+        addressedToOrry: addressed,
         directedAtHuman: false,
-        recentRivetParticipation: false,
+        recentOrryParticipation: false,
         programRelevance: "unclear",
       },
       { addressed },

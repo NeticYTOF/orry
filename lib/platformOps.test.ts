@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface AnalyticsDay {
   date: string;
@@ -430,7 +430,7 @@ test("analytics/SLA/retention-preview shapes are counts, never secrets", () => {
   for (const blob of [JSON.stringify(a), JSON.stringify(s), JSON.stringify(p)]) {
     assert.equal(/xoxb-/.test(blob), false);
     assert.equal(/"secret"\s*:/i.test(blob), false);
-    assert.equal(/RIVET_INTERNAL_TOKEN/.test(blob), false);
+    assert.equal(/ORRY_INTERNAL_TOKEN/.test(blob), false);
   }
 });
 

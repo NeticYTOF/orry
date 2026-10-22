@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -32,8 +32,8 @@ test("macro selector routes require actorId and authorize the program helper", a
 
   const serve = require("./web/serve");
   const token = "review-auth-token";
-  const previousToken = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = token;
+  const previousToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = token;
   try {
     const headers = { Authorization: `Bearer ${token}` };
     const waiting = await serve.handleRequest(
@@ -56,8 +56,8 @@ test("macro selector routes require actorId and authorize the program helper", a
     );
     assert.equal(unauthTemplates.status, 403);
   } finally {
-    if (previousToken === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = previousToken;
+    if (previousToken === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = previousToken;
   }
 });
 

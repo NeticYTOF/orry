@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -214,7 +214,7 @@ test("every registered command has its ephemeral replies de-dashed", async () =>
   assert.ok(Object.keys(registered).length > 0, "register() bound no commands");
 });
 
-test("/rivet help returns the actor's filtered runtime command list", async () => {
+test("/orry help returns the actor's filtered runtime command list", async () => {
   const responses: any[] = [];
   await commands.askCommand({
     command: { text: "help", user_id: "U0RANDOM", channel_id: "C1" },
@@ -260,7 +260,7 @@ test("REGISTRY: slash defs, CAPABILITIES, and Bolt bindings cover each other", (
   }
 });
 
-test("/rivet ask parity — docs hit answers ephemerally, miss chats, error falls back", async () => {
+test("/orry ask parity — docs hit answers ephemerally, miss chats, error falls back", async () => {
   const respond = require("./respond");
   const chat = require("./chat");
   const sent: any[] = [];
@@ -303,7 +303,7 @@ test("/rivet ask parity — docs hit answers ephemerally, miss chats, error fall
     respond.lookupAnswer = async () => null;
     chat.getChatReply = async () => "chat reply here";
     await commands.askCommand({
-      command: { text: "hey rivet", user_id: "U1", channel_id: "C1" },
+      command: { text: "hey orry", user_id: "U1", channel_id: "C1" },
       ack: async () => {},
       respond: sendEphemeral,
     });
@@ -326,17 +326,17 @@ test("/rivet ask parity — docs hit answers ephemerally, miss chats, error fall
   }
 });
 
-test("/rivet ask uses the resolved program in an allowed general fallback", async () => {
+test("/orry ask uses the resolved program in an allowed general fallback", async () => {
   const respond = require("./respond");
   const chat = require("./chat");
   const channelPolicy = require("./channelPolicy");
   const originalLookup = respond.lookupAnswer;
   const originalChat = chat.getChatReply;
   const originalResolve = channelPolicy.resolve;
-  const savedGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+  const savedGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
   const sent: any[] = [];
   let fallbackContext = "";
-  delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+  delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
   channelPolicy.resolve = () => ({
     role: "main",
     program: { id: "grounded", name: "Grounded", requireGroundedAnswer: false },
@@ -357,14 +357,14 @@ test("/rivet ask uses the resolved program in an allowed general fallback", asyn
     respond.lookupAnswer = originalLookup;
     chat.getChatReply = originalChat;
     channelPolicy.resolve = originalResolve;
-    if (savedGrounded === undefined) delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
-    else process.env.RIVET_REQUIRE_GROUNDED_ANSWER = savedGrounded;
+    if (savedGrounded === undefined) delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
+    else process.env.ORRY_REQUIRE_GROUNDED_ANSWER = savedGrounded;
   }
   assert.match(fallbackContext, /Grounded program/);
   assert.equal(sent[0].text, "fallback");
 });
 
-test("/rivet ask help resolves a program with the workspace identity", async () => {
+test("/orry ask help resolves a program with the workspace identity", async () => {
   const programs = require("./programs");
   const originalForChannel = programs.forChannel;
   const calls: Array<{ channel: string; workspaceId?: string | null }> = [];
@@ -386,14 +386,14 @@ test("/rivet ask help resolves a program with the workspace identity", async () 
   assert.equal(sent.length, 1);
 });
 
-test("/rivet ask skips cache and blocks general chat when grounded lookup has no answer", async () => {
+test("/orry ask skips cache and blocks general chat when grounded lookup has no answer", async () => {
   const respond = require("./respond");
   const chat = require("./chat");
   const channelPolicy = require("./channelPolicy");
   const originalLookup = respond.lookupAnswer;
   const originalChat = chat.getChatReply;
   const originalResolve = channelPolicy.resolve;
-  const savedGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+  const savedGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
   const sent: any[] = [];
   const lookupOptions: any[] = [];
   let generalChatCalls = 0;
@@ -412,8 +412,8 @@ test("/rivet ask skips cache and blocks general chat when grounded lookup has no
   };
   try {
     for (const [index, globalOnly] of [false, true].entries()) {
-      if (globalOnly) process.env.RIVET_REQUIRE_GROUNDED_ANSWER = "1";
-      else delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+      if (globalOnly) process.env.ORRY_REQUIRE_GROUNDED_ANSWER = "1";
+      else delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
       await commands.askCommand({
         command: { text: "when is the deadline?", user_id: "U1", channel_id: `C-GROUNDED-${index}` },
         ack: async () => {},
@@ -424,8 +424,8 @@ test("/rivet ask skips cache and blocks general chat when grounded lookup has no
     respond.lookupAnswer = originalLookup;
     chat.getChatReply = originalChat;
     channelPolicy.resolve = originalResolve;
-    if (savedGrounded === undefined) delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
-    else process.env.RIVET_REQUIRE_GROUNDED_ANSWER = savedGrounded;
+    if (savedGrounded === undefined) delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
+    else process.env.ORRY_REQUIRE_GROUNDED_ANSWER = savedGrounded;
   }
   assert.equal(lookupOptions.length, 2);
   assert.deepEqual(
@@ -439,7 +439,7 @@ test("/rivet ask skips cache and blocks general chat when grounded lookup has no
   );
 });
 
-test("/rivet-check dispatches to the deterministic path", async () => {
+test("/orry-check dispatches to the deterministic path", async () => {
   const validator = require("./validator");
   const respond = require("./respond");
   const sent: any[] = [];

@@ -107,8 +107,8 @@ function providerOf() {
 
 function buildVeyQuestion(): string {
   return (
-    "Classify what kind of message this is for Rivet, the support assistant of one Hack Club program. " +
-    "Choose exactly one candidate that best describes it; never judge whether Rivet can answer it. " +
+    "Classify what kind of message this is for Orry, the support assistant of one Hack Club program. " +
+    "Choose exactly one candidate that best describes it; never judge whether Orry can answer it. " +
     jevDecision.buildJevQuestions().intent.instructions
   );
 }

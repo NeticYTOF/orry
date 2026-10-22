@@ -127,7 +127,7 @@ function slackRole(message: Row, ticket: Row, helperReplies: Map<string, Row>): 
   const override = helperReplies.get(String(message.ts || ""));
   if (override) return override;
   const botId = config?.slack?.botUserId;
-  if (message.bot_id || (botId && message.user === botId)) return { role: "rivet", userId: message.user || botId };
+  if (message.bot_id || (botId && message.user === botId)) return { role: "orry", userId: message.user || botId };
   if (message.user === ticket.requester_id) return { role: "requester", userId: message.user };
   if (message.user && db.isHelper(ticket.program_id, message.user)) return { role: "helper", userId: message.user };
   return { role: "other", userId: message.user || null };
@@ -176,7 +176,7 @@ function fallbackTranscript(ticket: Row): TranscriptRow[] {
   }
   try {
     const context = require("./context").getThreadMessages(ticket.thread_ts, 40);
-    for (const row of context) rows.push({ role: row.speaker === "rivet" ? "rivet" : "requester", text: row.text });
+    for (const row of context) rows.push({ role: row.speaker === "orry" ? "orry" : "requester", text: row.text });
   } catch (_) {}
   return rows;
 }
@@ -219,11 +219,11 @@ function recordJudgement(ticket: Row, messageKey: string, decision: JudgeResult)
 }
 
 function hasAnswer(transcript: TranscriptRow[]): boolean {
-  let rivetAnswered = false;
+  let orryAnswered = false;
   for (const message of transcript) {
     if (message.role === "helper") return true;
-    if (message.role === "rivet") rivetAnswered = true;
-    if (rivetAnswered && message.role === "requester") return true;
+    if (message.role === "orry") orryAnswered = true;
+    if (orryAnswered && message.role === "requester") return true;
   }
   return false;
 }
@@ -266,7 +266,7 @@ async function judgeTicketOnce(
     programId: ticket.program_id,
     requesterId: ticket.requester_id,
     threadTs: ticket.thread_ts,
-    rows: transcript.map((row) => ({ ts: row.ts, userId: row.userId, isBot: row.role === "rivet" })),
+    rows: transcript.map((row) => ({ ts: row.ts, userId: row.userId, isBot: row.role === "orry" })),
     now,
   });
   if (helperLast) {

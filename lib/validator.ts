@@ -93,7 +93,7 @@ async function resolveDefaultBranch(owner: string, repo: string): Promise<string
 
   const lookup = (async () => {
     const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
-    const token = process.env.RIVET_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+    const token = (process.env.ORRY_GITHUB_TOKEN ?? process.env.RIVET_GITHUB_TOKEN) || process.env.GITHUB_TOKEN;
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await axios.get(`https://api.github.com/repos/${owner}/${repo}`, { timeout: 8000, headers });
     const branch = response.data?.default_branch;

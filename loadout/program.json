@@ -3,7 +3,7 @@
   "name": "Loadout",
   "scope": "program",
   "posture": "active",
-  "supportName": "Rivet",
+  "supportName": "Orry",
   "replySignature": "",
   "aiAnswers": true,
   "ticketsEnabled": true,
@@ -14,18 +14,21 @@
   "ticketVisibility": "public",
   "learning": "active",
   "requireGroundedAnswer": true,
+  "evidenceBudget": 24000,
   "status": "sandbox",
   "pinnedRules": [
     "Bolts are Loadout's global spendable currency. Never call them Cores, XP, or points.",
+    "CLARIFY: \\bpoints?\\b | \\bbolts?\\b|\\btrack\\s*xp\\b | Do you mean Bolts (spendable currency) or Track XP (permanent progress)?",
     "There are four tracks: Tools, Systems, Compute, Hardware. Research Mode is a modifier, not a fifth track.",
     "Each track has 15 lifetime levels and caps at LV.15.",
     "Requisitions are earned at LV.3, LV.6, LV.9, LV.12 and LV.15, are one-use, and never bypass a Custom Order level gate.",
     "Custom Order tiers are FIELD LV.4, POWER LV.8, ROOT LV.12, BARE METAL LV.15.",
     "Track XP is non-spendable and permanent; spending Bolts never lowers a Builder Profile.",
     "Dates, eligibility, inventory, prices, sponsors, and participation numbers are unconfirmed. Never state them as fact.",
+    "In-person (IRL) events, their dates, venue, tickets, and the Eventim route are not verified yet (see 'Not verified yet'). When asked, say it is not verified right now and that Jerry and the team are working on it, in Orry's voice. Never guess the details.",
     "Write the program name as 'Loadout', never 'LOADOUT'. Write 'Hack Club' and 'YSWS' - never 'hack club', 'yswe', or 'YSWSes'. Loadout was built by Netic, Wind, and Jerry, who are also the org behind it. If asked who built it, who the makers are, or who runs it, that is the answer.",
-    "Jerry is the lead org of Loadout. Fazin / Wind is developer and co-organizer. Netic is developer and co-organizer and built Rivet, Loadout's Slack bot.",
-    "The Loadout program repo is https://github.com/jeremy341/loadout and Rivet's own repo is https://github.com/NeticYTOF/orry. Quote them when asked for links."
+    "Jerry is the lead org of Loadout. Fazin / Wind is developer and co-organizer. Netic is developer and co-organizer and built Orry for Loadout.",
+    "The Loadout program repo is https://github.com/jeremy341/loadout and Orry's own repo is https://github.com/NeticYTOF/orry. Quote them when asked for links."
   ],
   "links": {
     "website": "https://loadout-jerry-team1.vercel.app/",
@@ -77,6 +80,11 @@
       "name": "Loadout — Community Eras",
       "type": "markdown",
       "url": "file://loadout/corpus/10-eras.md"
+    },
+    {
+      "name": "Loadout — Not verified yet",
+      "type": "markdown",
+      "url": "file://loadout/corpus/11-unverified.md"
     }
   ],
   "channels": [

@@ -1,5 +1,5 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const fs = require("node:fs");
 const os = require("node:os");
@@ -27,8 +27,8 @@ test("thread messages come back in order and are capped", () => {
   assert.equal(messages.at(-1).content, `msg ${db.MAX_THREAD_MESSAGES + 4}`);
 });
 
-test("touchThread records that rivet spoke without clobbering on later writes", () => {
-  db.touchThread("t2", "C1", { rivetSpoke: true });
+test("touchThread records that orry spoke without clobbering on later writes", () => {
+  db.touchThread("t2", "C1", { orrySpoke: true });
   db.touchThread("t2", "C1", {});
   assert.equal(db.getThread("t2").rivet_spoke, 1);
 });
@@ -114,7 +114,7 @@ test("a refresh updates the answer without counting as an ask", () => {
     { refreshed: true },
   );
 
-  assert.equal(countOf("how do i submit"), before, "a refresh is rivet updating itself, not somebody asking");
+  assert.equal(countOf("how do i submit"), before, "a refresh is orry updating itself, not somebody asking");
   assert.equal(cache.getCachedAnswer("hash-refresh").answer, "new answer");
 });
 
@@ -245,7 +245,7 @@ test("sweep runs without error", () => {
 });
 
 test("answer cache survives a normal reopen and clearCache remains explicit", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rivet-db-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "orry-db-"));
   const filename = path.join(directory, "test.db");
 
   try {
@@ -291,7 +291,7 @@ test("loadSourceText returns null for a source that has never been fetched", () 
 test("topGaps requires at least two distinct askers, not just two asks", () => {
   db.handle().query("DELETE FROM doc_gaps").run();
 
-  for (let i = 0; i < 8; i++) db.recordGap("does rivet have a boyfriend", "U_TROLL", "C1");
+  for (let i = 0; i < 8; i++) db.recordGap("does orry have a boyfriend", "U_TROLL", "C1");
   for (const u of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"]) {
     db.recordGap("how do i submit my project", u, "C1");
   }
@@ -300,7 +300,7 @@ test("topGaps requires at least two distinct askers, not just two asks", () => {
   const questionText = (g: TestAny) => g.question;
 
   assert.ok(
-    !gaps.some((g: TestAny) => questionText(g) === "does rivet have a boyfriend"),
+    !gaps.some((g: TestAny) => questionText(g) === "does orry have a boyfriend"),
     "one asker is not a gap regardless of how many times they ask",
   );
   assert.ok(

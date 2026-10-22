@@ -698,7 +698,7 @@ function healthCheck(): ApiResponse {
     },
     admins: config.slack.adminUserIds,
     missing,
-    dbPath: process.env.RIVET_DB_PATH || "default (rivet.db)",
+    dbPath: (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH) || "default (rivet.db)",
   };
 }
 function programsList() {
@@ -819,7 +819,7 @@ function channelRemove(programId: string, channelId: string): ApiResponse {
 }
 
 function internalAuth(req: Request): ApiResponse {
-  const token = process.env.RIVET_INTERNAL_TOKEN;
+  const token = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
   if (!token) return { ok: false, status: 404, body: { error: "internal api disabled" } };
   const header = req.headers.get("authorization") || "";
   const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -1092,6 +1092,8 @@ function testQuestionExpectedAction({
     reply: "reply",
     reply_chat: "reply",
     uncertain: "uncertain",
+    // A thinking_face reaction is not a posted reply, so the API reports silence.
+    react: "silence",
     escalate: "ticket+helper",
     silence: "silence",
   };

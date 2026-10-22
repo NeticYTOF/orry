@@ -1,7 +1,7 @@
 # Staging runbook
 
 Use a separate Slack channel, database, and deployment for staging. Keep
-`RIVET_STAGING_ONLY_CHANNELS` set to a comma-separated allowlist so events from
+`ORRY_STAGING_ONLY_CHANNELS` set to a comma-separated allowlist so events from
 production channels are dropped before routing.
 
 ## Environment
@@ -9,9 +9,9 @@ production channels are dropped before routing.
 Copy `deploy/staging/env.staging.example` and fill it with staging-only values:
 
 - Slack bot and app tokens for the staging app
-- `RIVET_STAGING_ONLY_CHANNELS` containing only staging channels
+- `ORRY_STAGING_ONLY_CHANNELS` containing only staging channels
 - model credentials
-- a fresh `RIVET_INTERNAL_TOKEN`
+- a fresh `ORRY_INTERNAL_TOKEN`
 - a fresh database path on the staging volume
 - the staging workspace and administrator IDs
 

@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -140,7 +140,7 @@ test("recommend still lets a genuine specialist win even against a fatigued but 
   assert.equal(top.userId, "U-specialist");
 });
 
-test("recommend excludes caller-supplied ids and Rivet's bot user", () => {
+test("recommend excludes caller-supplied ids and Orry's bot user", () => {
   const { config } = require("./config");
   const saved = config.slack.botUserId;
   config.slack.botUserId = "U-BOTEX";

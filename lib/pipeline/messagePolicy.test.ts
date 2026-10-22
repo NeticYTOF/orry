@@ -92,12 +92,32 @@ test("a ping still admits uncertainty when there is nothing to say, or strict gr
   );
 });
 
-test("an ungrounded program question is declined out loud, not silently", () => {
-  // A question about the program that the corpus cannot answer gets an honest
-  // "not confirmed yet" rather than silence, which reads as a broken bot.
+test("an ungrounded ambient program question in main gets a quiet reaction by default", () => {
+  // Changed: this used to be "uncertain" (a public "not confirmed yet" reply).
+  // Busy main channels now get a :thinking_face: reaction and no public text.
   const base = { settings, addressed: false, kind: "program", grounded: false, hasAnswer: true };
-  assert.equal(finalAction({ ...base, role: "main" }), "uncertain");
+  assert.equal(finalAction({ ...base, role: "main" }), "react");
   assert.equal(finalAction({ ...base, role: "help" }), "escalate_and_uncertain");
+});
+
+test("ambientUncertainReply chooses react (default), silent, or reply for main channels", () => {
+  const base = { addressed: false, kind: "program", grounded: false, hasAnswer: true, role: "main" };
+  assert.equal(finalAction({ ...base, settings: { ...settings, ambientUncertainReply: "react" } }), "react");
+  assert.equal(finalAction({ ...base, settings: { ...settings, ambientUncertainReply: "silent" } }), "silence");
+  assert.equal(finalAction({ ...base, settings: { ...settings, ambientUncertainReply: "reply" } }), "uncertain");
+  // Unknown or malformed values fall back to the react default, never to public text.
+  assert.equal(finalAction({ ...base, settings: { ...settings, ambientUncertainReply: "loud" } }), "react");
+  assert.equal(finalAction({ ...base, settings: { ...settings, ambientUncertainReply: 3 } }), "react");
+});
+
+test("the ambient setting does not change addressed or help-channel decisions", () => {
+  const replyMode = { ...settings, ambientUncertainReply: "reply" };
+  const silentMode = { ...settings, ambientUncertainReply: "silent" };
+  const addressed = { addressed: true, kind: "program", grounded: false, hasAnswer: false, role: "main" };
+  assert.equal(finalAction({ ...addressed, settings: silentMode }), "uncertain");
+  assert.equal(finalAction({ ...addressed, settings: replyMode }), "uncertain");
+  const help = { addressed: false, kind: "program", grounded: false, hasAnswer: true, role: "help" };
+  assert.equal(finalAction({ ...help, settings: silentMode }), "escalate_and_uncertain");
 });
 
 test("an unaddressed unanswered help request gets both a helper handoff and a visible response", () => {
