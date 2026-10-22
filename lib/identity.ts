@@ -137,13 +137,8 @@ function otherProgramNames(currentId: string) {
   }
 }
 
-function corpusSection(program: IdentityProgram | null = null) {
-  if ((process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE)) {
-    return (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE);
-  }
-  if (!program || !program.name) {
-    return defaultIdentity();
-  }
+// Identity answers for a configured program: its name, help channel, scope and sibling programs.
+function programIdentity(program: IdentityProgram): string {
   const name = program.name;
   const helpChan = program.helpChannel ? `<#${program.helpChannel}>` : "the help channel";
   const walled = program.scope === "program";
@@ -183,6 +178,17 @@ function corpusSection(program: IdentityProgram | null = null) {
       ? `A: Here I only do ${name}, from its own docs and rules. I don't speak for any other Hack Club program and won't send you off to one.`
       : `A: I sit in a bunch of Hack Club YSWS channels, not just this one. Here I'm the ${name} bot; elsewhere I'm that program's bot. Other programs I know about: ${othersLine}. Each one has its own docs, deadlines, prizes and rules, so I never answer one program's question with another program's numbers. I'll point you at that program's channel instead.`,
   ].join("\n");
+}
+
+// Picks the corpus identity section: an env override, the default, or the program's own answers.
+function corpusSection(program: IdentityProgram | null = null) {
+  if ((process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE)) {
+    return (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE);
+  }
+  if (!program || !program.name) {
+    return defaultIdentity();
+  }
+  return programIdentity(program);
 }
 
 export = {

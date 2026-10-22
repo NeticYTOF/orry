@@ -461,12 +461,22 @@ function cleanAssumption(value: string, program: ProgramRef) {
   return /^assuming you mean\b/i.test(clean) ? clean : "";
 }
 
-function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | null {
-  const text = normalizeCitations(
-    normalizeReplyLabels(stripLeadingSafety(typeof raw === "string" ? raw : String(raw || ""))),
-  ).trim();
-  if (!text || text === NONE_MARKER) return null;
+// Normalises raw model output (safety preamble, label casing, citation form) and trims it.
+function prepareReplyText(raw: unknown): string {
+  return normalizeCitations(normalizeReplyLabels(stripLeadingSafety(typeof raw === "string" ? raw : String(raw || "")))).trim();
+}
 
+interface ReplyFields {
+  source: string | null;
+  answer: string;
+  unresolved: string[];
+  personality: string;
+  assumption: string;
+  uncertaintyReply: string;
+}
+
+// Reads the SOURCE, ANSWER and optional labelled lines out of normalised reply text, or null without an ANSWER.
+function extractReplyFields(text: string, program: ProgramRef): ReplyFields | null {
   const sourceMatch = text.match(/^\s*SOURCE:\s*(.+)$/im);
   const answerMatch = text.match(/^\s*ANSWER:\s*([\s\S]+)$/im);
   if (!answerMatch) return null;
@@ -508,18 +518,43 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
     )
     .trim();
 
+  return {
+    source: sourceMatch ? cleanLabelValue(sourceMatch[1]).replace(/^#+\s*/, "") : null,
+    answer: rawAnswer,
+    unresolved,
+    personality,
+    assumption,
+    uncertaintyReply,
+  };
+}
+
+// Returns the sanitised, emoji-normalised answer, or null when it is empty or only an instruction echo.
+function cleanReplyAnswer(rawAnswer: string, program: ProgramRef): string | null {
   if (looksLikeInstructionEcho(rawAnswer)) return null;
 
   const cleaned = sanitizeAnswer(rawAnswer);
   if (!cleaned || looksLikeInstructionEcho(cleaned)) return null;
 
+  return normalizeEmoji(cleaned, program);
+}
+
+function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | null {
+  const text = prepareReplyText(raw);
+  if (!text || text === NONE_MARKER) return null;
+
+  const fields = extractReplyFields(text, program);
+  if (!fields) return null;
+
+  const answer = cleanReplyAnswer(fields.answer, program);
+  if (answer === null) return null;
+
   return {
-    source: sourceMatch ? cleanLabelValue(sourceMatch[1]).replace(/^#+\s*/, "") : null,
-    answer: normalizeEmoji(cleaned, program),
-    ...(unresolved.length ? { unresolved } : {}),
-    ...(personality ? { personality } : {}),
-    ...(assumption ? { assumption } : {}),
-    ...(uncertaintyReply ? { uncertaintyReply } : {}),
+    source: fields.source,
+    answer,
+    ...(fields.unresolved.length ? { unresolved: fields.unresolved } : {}),
+    ...(fields.personality ? { personality: fields.personality } : {}),
+    ...(fields.assumption ? { assumption: fields.assumption } : {}),
+    ...(fields.uncertaintyReply ? { uncertaintyReply: fields.uncertaintyReply } : {}),
   };
 }
 

@@ -338,89 +338,80 @@ function botCommand(body: string, { botUserId = null, botNames = [] }: BotNameOp
   return COMMAND_RE.test(bare) || MENTION_COMMAND_RE.test(bare);
 }
 
-function shouldOrryRespond({
-  text,
-  userId = null,
-  botUserId = null,
-  botNames = [],
-  isHelpChannel = false,
-  isTopLevel = true,
-  isDM = false,
-  posture = "active",
-  program = null,
-  thread = null,
-  actorIsHelper = false,
-}: EligibilityOptions = {}): EligibilityDecision {
-  const t = thread || {};
-  const body = String(text || "");
-
+// Self-harm and explicit bot commands are answered before any thread state is read.
+function bypassVerdict(body: string, { botUserId = null, botNames = [] }: BotNameOptions): EligibilityDecision | null {
   // Self-harm is checked first: it bypasses mute, takeover and deferral so the
   // person always gets the supportive reply. Still routed as ESCALATE so the
   // ticket path runs; the distinct reason tells the handler to send the crisis reply.
   if (selfHarmHit(body)) {
     return { decision: ESCALATE, reason: SELF_HARM, fileTicket: true };
   }
-
   if (botCommand(body, { botUserId, botNames })) {
     return { decision: REPLY, reason: "command_bypass" };
   }
+  return null;
+}
 
-  if (t.muted) {
-    const inv = invocationAnalysis(body, { botUserId, botNames });
-    const bare = body
-      .replace(/^<@[^>]+>\s*|^\s*(?:hey|hi|hello|yo|please|pls)[\s,]+/i, "")
-      .replace(new RegExp(`^(?:${botNamePattern(botNames)})\\w*\\s*`, "i"), "")
-      .trim();
-    if (
-      inv.invocation &&
-      (reactivationPhrase(body) || /^(help|help me|come back|wake up|unmute|resume|continue)\s*[.!]*$/i.test(bare))
-    ) {
-      return { decision: REPLY, reason: "reactivated", clearMute: true, clearTakeover: true };
-    }
-    if (inv.invocation && substantiveQuestion(body)) {
-      return { decision: REPLY, reason: "muted_direct_address" };
-    }
-    return { decision: SILENT, reason: "muted" };
+// Verdict for a thread the bot is muted or taken over in; reactivation wins over staying quiet.
+function lockedThreadVerdict(
+  body: string,
+  { botUserId = null, botNames = [] }: BotNameOptions,
+  takeover: boolean,
+): EligibilityDecision {
+  const inv = invocationAnalysis(body, { botUserId, botNames });
+  const bare = body
+    .replace(/^<@[^>]+>\s*|^\s*(?:hey|hi|hello|yo|please|pls)[\s,]+/i, "")
+    .replace(new RegExp(`^(?:${botNamePattern(botNames)})\\w*\\s*`, "i"), "")
+    .trim();
+  if (
+    inv.invocation &&
+    (reactivationPhrase(body) || /^(help|help me|come back|wake up|unmute|resume|continue)\s*[.!]*$/i.test(bare))
+  ) {
+    const reason = takeover ? "takeover_reactivated" : "reactivated";
+    return { decision: REPLY, reason, clearMute: true, clearTakeover: true };
   }
-
-  if (t.takeover) {
-    const inv = invocationAnalysis(body, { botUserId, botNames });
-    const bare = body
-      .replace(/^<@[^>]+>\s*|^\s*(?:hey|hi|hello|yo|please|pls)[\s,]+/i, "")
-      .replace(new RegExp(`^(?:${botNamePattern(botNames)})\\w*\\s*`, "i"), "")
-      .trim();
-    if (
-      inv.invocation &&
-      (reactivationPhrase(body) || /^(help|help me|come back|wake up|unmute|resume|continue)\s*[.!]*$/i.test(bare))
-    ) {
-      return { decision: REPLY, reason: "takeover_reactivated", clearMute: true, clearTakeover: true };
-    }
+  if (takeover) {
     if (inv.invocation) return { decision: REPLY, reason: "takeover_direct_address" };
     return { decision: SILENT, reason: "takeover" };
   }
+  if (inv.invocation && substantiveQuestion(body)) {
+    return { decision: REPLY, reason: "muted_direct_address" };
+  }
+  return { decision: SILENT, reason: "muted" };
+}
 
+// Deferrals to a human: a takeover cue in a reply thread, a muted posture, or a message aimed at a person.
+function deferralVerdict(
+  body: string,
+  inv: { invocation: boolean },
+  {
+    botUserId = null,
+    botNames = [],
+    isTopLevel,
+    isDM,
+    posture,
+  }: BotNameOptions & { isTopLevel: boolean; isDM: boolean; posture: string },
+): EligibilityDecision | null {
   if (!isTopLevel && takeoverCue(body, botNames)) {
     return { decision: HUMAN_DEFER, reason: "human_takeover", markTakeover: true };
   }
-
-  const inv = invocationAnalysis(body, { botUserId, botNames });
-
   if (posture === "muted") return { decision: SILENT, reason: "posture_muted" };
-
   if (!isDM && !inv.invocation && humanDirected(body, { botUserId })) {
     return { decision: HUMAN_DEFER, reason: "human_directed" };
   }
-
   if (!isDM && !inv.invocation && explicitHumanRequest(body)) {
     return { decision: HUMAN_DEFER, reason: "human_review_request" };
   }
+  return null;
+}
 
-  if (sensitiveHit(body, program)) {
-    return { decision: ESCALATE, reason: "sensitive_escalation", fileTicket: true };
-  }
-
-  if (isDM) return { decision: REPLY, reason: "dm" };
-
+// Silent verdicts for messages that need no reply: referential mentions, greetings, acks and follow-ups on an open ticket.
+function quietVerdict(
+  body: string,
+  inv: { referential: boolean; invocation: boolean },
+  t: ThreadState,
+  { botUserId = null, isTopLevel }: { botUserId?: string | null; isTopLevel: boolean },
+): EligibilityDecision | null {
   const freshInterrogative =
     /\?/.test(body) ||
     /^\s*(?:how|what|when|where|why|which|who|can|could|would|should|is|are|do|does|did|will)\b/i.test(body) ||
@@ -454,6 +445,43 @@ function shouldOrryRespond({
   ) {
     return { decision: SILENT, reason: "already_escalated", touchTicket: true };
   }
+  return null;
+}
+
+function shouldOrryRespond({
+  text,
+  userId = null,
+  botUserId = null,
+  botNames = [],
+  isHelpChannel = false,
+  isTopLevel = true,
+  isDM = false,
+  posture = "active",
+  program = null,
+  thread = null,
+  actorIsHelper = false,
+}: EligibilityOptions = {}): EligibilityDecision {
+  const t = thread || {};
+  const body = String(text || "");
+
+  const bypass = bypassVerdict(body, { botUserId, botNames });
+  if (bypass) return bypass;
+
+  if (t.muted) return lockedThreadVerdict(body, { botUserId, botNames }, false);
+  if (t.takeover) return lockedThreadVerdict(body, { botUserId, botNames }, true);
+
+  const inv = invocationAnalysis(body, { botUserId, botNames });
+  const deferred = deferralVerdict(body, inv, { botUserId, botNames, isTopLevel, isDM, posture });
+  if (deferred) return deferred;
+
+  if (sensitiveHit(body, program)) {
+    return { decision: ESCALATE, reason: "sensitive_escalation", fileTicket: true };
+  }
+
+  if (isDM) return { decision: REPLY, reason: "dm" };
+
+  const quiet = quietVerdict(body, inv, t, { botUserId, isTopLevel });
+  if (quiet) return quiet;
 
   if (isHelpChannel) {
     if (isTopLevel) return { decision: REPLY, reason: "help_channel_ask" };

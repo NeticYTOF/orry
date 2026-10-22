@@ -411,12 +411,8 @@ function claimKey(text: unknown) {
     .toLowerCase();
 }
 
-// Sentence-level grounding. Each factual sentence is kept only if the verifier supports it from its
-// cited passages (or, when the verifier is unavailable, if its citations resolve to eligible passages).
-// Unsupported sentences are dropped and named in an UNRESOLVED note. The whole answer is refused only
-// when no factual sentence survives.
-async function applyPassageCitations(
-  result: AnswerResult | null,
+// The passages the answer may cite for this program, by id, with the E-number alias each one answers to.
+function eligibleScope(
   passages: Array<{
     id: string;
     source: string;
@@ -426,10 +422,7 @@ async function applyPassageCitations(
     kind?: string;
   }>,
   prog: ProgramLike | string | null,
-  question = "",
-  contextQuestion: string | null = null,
 ) {
-  if (!result?.source || result.source.trim().toUpperCase() === "NONE") return result;
   const programId = idOf(prog);
   if (!programId) return null;
   const sources = programSources(prog);
@@ -449,9 +442,15 @@ async function applyPassageCitations(
     eligible.set(passage.id, passage);
     aliases.set(`E${index + 1}`, passage.id);
   }
-  const separated = separateExplicitUncertainty(String(result.answer || ""), question);
-  if (!result.unresolved?.length && separated.unresolved.length) result.unresolved = separated.unresolved;
+  const evidence = [...eligible.values()].map((passage) => ({ ...passage, programId }));
+  return { programId, eligible, aliases, evidence };
+}
 
+type EligibleScope = NonNullable<ReturnType<typeof eligibleScope>>;
+
+// Splits the answer into hedges (kept as written) and factual sentences, and returns any UNRESOLVED parts.
+function splitAnswer(answerText: string, question: string, aliases: Map<string, string>) {
+  const separated = separateExplicitUncertainty(answerText, question);
   // Hedges are kept as written. Every other sentence is a factual claim to verify, and a claim whose
   // citation cannot be resolved is dropped without being sent to the verifier.
   type Piece = { hedge: true; text: string } | { hedge: false; index: number };
@@ -469,42 +468,53 @@ async function applyPassageCitations(
       continue;
     }
     const aliasTokens = [...sentence.matchAll(/\[(E\d+)\]/g)].map((match) => match[1]);
-    const evidenceIds = [
-      ...new Set(aliasTokens.flatMap((alias) => (aliases.has(alias) ? [aliases.get(alias)!] : []))),
-    ];
+    const evidenceIds = [...new Set(aliasTokens.flatMap((alias) => (aliases.has(alias) ? [aliases.get(alias)!] : [])))];
     const invalid =
       aliasTokens.some((alias) => !aliases.has(alias)) || /\[[^\]\n]*\bE\d/i.test(sentence.replace(/\[E\d+\]/g, ""));
     pieces.push({ hedge: false, index: factual.length });
     factual.push({ claim, evidenceIds, invalid });
   }
+  return { unresolved: separated.unresolved, pieces, factual };
+}
 
-  const verifiable = factual.flatMap((item, index) => (item.invalid ? [] : [{ ...item, index }]));
-  if (!verifiable.length) return null;
-  const verificationEvidence = [...eligible.values()].map((passage) => ({ ...passage, programId }));
-  const expectedClaims = verifiable.map(({ claim, evidenceIds }) => ({ claim, evidenceIds }));
-  const needsCoverage = Boolean(question || result.unresolved?.length);
-  const coverageRequest = { question, contextQuestion, unresolved: result.unresolved || [] };
-  let verdict: unknown = null;
+// Asks the verifier for a verdict on the claims; a verifier that throws is logged and treated as no verdict.
+async function requestVerdict(
+  claims: Array<{ claim: string; evidenceIds: string[] }>,
+  evidence: unknown[],
+  prog: ProgramLike | string | null,
+  label: string,
+  coverageRequest: object | null,
+) {
   try {
-    verdict = await answer.verifyGrounding(expectedClaims, verificationEvidence, prog, null, {
-      ...(needsCoverage ? { requestCoverage: coverageRequest } : {}),
+    return await answer.verifyGrounding(claims, evidence, prog, null, {
+      ...(coverageRequest ? { requestCoverage: coverageRequest } : {}),
     });
   } catch (error: unknown) {
-    log.debug("grounding", `claim verifier failed: ${error instanceof Error ? error.message : String(error)}`);
-    verdict = null;
-  }
-  const verifierAvailable = verdict !== null && verdict !== undefined;
-  const verified = verifierAvailable ? grounding.parseGroundingVerdict(verdict) : null;
-  // A verdict that is present but unusable cannot say which sentence is supported, so nothing is kept.
-  if (
-    verified &&
-    (!verified.ok ||
-      verified.claims.length !== expectedClaims.length ||
-      verified.claims.some((claim, index) => claimKey(claim.claim) !== claimKey(expectedClaims[index].claim)))
-  )
+    log.debug("grounding", `${label} verifier failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;
+  }
+}
 
-  const evidenceText = (ids: string[]) => ids.map((id) => eligible.get(id)?.text || "").join("\n");
+// Reads a claim verdict; it is unusable when present but unable to say which sentence is supported.
+function readVerdict(verdict: unknown, expectedClaims: Array<{ claim: string }>) {
+  if (verdict === null || verdict === undefined) return { usable: true, verified: null };
+  const verified = grounding.parseGroundingVerdict(verdict);
+  const usable = Boolean(
+    verified.ok &&
+    verified.claims.length === expectedClaims.length &&
+    verified.claims.every((claim, index) => claimKey(claim.claim) === claimKey(expectedClaims[index].claim)),
+  );
+  return { usable, verified };
+}
+
+// Keeps each verifiable sentence the verifier supports from its cited passages, or, with no verdict, whose citations resolve.
+function decideSentences(
+  verifiable: Array<{ claim: string; evidenceIds: string[]; index: number }>,
+  expectedClaims: Array<{ claim: string; evidenceIds: string[] }>,
+  verified: ReturnType<typeof readVerdict>["verified"],
+  scope: EligibleScope,
+) {
+  const evidenceText = (ids: string[]) => ids.map((id) => scope.eligible.get(id)?.text || "").join("\n");
   const decisions = new Map<number, { ok: boolean; ids: string[] }>();
   verifiable.forEach((item, position) => {
     const expected = expectedClaims[position];
@@ -518,95 +528,177 @@ async function applyPassageCitations(
         grounding.validatePassageClaims({
           verdict: { verdict: "supported", claims: [claim] },
           expectedClaims: [expected],
-          evidence: verificationEvidence,
-          programId,
+          evidence: scope.evidence,
+          programId: scope.programId,
         }).supported;
     } else {
       // The verifier threw or timed out: accept the sentence when its citations resolve to eligible passages.
       ids = expected.evidenceIds;
       ok =
         ids.length > 0 &&
-        grounding.validatePassageCitations({ citations: ids, evidence: verificationEvidence, programId }).supported;
+        grounding.validatePassageCitations({
+          citations: ids,
+          evidence: scope.evidence,
+          programId: scope.programId,
+        }).supported;
     }
     if (ok && !numericClaimsGrounded(item.claim, evidenceText(ids))) ok = false;
     decisions.set(item.index, { ok, ids });
   });
+  return decisions;
+}
+
+// True when the coverage verdict reports full coverage and supports every kept sentence as written.
+function coverageVerdictHolds(
+  coverageVerdict: unknown,
+  keptExpected: Array<{ claim: string; evidenceIds: string[] }>,
+  scope: EligibleScope,
+) {
+  const parsedCoverage = grounding.parseGroundingVerdict(coverageVerdict);
+  return Boolean(
+    parsedCoverage.ok &&
+    parsedCoverage.coverage === true &&
+    parsedCoverage.claims.length === keptExpected.length &&
+    parsedCoverage.claims.every(
+      (claim, index) => claim.supported && claimKey(claim.claim) === claimKey(keptExpected[index].claim),
+    ) &&
+    grounding.validatePassageClaims({
+      verdict: { ...parsedCoverage, verdict: "supported" },
+      expectedClaims: keptExpected,
+      evidence: scope.evidence,
+      programId: scope.programId,
+    }).supported,
+  );
+}
+
+// Sends the factual sentences to the verifier and decides each one; null when none can be verified or the verdict is unusable.
+async function verifySentences(
+  sentences: ReturnType<typeof splitAnswer>,
+  scope: EligibleScope,
+  prog: ProgramLike | string | null,
+  question: string,
+  contextQuestion: string | null,
+  unresolved: string[],
+) {
+  const verifiable = sentences.factual.flatMap((item, index) => (item.invalid ? [] : [{ ...item, index }]));
+  if (!verifiable.length) return null;
+  const expectedClaims = verifiable.map(({ claim, evidenceIds }) => ({ claim, evidenceIds }));
+  const needsCoverage = Boolean(question || unresolved.length);
+  const coverageRequest = { question, contextQuestion, unresolved };
+  const verdict = await requestVerdict(
+    expectedClaims,
+    scope.evidence,
+    prog,
+    "claim",
+    needsCoverage ? coverageRequest : null,
+  );
+  const { usable, verified } = readVerdict(verdict, expectedClaims);
+  if (!usable) return null;
+  const decisions = decideSentences(verifiable, expectedClaims, verified, scope);
+  return { verified, verifiable, expectedClaims, decisions, coverageRequest, needsCoverage };
+}
+
+// Checks that the kept sentences still cover every part of the question and every disclosed part.
+async function coverageSatisfied(
+  scope: EligibleScope,
+  prog: ProgramLike | string | null,
+  verification: NonNullable<Awaited<ReturnType<typeof verifySentences>>>,
+  dropped: string[],
+  disclosed: string[],
+) {
+  const { verified, verifiable, expectedClaims, decisions, coverageRequest, needsCoverage } = verification;
+  if (!needsCoverage || !verified) return true;
+  // Coverage: every part of the question must be answered or disclosed. The verifier was not
+  // reachable, so there is nothing more to check and the verified sentences stand.
+  let coverage = verified.coverage === true;
+  if (dropped.length) {
+    const keptExpected = verifiable.flatMap((item, position) =>
+      decisions.get(item.index)?.ok ? [expectedClaims[position]] : [],
+    );
+    const coverageVerdict = await requestVerdict(keptExpected, scope.evidence, prog, "coverage", {
+      ...coverageRequest,
+      unresolved: disclosed,
+    });
+    coverage =
+      coverageVerdict === null || coverageVerdict === undefined
+        ? true
+        : coverageVerdictHolds(coverageVerdict, keptExpected, scope);
+  }
+  if (!coverage) {
+    log.debug("grounding", "answer did not cover the current question and unresolved parts");
+    return false;
+  }
+  return true;
+}
+
+// Sentence-level grounding. Each factual sentence is kept only if the verifier supports it from its
+// cited passages (or, when the verifier is unavailable, if its citations resolve to eligible passages).
+// Unsupported sentences are dropped and named in an UNRESOLVED note. The whole answer is refused only
+// when no factual sentence survives.
+async function applyPassageCitations(
+  result: AnswerResult | null,
+  passages: Array<{
+    id: string;
+    source: string;
+    heading?: string;
+    text: string;
+    programId?: string | null;
+    kind?: string;
+  }>,
+  prog: ProgramLike | string | null,
+  question = "",
+  contextQuestion: string | null = null,
+) {
+  if (!result?.source || result.source.trim().toUpperCase() === "NONE") return result;
+  const scope = eligibleScope(passages, prog);
+  if (!scope) return null;
+  const sentences = splitAnswer(String(result.answer || ""), question, scope.aliases);
+  if (!result.unresolved?.length && sentences.unresolved.length) result.unresolved = sentences.unresolved;
+
+  const verification = await verifySentences(
+    sentences,
+    scope,
+    prog,
+    question,
+    contextQuestion,
+    result.unresolved || [],
+  );
+  if (!verification) return null;
 
   const kept: string[] = [];
   const dropped: string[] = [];
   const usedIds = new Set<string>();
   let keptFactual = 0;
-  for (const piece of pieces) {
+  for (const piece of sentences.pieces) {
     if (piece.hedge === true) {
       kept.push(piece.text);
       continue;
     }
-    const decision = decisions.get(piece.index);
+    const decision = verification.decisions.get(piece.index);
     if (decision?.ok) {
       keptFactual += 1;
-      kept.push(factual[piece.index].claim);
+      kept.push(sentences.factual[piece.index].claim);
       for (const id of decision.ids) usedIds.add(id);
     } else {
-      dropped.push(factual[piece.index].claim);
+      dropped.push(sentences.factual[piece.index].claim);
     }
   }
   if (!keptFactual || !usedIds.size) return null;
-  if ([...usedIds].some((id) => !eligible.has(id))) return null;
+  if ([...usedIds].some((id) => !scope.eligible.has(id))) return null;
 
   const disclosed = [
     ...(result.unresolved || []),
     ...dropped.map((claim) => `this part: “${claim.replace(/[.!?]+$/, "")}”`),
   ];
-  // Coverage: every part of the question must be answered or disclosed. The verifier was not
-  // reachable, so there is nothing more to check and the verified sentences stand.
-  if (needsCoverage && verified) {
-    let coverage = verified.coverage === true;
-    if (dropped.length) {
-      const keptExpected = verifiable.flatMap((item, position) =>
-        decisions.get(item.index)?.ok ? [expectedClaims[position]] : [],
-      );
-      let coverageVerdict: unknown = null;
-      try {
-        coverageVerdict = await answer.verifyGrounding(keptExpected, verificationEvidence, prog, null, {
-          requestCoverage: { ...coverageRequest, unresolved: disclosed },
-        });
-      } catch (error: unknown) {
-        log.debug("grounding", `coverage verifier failed: ${error instanceof Error ? error.message : String(error)}`);
-        coverageVerdict = null;
-      }
-      if (coverageVerdict === null || coverageVerdict === undefined) {
-        coverage = true;
-      } else {
-        const parsedCoverage = grounding.parseGroundingVerdict(coverageVerdict);
-        coverage = Boolean(
-          parsedCoverage.ok &&
-          parsedCoverage.coverage === true &&
-          parsedCoverage.claims.length === keptExpected.length &&
-          parsedCoverage.claims.every(
-            (claim, index) => claim.supported && claimKey(claim.claim) === claimKey(keptExpected[index].claim),
-          ) &&
-          grounding.validatePassageClaims({
-            verdict: { ...parsedCoverage, verdict: "supported" },
-            expectedClaims: keptExpected,
-            evidence: verificationEvidence,
-            programId,
-          }).supported,
-        );
-      }
-    }
-    if (!coverage) {
-      log.debug("grounding", "answer did not cover the current question and unresolved parts");
-      return null;
-    }
-  }
+  if (!(await coverageSatisfied(scope, prog, verification, dropped, disclosed))) return null;
 
   const validity = grounding.validatePassageCitations({
     citations: [...usedIds],
-    evidence: verificationEvidence,
-    programId,
+    evidence: scope.evidence,
+    programId: scope.programId,
   });
   if (!validity.supported) return null;
-  const cited = new Map([...usedIds].map((id) => [id, eligible.get(id)!]));
+  const cited = new Map([...usedIds].map((id) => [id, scope.eligible.get(id)!]));
   const groundedText = kept.join(" ").trim();
   if (!groundedText) return null;
   result.groundedAnswer = groundedText;

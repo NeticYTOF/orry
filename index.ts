@@ -81,8 +81,8 @@ async function askHelperAction({ ack, body, action, client }: AskHelperArgs): Pr
   }
 }
 
-async function startBot() {
-  validate({ needsSlack: true });
+// Loads persisted sandbox and draft state, then starts the sweeper.
+function restorePersistedState() {
   db.open();
   require("./lib/draftSandbox").loadPersisted();
   try {
@@ -91,13 +91,19 @@ async function startBot() {
     log.debug("draft", `draft index rebuild failed: ${errorText(e)}`);
   }
   db.startSweeper();
+}
 
+// Aborts startup when the channel role configuration has conflicts.
+function assertChannelRoles() {
   const roles = require("./lib/channelPolicy").validate();
   if (!roles.ok) {
     for (const e of roles.errors) log.error("config", `channel role conflict: ${errorText(e)}`);
     throw new Error(`channel role configuration invalid (${roles.errors.length} conflict(s))`);
   }
+}
 
+// Assigns legacy learned facts with no owner to their channel's program.
+function assignLegacyLearnedFactOwnership() {
   try {
     const channelPolicy = require("./lib/channelPolicy");
     const facts = db.assignUnownedLearnedFacts((channel: string | null) => {
@@ -113,13 +119,10 @@ async function startBot() {
   } catch (e) {
     log.warn("knowledge", `legacy learned-fact ownership pass failed: ${errorText(e)}`);
   }
+}
 
-  const app = new App({
-    token: config.slack.botToken,
-    appToken: config.slack.appToken,
-    socketMode: true,
-  });
-
+// Registers the Slack event, action and slash-command handlers and the Bolt error hook.
+function registerSlackHandlers(app: any) {
   app.event("message", handlers.onMessage);
   app.event("app_mention", handlers.onAppMention);
   app.event("reaction_added", handlers.onReactionAdded);
@@ -130,22 +133,34 @@ async function startBot() {
   app.error(async (error: Error) => {
     log.error("bolt", error.message);
   });
+}
 
+// Restores the cached corpus from disk so startup can continue before the refresh finishes.
+function restoreCachedCorpus(): { restored: number; total: number } {
   let restoredCorpus = { restored: 0, total: 0 };
   try {
     restoredCorpus = knowledge.restoreCorpusFromDisk();
   } catch (e: unknown) {
     log.warn("knowledge", "could not restore cached corpus before startup:", errorText(e));
   }
-  const initialCorpusReady = knowledge
+  return restoredCorpus;
+}
+
+// Starts the initial corpus build and warm-up; the returned promise settles when that finishes or fails.
+function startCorpusRefresh() {
+  return knowledge
     .refreshCorpus()
     .then(() => warm.start())
     .catch((e: unknown) => log.error("knowledge", "initial corpus build failed:", errorText(e)));
+}
+
+// Starts the periodic jobs: corpus auto-refresh, keep-alive, reports, the SLA loop and the radar loop.
+function startPeriodicJobs(client: SlackClient) {
   knowledge.startAutoRefresh(config.refreshIntervalMin);
   startKeepAlive();
-  report.start(app.client);
+  report.start(client);
   try {
-    require("./lib/sla").startSlaLoop(app.client);
+    require("./lib/sla").startSlaLoop(client);
   } catch (e) {
     log.error("sla", "loop failed to start:", errorText(e));
   }
@@ -154,12 +169,64 @@ async function startBot() {
   } catch (e) {
     log.error("radar", "loop failed to start:", errorText(e));
   }
+}
 
+// Starts the web dashboard when it is enabled and hands it the Slack client.
+function startWebServer(client: SlackClient) {
   const webServer = web.start();
   if (webServer) {
     const api = require("./lib/web/api");
-    api.setSlackClient(app.client);
+    api.setSlackClient(client);
   }
+}
+
+// Joins every configured public channel so the bot can post in it.
+async function joinPublicChannels(client: SlackClient) {
+  try {
+    const channelList = programs.getChannelsList();
+    for (const item of channelList) {
+      if (item.channelId && item.channelId.startsWith("C")) {
+        await client.conversations.join({ channel: item.channelId }).catch((e: unknown) => {
+          log.debug("bot", `could not auto-join channel ${item.channelId}: ${errorText(e)}`);
+        });
+      }
+    }
+  } catch (e) {
+    log.debug("bot", `auto-join error: ${errorText(e)}`);
+  }
+}
+
+// Starts the resolution watcher and the ticket history backfill; a failure in either is only logged.
+function startSideWatchers(client: SlackClient) {
+  try {
+    require("./lib/resolutionWatcher").start(client);
+  } catch (e) {
+    log.error("resolution", "watcher failed to start:", errorText(e));
+  }
+  try {
+    require("./lib/ticketBackfill").start(client);
+  } catch (e) {
+    log.error("ticketBackfill", "history import failed to start:", errorText(e));
+  }
+}
+
+async function startBot() {
+  validate({ needsSlack: true });
+  restorePersistedState();
+  assertChannelRoles();
+  assignLegacyLearnedFactOwnership();
+
+  const app = new App({
+    token: config.slack.botToken,
+    appToken: config.slack.appToken,
+    socketMode: true,
+  });
+  registerSlackHandlers(app);
+
+  const restoredCorpus = restoreCachedCorpus();
+  const initialCorpusReady = startCorpusRefresh();
+  startPeriodicJobs(app.client);
+  startWebServer(app.client);
 
   await startAfterReady(initialCorpusReady, () => app.start(), {
     timeoutMs: INITIAL_CORPUS_STARTUP_TIMEOUT_MS,
@@ -172,28 +239,8 @@ async function startBot() {
   const botUserId = await resolveBotUserId(app.client);
   log.info("bot", `connected via Socket Mode as ${botUserId}`);
 
-  try {
-    const channelList = programs.getChannelsList();
-    for (const item of channelList) {
-      if (item.channelId && item.channelId.startsWith("C")) {
-        await app.client.conversations.join({ channel: item.channelId }).catch((e: unknown) => {
-          log.debug("bot", `could not auto-join channel ${item.channelId}: ${errorText(e)}`);
-        });
-      }
-    }
-  } catch (e) {
-    log.debug("bot", `auto-join error: ${errorText(e)}`);
-  }
-  try {
-    require("./lib/resolutionWatcher").start(app.client);
-  } catch (e) {
-    log.error("resolution", "watcher failed to start:", errorText(e));
-  }
-  try {
-    require("./lib/ticketBackfill").start(app.client);
-  } catch (e) {
-    log.error("ticketBackfill", "history import failed to start:", errorText(e));
-  }
+  await joinPublicChannels(app.client);
+  startSideWatchers(app.client);
 }
 
 async function runAskCli(question: string, programId: string | null): Promise<void> {

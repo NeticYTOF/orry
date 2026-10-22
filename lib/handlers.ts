@@ -359,6 +359,36 @@ function stayOutOfHumanThread({
   db.recordMetric("silent", null, "thread_humans_talking", prog.id);
 }
 
+// Crisis text for this program's configured resources.
+function crisisReplyFor(prog: Program): string {
+  return require("./crisisReply").buildCrisisReply(prog.crisisResources);
+}
+
+// Sends the crisis text in-thread, adds it to thread history and records the fallback.
+async function sendCrisisReply({
+  client,
+  prog,
+  event,
+  threadTs,
+  text,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+  text: string;
+}): Promise<void> {
+  await require("./slackMessages").sendProgramMessage({
+    client,
+    program: prog,
+    channel: event.channel,
+    threadTs,
+    text: replyText.plainDashes(text),
+  });
+  context.addToThread(threadTs, "assistant", text, null, event.channel);
+  db.recordMetric("fallback", null, "self_harm_crisis_reply", prog.id);
+}
+
 // Self-harm gets a supportive in-thread reply, never the generic refusal line.
 // It is sent whether or not the bot was addressed: a person in distress always gets a reply.
 async function postCrisisReply({
@@ -372,20 +402,170 @@ async function postCrisisReply({
   event: HandlerEvent;
   threadTs: string;
 }): Promise<void> {
-  const text = require("./crisisReply").buildCrisisReply(prog.crisisResources);
+  const text = crisisReplyFor(prog);
   try {
-    await require("./slackMessages").sendProgramMessage({
+    await sendCrisisReply({ client, prog, event, threadTs, text });
+  } catch (e: unknown) {
+    log.warn("handlers", `crisis reply failed: ${errorMessage(e)}`);
+  }
+}
+
+// Opens the sensitive-escalation ticket when allowed; a failure is logged and leaves no ticket.
+async function escalateToTicket({
+  event,
+  client,
+  prog,
+  workspaceId,
+  threadTs,
+  question,
+  allowTicket,
+}: {
+  event: HandlerEvent;
+  client: SlackClient;
+  prog: Program;
+  workspaceId: string | null;
+  threadTs: string;
+  question: string;
+  allowTicket: boolean;
+}): Promise<unknown> {
+  let ticket = null;
+  try {
+    if (allowTicket) {
+      ticket = await require("./tickets").escalateTicket({
+        program: prog,
+        channel: event.channel,
+        threadTs,
+        requesterId: event.user,
+        question,
+        client,
+        workspaceId,
+      });
+    }
+  } catch (e: unknown) {
+    log.warn("handlers", `sensitive escalation ticket failed: ${errorMessage(e)}`);
+  }
+  return ticket;
+}
+
+// A ticket exists: self-harm still gets the crisis reply, and the event is logged as silent.
+async function closeTicketedEscalation({
+  client,
+  prog,
+  event,
+  threadTs,
+  selfHarm,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+  selfHarm: boolean;
+}): Promise<void> {
+  const elig = require("./eligibility");
+  if (selfHarm) await postCrisisReply({ client, prog, event, threadTs });
+  db.recordMetric("silent", null, `eligibility:${selfHarm ? elig.SELF_HARM : "sensitive_escalation"}`, prog.id);
+}
+
+// Pings a helper about the thread; a failed ping is logged and yields no helper.
+async function handOffQuietly({
+  client,
+  prog,
+  event,
+  threadTs,
+  question,
+  workspaceId,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+  question: string;
+  workspaceId: string | null;
+}): Promise<unknown> {
+  let helper = null;
+  try {
+    helper = await require("./tickets").handOffToHelper({
       client,
       program: prog,
       channel: event.channel,
       threadTs,
-      text: replyText.plainDashes(text),
+      question,
+      requesterId: event.user,
+      workspaceId,
     });
-    context.addToThread(threadTs, "assistant", text, null, event.channel);
-    db.recordMetric("fallback", null, "self_harm_crisis_reply", prog.id);
   } catch (e: unknown) {
-    log.warn("handlers", `crisis reply failed: ${errorMessage(e)}`);
+    log.warn("handlers", `sensitive escalation helper ping failed: ${errorMessage(e)}`);
   }
+  return helper;
+}
+
+// Picks the refusal wording; a helper ping switches to the "pinged" variant.
+function refusalTextFor(question: string, helper: unknown, prog: Program): string {
+  const refusal = require("./refusalReply");
+  const reason = refusal.refusalReason(question);
+  return helper
+    ? refusal.pingedRefusalText(reason, { program: prog })
+    : refusal.refusalText(reason, { program: prog });
+}
+
+// Sends the refusal in-thread, logs it without the sensitive text, and records it as a fallback.
+async function sendSensitiveRefusal({
+  client,
+  prog,
+  event,
+  threadTs,
+  text,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+  text: string;
+}): Promise<void> {
+  await require("./slackMessages").sendProgramMessage({
+    client,
+    program: prog,
+    channel: event.channel,
+    threadTs,
+    text: replyText.plainDashes(text),
+    // The log must not become a list of sensitive threads with their text.
+    logSource: "sensitive_reply",
+    logPrivate: true,
+  });
+  context.addToThread(threadTs, "assistant", text, null, event.channel);
+  db.recordMetric("fallback", null, "sensitive_unticketed", prog.id);
+}
+
+// No ticket: self-harm gets the crisis reply, unaddressed messages stay silent, the rest get a refusal.
+async function answerUnticketed({
+  client,
+  prog,
+  event,
+  threadTs,
+  question,
+  addressed,
+  selfHarm,
+  helper,
+}: {
+  client: SlackClient;
+  prog: Program;
+  event: HandlerEvent;
+  threadTs: string;
+  question: string;
+  addressed: boolean;
+  selfHarm: boolean;
+  helper: unknown;
+}): Promise<void> {
+  if (selfHarm) {
+    await postCrisisReply({ client, prog, event, threadTs });
+    return;
+  }
+  if (!addressed) {
+    db.recordMetric("silent", null, "eligibility:sensitive_escalation", prog.id);
+    return;
+  }
+  const text = refusalTextFor(question, helper, prog);
+  await sendSensitiveRefusal({ client, prog, event, threadTs, text });
 }
 
 async function escalateSensitive({
@@ -407,70 +587,16 @@ async function escalateSensitive({
   addressed: boolean;
   allowTicket?: boolean;
 }): Promise<void> {
-  const tickets = require("./tickets");
   db.recordGap(question, event.user, event.channel, threadTs, prog.id);
-  let ticket = null;
-  try {
-    if (allowTicket) {
-      ticket = await tickets.escalateTicket({
-        program: prog,
-        channel: event.channel,
-        threadTs,
-        requesterId: event.user,
-        question,
-        client,
-        workspaceId,
-      });
-    }
-  } catch (e: unknown) {
-    log.warn("handlers", `sensitive escalation ticket failed: ${errorMessage(e)}`);
-  }
+  const ticket = await escalateToTicket({ event, client, prog, workspaceId, threadTs, question, allowTicket });
   const elig = require("./eligibility");
   const selfHarm = elig.selfHarmHit(question) || elig.selfHarmHit(event.text || "");
   if (ticket) {
-    if (selfHarm) await postCrisisReply({ client, prog, event, threadTs });
-    db.recordMetric("silent", null, `eligibility:${selfHarm ? elig.SELF_HARM : "sensitive_escalation"}`, prog.id);
+    await closeTicketedEscalation({ client, prog, event, threadTs, selfHarm });
     return;
   }
-  let helper = null;
-  try {
-    helper = await tickets.handOffToHelper({
-      client,
-      program: prog,
-      channel: event.channel,
-      threadTs,
-      question,
-      requesterId: event.user,
-      workspaceId,
-    });
-  } catch (e: unknown) {
-    log.warn("handlers", `sensitive escalation helper ping failed: ${errorMessage(e)}`);
-  }
-  if (selfHarm) {
-    await postCrisisReply({ client, prog, event, threadTs });
-    return;
-  }
-  if (!addressed) {
-    db.recordMetric("silent", null, "eligibility:sensitive_escalation", prog.id);
-    return;
-  }
-  const refusal = require("./refusalReply");
-  const reason = refusal.refusalReason(question);
-  const text = helper
-    ? refusal.pingedRefusalText(reason, { program: prog })
-    : refusal.refusalText(reason, { program: prog });
-  await require("./slackMessages").sendProgramMessage({
-    client,
-    program: prog,
-    channel: event.channel,
-    threadTs,
-    text: replyText.plainDashes(text),
-    // The log must not become a list of sensitive threads with their text.
-    logSource: "sensitive_reply",
-    logPrivate: true,
-  });
-  context.addToThread(threadTs, "assistant", text, null, event.channel);
-  db.recordMetric("fallback", null, "sensitive_unticketed", prog.id);
+  const helper = await handOffQuietly({ client, prog, event, threadTs, question, workspaceId });
+  await answerUnticketed({ client, prog, event, threadTs, question, addressed, selfHarm, helper });
 }
 
 function threadRequiresMention(prog: Program | null): boolean {
