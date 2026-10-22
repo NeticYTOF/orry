@@ -95,6 +95,7 @@ test("the scopes the bot actually calls are all requested", () => {
     "reactions:write",
     "files:read",
     "im:write",
+    "users:read",
   ]) {
     assert.ok(BOT_SCOPES.includes(needed), `missing scope ${needed}`);
   }

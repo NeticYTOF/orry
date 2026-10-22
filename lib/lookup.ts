@@ -275,11 +275,57 @@ function evidencePrompt(passages: Array<{ id: string; source: string; heading?: 
     .join("\n\n");
 }
 
+async function evidenceForQuestion(
+  query: string,
+  question: string,
+  programId: string | null,
+  prog: ProgramLike | string | null,
+  channel: string | null,
+  semanticFallback = true,
+) {
+  const initial = knowledge.getEvidenceContext(query, programId, {
+    semanticFallback: false,
+    matchQuestion: question,
+  });
+  if (!semanticFallback || !initial.weakMatch) return initial;
+
+  const queries = await answer.expandSearchQueries(question, prog, channel);
+  if (!queries.length) return knowledge.getEvidenceContext(query, programId, { semanticFallback: true });
+  return knowledge.getEvidenceContext(query, programId, {
+    semanticFallback: true,
+    additionalQueries: queries,
+    matchQuestion: question,
+  });
+}
+
+function canonicalFaqQuestion(question: string, prog: ProgramLike | string | null) {
+  const resolved = typeof prog === "string" ? (programs.get(prog) as ProgramLike) : prog;
+  const programName = resolved?.name?.trim();
+  if (!programName) return question;
+
+  const normalized = question
+    .trim()
+    .replace(/^(?:no\s+)?(?:i\s+)?(?:just\s+)?meant\s+/i, "")
+    .replace(/\bthsi\b/gi, "this")
+    .replace(/[?.!]+$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (/^what\s+(?:is\s+)?(?:this\s+)?(?:ysws|program|project)(?:\s+is)?$/.test(normalized)) {
+    return `What is ${programName}?`;
+  }
+  return question;
+}
+
 function exactFaqAnswer(question: string, passages: Array<{ source: string; text: string }>): AnswerResult | null {
+  const ignoredWords = new Set(["a", "an", "the", "this", "that"]);
   const normalize = (value: string) =>
     value
+      .replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/gi, " ")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, " ")
+      .split(/\s+/)
+      .filter((word) => word && !ignoredWords.has(word))
+      .join(" ")
       .trim();
   const expected = normalize(question);
   if (!expected) return null;
@@ -701,6 +747,7 @@ async function lookupAnswer(
   channel: string | null = null,
   { isPing = false, skipCache = false }: Pick<AnswerOptions, "isPing" | "skipCache"> = {},
 ) {
+  question = canonicalFaqQuestion(question, prog);
   const programId = idOf(prog);
   const hit = cacheHit(question, contextPrompt, cacheScope(prog), skipCache);
   if (hit) return hit;
@@ -709,9 +756,9 @@ async function lookupAnswer(
   if (staged) return staged;
 
   const query = retrievalQuery(question, contextPrompt, prog);
-  const { passages } = knowledge.getEvidenceContext(query, programId);
+  const { passages } = await evidenceForQuestion(query, question, programId, prog, channel);
   const corpus = evidencePrompt(passages);
-  let result = contextPrompt ? null : exactFaqAnswer(question, passages);
+  let result = exactFaqAnswer(question, passages);
   if (!result) result = await answer.getGroundedAnswer(question, corpus, contextPrompt, prog, channel, { isPing });
   if (result) {
     result = await applyPassageCitations(result, passages, prog, question);
@@ -739,6 +786,7 @@ async function answerOrChat(
     answerMode = "program",
   }: AnswerOptions = {},
 ) {
+  question = canonicalFaqQuestion(question, prog);
   const programId = idOf(prog);
   const hit = previousQuestion ? null : cacheHit(question, contextPrompt, cacheScope(prog), skipCache);
   if (hit) return hit;
@@ -749,9 +797,9 @@ async function answerOrChat(
   const query = previousQuestion
     ? retrievalQuery(question, `User: ${previousQuestion}`, prog)
     : retrievalQuery(question, contextPrompt, prog);
-  const { passages } = knowledge.getEvidenceContext(query, programId);
+  const { passages } = await evidenceForQuestion(query, question, programId, prog, channel, answerMode !== "general");
   const corpus = evidencePrompt(passages);
-  let result = contextPrompt || previousQuestion ? null : exactFaqAnswer(question, passages);
+  let result = exactFaqAnswer(question, passages);
   if (!result) {
     result =
       onText && passages.length === 0
@@ -857,6 +905,7 @@ export = {
   cacheHit,
   dateFallback,
   retrievalQuery,
+  canonicalFaqQuestion,
   lookupAnswer,
   answerOrChat,
   knownAnswer,

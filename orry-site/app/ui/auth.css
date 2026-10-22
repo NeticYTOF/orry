@@ -1,0 +1,72 @@
+/* ORRY UI page layer: auth (sign-in, invite, no access, dev-idp, the 404). Owned by one agent; uses only the kit classes
+   plus its own, prefixed au-. No sidebar here: a centred card on the same 32px grid the main column uses. */
+
+.au-wrap {
+  min-height: 100vh; min-height: 100dvh; display: grid; justify-items: center; align-content: center; gap: 22px; padding: 40px 16px;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--ln) 1px, transparent 1px), linear-gradient(90deg, var(--ln) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.au-wrap:focus { outline: none; }
+.au-warn { width: min(480px, 100%); margin: 0; }
+
+.au-card { width: min(480px, 100%); }
+.au-card.wide { width: min(560px, 100%); }
+.au-h { flex-wrap: nowrap; padding: 12px 18px; }
+.au-b { display: grid; gap: 24px; padding: 32px 28px 32px; }
+.au-title { font: 700 30px/1.15 var(--font-pixel); letter-spacing: .2px; color: var(--ink); text-wrap: balance; }
+.au-b p { font-size: 15px; line-height: 1.65; color: var(--dim); }
+.au-b p b { color: var(--ink); font-weight: 600; }
+.au-b .state-note { font-size: 14px; color: var(--ink); }
+.au-b .btn { width: 100%; min-height: 48px; }
+.au-b form { margin: 0; }
+.au-b .au-facts { margin: 0; }
+.au-b .au-facts > div { grid-template-columns: 148px minmax(0, 1fr); }
+.au-alt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.au-alt .btn { width: auto; min-width: 120px; }
+@media (max-width: 420px) { .au-b { padding: 22px 18px 20px; } .au-title { font-size: 26px; } .au-b .au-facts > div { grid-template-columns: minmax(0, 1fr); } }
+
+/* --- the dev account chooser (local only), plain on purpose --- */
+.au-dev { display: grid; gap: 10px; }
+.au-dev h2 { font: 600 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.au-dev ul { display: grid; gap: 8px; }
+.au-dev form { margin: 0; }
+.au-dev-box { width: min(480px, 100%); padding: 18px; background: var(--panel); border: 2px dashed var(--stroke); box-shadow: none; }
+.au-acct {
+  display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; width: 100%; min-height: 48px; padding: 8px 12px;
+  font: 600 14px var(--font-mono); text-align: left; color: var(--ink); background: var(--panel-2); border: 2px solid var(--stroke); cursor: pointer;
+  transition: color .13s, background-color .13s;
+}
+.au-acct small { font: 400 12px var(--font-mono); color: var(--mut); overflow-wrap: anywhere; }
+.au-acct:hover { color: var(--bg); background: var(--ink); }
+.au-acct:hover small { color: inherit; opacity: .8; }
+
+/* --- the 404: LOADOUT's lamp page in small. One screen, nothing to scroll. --- */
+.au-lost {
+  position: relative; isolation: isolate; display: grid; place-items: center; height: 100vh; height: 100dvh; overflow: hidden; padding: 24px; text-align: center;
+  background: #0e1112;
+}
+.screen[data-display-theme="light"] .au-lost { background: var(--bg); }
+/* the lamp: a warm pool of light, strongest at the middle of the page, with a hard dark rim */
+.au-lost::before {
+  content: ""; position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--ac) 30%, transparent) 0, color-mix(in srgb, var(--ac) 12%, transparent) 26%, transparent 52%);
+  animation: au-sway 7s ease-in-out infinite alternate;
+}
+.au-lost::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; box-shadow: inset 0 0 0 10px #0b0d0e; }
+.screen[data-display-theme="light"] .au-lost::after { box-shadow: inset 0 0 0 10px var(--stroke); }
+@keyframes au-sway { from { transform: translateX(-3%); } to { transform: translateX(3%); } }
+.au-depth {
+  position: absolute; left: 50%; top: 46%; z-index: -1; transform: translate(-50%, -50%); user-select: none; pointer-events: none;
+  font: 400 clamp(220px, 46vw, 520px)/.8 var(--font-display); letter-spacing: 0; color: var(--ink); opacity: .05;
+}
+.au-lost-in { display: grid; justify-items: center; gap: 18px; max-width: 520px; }
+.au-lost-tag {
+  padding: 3px 12px; font: 400 20px/1.3 var(--font-display); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--acf); background: var(--ac); border: 2px solid var(--stroke);
+}
+.au-lost h1 { font: 400 clamp(52px, 11vw, 92px)/.95 var(--font-display); letter-spacing: 0; color: var(--ink); text-wrap: balance; }
+.au-lost-copy { max-width: 42ch; font-size: 15px; line-height: 1.65; color: var(--dim); }
+.au-lost .btn { min-height: 52px; padding: 0 30px; font: 400 24px/1 var(--font-display); letter-spacing: .04em; }
+@media (prefers-reduced-motion: reduce) { .au-lost::before { animation: none; } }
+@media (max-height: 520px) { .au-lost-in { gap: 10px; } .au-lost h1 { font-size: 48px; } }

@@ -39,6 +39,7 @@ const MIN_CHUNK = 100;
 const MAX_CHUNK = 900;
 
 const DEFAULT_BUDGET = 2500;
+const SEMANTIC_FALLBACK_BUDGET = 12000;
 
 const IDENTITY_BUDGET = 2500;
 const TIMELINE_BUDGET = 1200;
@@ -416,6 +417,21 @@ function selectChunks(
   return selected;
 }
 
+function hasWeakMatch(index: SearchIndex, question: string) {
+  const parts = questionParts(question);
+  if (!parts.length) return true;
+  for (const part of parts) {
+    const terms = [...new Set(tokenize(part))];
+    if (terms.length <= 1) return true;
+    const best = score(index, terms)[0]?.chunk;
+    if (!best) return true;
+    const matchedTerms = new Set(tokenize(best.text));
+    const matched = terms.filter((term) => matchedTerms.has(term)).length;
+    if (matched < Math.max(2, Math.ceil(terms.length / 2))) return true;
+  }
+  return false;
+}
+
 function passageId(chunk: Chunk) {
   return `p_${createHash("sha256")
     .update(`${chunk.source}\0${chunk.heading || ""}\0${chunk.text}`)
@@ -427,9 +443,50 @@ function selectEvidence(
   question: string,
   budget = DEFAULT_BUDGET,
   exclude: Set<string> | string[] | null = null,
+  semanticFallback = true,
   fillUnmatched = false,
 ) {
-  return selectChunks(index, question, budget, exclude, fillUnmatched).map((chunk) => ({
+  let chunks = selectChunks(index, question, budget, exclude, fillUnmatched);
+  const questionTerms = new Set(questionParts(question).flatMap((part) => tokenize(part)));
+  if (semanticFallback && questionTerms.size > 0 && (chunks.length === 0 || questionTerms.size <= 1)) {
+    const dropped = exclude instanceof Set ? exclude : new Set(exclude || []);
+    const groups = new Map<string, Chunk[]>();
+    for (const { chunk } of index.docs) {
+      if (dropped.has(chunk.source)) continue;
+      const group = groups.get(chunk.source) || [];
+      group.push(chunk);
+      groups.set(chunk.source, group);
+    }
+    const priority = (source: string) =>
+      /faq|frequently asked/i.test(source) ? 0 : /website|site|docs/i.test(source) ? 1 : 2;
+    const ordered = [...groups].sort((a, b) => priority(a[0]) - priority(b[0]));
+    const selected = new Set(chunks);
+    let used = chunks.reduce((total, chunk) => total + chunk.text.length, 0);
+    const add = (chunk: Chunk) => {
+      if (selected.has(chunk) || used + chunk.text.length > SEMANTIC_FALLBACK_BUDGET) return false;
+      selected.add(chunk);
+      used += chunk.text.length;
+      return true;
+    };
+
+    for (const [source, sourceChunks] of ordered) {
+      if (priority(source) !== 0) continue;
+      for (const chunk of sourceChunks) add(chunk);
+    }
+    for (let rank = 0; ; rank++) {
+      let found = false;
+      for (const [source, sourceChunks] of ordered) {
+        if (priority(source) === 0) continue;
+        const chunk = sourceChunks[rank];
+        if (!chunk) continue;
+        found = true;
+        add(chunk);
+      }
+      if (!found || used >= SEMANTIC_FALLBACK_BUDGET) break;
+    }
+    chunks = [...selected];
+  }
+  return chunks.map((chunk) => ({
     id: passageId(chunk),
     source: chunk.source,
     heading: chunk.heading,
@@ -509,11 +566,13 @@ export = {
   buildIndex,
   score,
   selectChunks,
+  hasWeakMatch,
   selectEvidence,
   selectContext,
   MIN_CHUNK,
   MAX_CHUNK,
   DEFAULT_BUDGET,
+  SEMANTIC_FALLBACK_BUDGET,
   IDENTITY_BUDGET,
   TIMELINE_BUDGET,
   LEARNED_BUDGET,

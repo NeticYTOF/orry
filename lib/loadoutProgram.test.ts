@@ -38,6 +38,11 @@ test("every LOADOUT source points at a file that exists", () => {
 test("every LOADOUT source is a named markdown file inside the repo", () => {
   for (const source of loadout().sources) {
     expect(source.name).toBeTruthy();
+    // Live website docs are allowed as "url" sources, but only over https.
+    if (source.type === "url") {
+      expect((source.url || "").startsWith("https://")).toBe(true);
+      continue;
+    }
     expect(source.type).toBe("markdown");
     expect(source.url!.startsWith("file://loadout/corpus/")).toBe(true);
   }
@@ -81,7 +86,7 @@ test("LOADOUT pins the canonical economy rules that the corpus is graded on", ()
 
 test("the bot displays as Orry and signs nothing", () => {
   const program = loadout();
-  expect(program.supportName).toBe("Orry");
+  expect(program.supportName).toBe("Orry the ore Maulwürf");
   expect(program.replySignature || "").toBe("");
 });
 

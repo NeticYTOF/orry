@@ -55,6 +55,63 @@ test("retrievalQuery leaves standalone non-follow-up questions intact", () => {
   assert.equal(result, standalone);
 });
 
+test("a correction asking what this YSWS is resolves to the current program FAQ", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = {
+    evidence: knowledge.getEvidenceContext,
+    eligibility: knowledge.sourceEligibility,
+    verify: answer.verifyGrounding,
+  };
+  const passage = {
+    id: "loadout-faq",
+    programId: "loadout-test",
+    kind: "source",
+    source: "Loadout FAQ",
+    text: "**What is Loadout?** A technical builder YSWS where shipped projects become a persistent Digital Loadout.",
+  };
+  let coverageQuestion = "";
+  knowledge.getEvidenceContext = (query: string) => ({ passages: /What is Loadout/i.test(query) ? [passage] : [] });
+  knowledge.sourceEligibility = () => ({ exactClaimsAllowed: true, authority: "static" });
+  answer.verifyGrounding = async (
+    claims: Array<{ claim: string; evidenceIds: string[] }>,
+    _evidence: unknown,
+    _program: unknown,
+    _channel: unknown,
+    options: { requestCoverage?: { question?: string } },
+  ) => {
+    coverageQuestion = options.requestCoverage?.question || "";
+    return {
+      ok: true,
+      verdict: "supported",
+      coverage: true,
+      errors: [],
+      claims: claims.map((claim) => ({ ...claim, supported: true, evidenceIds: ["loadout-faq"] })),
+    };
+  };
+  try {
+    const result = await lookup.answerOrChat(
+      "no i meant what thsi ysws is",
+      "Previous conversation:\nUser: what is ysws",
+      {
+        program: {
+          id: "loadout-test",
+          name: "Loadout",
+          sharedSources: false,
+          sources: [{ name: "Loadout FAQ", type: "markdown" }],
+        },
+        skipCache: true,
+      },
+    );
+    assert.match(result.answer, /technical builder YSWS/);
+    assert.equal(coverageQuestion, "What is Loadout?");
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    knowledge.sourceEligibility = original.eligibility;
+    answer.verifyGrounding = original.verify;
+  }
+});
+
 test("answerOrChat uses a preceding answered question for retrieval, not the answer prompt", async () => {
   const knowledge = require("./knowledge");
   const answer = require("./answer");

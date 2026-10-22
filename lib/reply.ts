@@ -178,7 +178,7 @@ function blocksFor(text: string, options: BlocksOptions = {}): ReplyBlock[] {
 }
 
 function postThinking(client: SlackClient, channel: string, threadTs: string, program: ProgramLike | null = null) {
-  return sendProgramMessage({ client, program, channel, threadTs, text: THINKING })
+  return sendProgramMessage({ client, program, channel, threadTs, text: THINKING, logSource: "placeholder" })
     .then((res: { ts?: string }) => res.ts || null)
     .catch((error: unknown) => {
       log.debug("respond", `could not post placeholder: ${errorMessage(error)}`);
@@ -369,6 +369,7 @@ async function finalize(
   if (placeholderTs) {
     try {
       await client.chat.update({ ...payload, ts: placeholderTs });
+      logAnswerUpdate(program, channel, placeholderTs, payload.text, payload.blocks);
       return placeholderTs;
     } catch (error: unknown) {
       log.debug("respond", `update failed, posting fresh: ${errorMessage(error)}`);
@@ -383,8 +384,30 @@ async function finalize(
     threadTs,
     text: payload.text,
     blocks: payload.blocks || null,
+    logSource: "answer",
   });
   return res ? res.ts : null;
+}
+
+// The placeholder row (posted as "thinking") becomes the answer. Streaming
+// edits before this are not logged; only the final text is.
+function logAnswerUpdate(
+  program: ProgramLike | null,
+  channel: string,
+  ts: string,
+  text: string,
+  blocks: ReplyBlock[] | undefined,
+): void {
+  try {
+    require("./outboundLog").recordUpdate({
+      programId: program && typeof program.id === "string" ? program.id : null,
+      channel,
+      ts,
+      text,
+      blocks: blocks || null,
+      source: "answer",
+    });
+  } catch (_error: unknown) {}
 }
 
 async function discardPlaceholder(
@@ -410,6 +433,7 @@ async function discardPlaceholder(
           }
           throw new Error(errCode || "delete failed");
         }
+        logDelete(channel, ts);
         return;
       } catch (error: unknown) {
         const code = error instanceof Error ? error.message : String(error);
@@ -426,6 +450,12 @@ async function discardPlaceholder(
         }
       }
     }
+  } catch (_error: unknown) {}
+}
+
+function logDelete(channel: string, ts: string): void {
+  try {
+    require("./outboundLog").recordDelete({ channel, ts, source: "placeholder_discard" });
   } catch (_error: unknown) {}
 }
 

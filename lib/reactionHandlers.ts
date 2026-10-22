@@ -77,6 +77,7 @@ async function onReactionAdded({ event, client }: { event: ReactionEvent; client
       if (author !== config.slack.botUserId) return;
 
       await client.chat.delete({ channel, ts: event.item.ts });
+      require("./outboundLog").recordDelete({ channel, ts: event.item.ts, source: "x_reaction" });
       log.info("handlers", `deleted message ${event.item.ts} via reaction`);
     } catch (e: unknown) {
       log.warn("handlers", `could not delete ${event.item.ts}: ${errorData(e)?.error || errorMessage(e)}`);

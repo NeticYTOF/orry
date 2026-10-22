@@ -3,7 +3,7 @@
   "name": "Loadout",
   "scope": "program",
   "posture": "active",
-  "supportName": "Orry",
+  "supportName": "Orry the ore Maulwürf",
   "replySignature": "",
   "aiAnswers": true,
   "ticketsEnabled": true,
@@ -11,7 +11,8 @@
   "helperPing": true,
   "supportActive": true,
   "autoAssign": true,
-  "ticketVisibility": "public",
+  "ticketVisibility": "thread",
+  "publicTicketsEnabled": true,
   "learning": "active",
   "requireGroundedAnswer": true,
   "evidenceBudget": 24000,
@@ -85,6 +86,15 @@
       "name": "Loadout — Not verified yet",
       "type": "markdown",
       "url": "file://loadout/corpus/11-unverified.md"
+    },
+    {
+      "name": "Loadout — live website docs",
+      "type": "url",
+      "url": "https://loadout.dino.icu/",
+      "paths": [
+        "/docs"
+      ],
+      "dynamic": true
     }
   ],
   "channels": [

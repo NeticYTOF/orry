@@ -425,12 +425,15 @@ test("grounded answer and escalation are mutually exclusive (unanswerable -> esc
   const origGetAnswer = answer.getAnswerOrChatStream;
   const origGetAnswerPlain = answer.getAnswerOrChat;
   const origIntent = intent.classifyIntent;
+  const origExpand = answer.expandSearchQueries;
 
   answer.getAnswerOrChat = answer.getAnswerOrChatStream = async () => ({
     source: null,
     answer: "",
     unclear: true,
   });
+  // Query expansion is an LLM call; stub it so the test never reaches a provider.
+  answer.expandSearchQueries = async () => [];
   intent.classifyIntent = async () => intent.HELP_NEEDED;
 
   const prog = {
@@ -510,6 +513,7 @@ test("grounded answer and escalation are mutually exclusive (unanswerable -> esc
   } finally {
     answer.getAnswerOrChatStream = origGetAnswer;
     answer.getAnswerOrChat = origGetAnswerPlain;
+    answer.expandSearchQueries = origExpand;
     intent.classifyIntent = origIntent;
     db.deleteProgram("prog-gap");
     programs.invalidate();

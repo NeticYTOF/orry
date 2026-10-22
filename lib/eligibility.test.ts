@@ -754,6 +754,13 @@ test("a direct ping from either Slack event is answered once", async () => {
   const origMetric = db.recordMetric;
   const origGap = db.recordGap;
   const origClaim = db.claimMessage;
+  // Top-level help-channel messages open a support ticket (origin/main's
+  // ensureTopLevelHelpTicket). With the bare test client its Slack sync fails and
+  // records ticket_slack_sync_failure, which is not an eligibility metric, so the
+  // ticket side effect is stubbed out here.
+  const tickets = require("./tickets");
+  const savedEnsureTicket = tickets.ensureSupportTicket;
+  tickets.ensureSupportTicket = async () => null;
   let metrics: any[] = [],
     gaps: any[] = [],
     claims: any[] = [],
@@ -858,6 +865,7 @@ test("a direct ping from either Slack event is answered once", async () => {
     db.recordMetric = origMetric;
     db.recordGap = origGap;
     db.claimMessage = origClaim;
+    tickets.ensureSupportTicket = savedEnsureTicket;
     respond.respond = savedRespond;
     config.slack.botUserId = savedBot;
     config.slack.helpChannel = savedHelp;

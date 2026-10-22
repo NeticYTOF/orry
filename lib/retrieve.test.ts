@@ -512,6 +512,24 @@ test("referral-code query retrieves 48-hour / 2-day expiration across various ph
   }
 });
 
+test("a weak one-word match still receives FAQ and live-site evidence for semantic matching", () => {
+  const sections = [
+    ["Loadout — FAQ", "## Organization\nJerry is the lead organizer. Netic and Wind are co-organizers."],
+    [
+      "Loadout — live website docs",
+      "## About Loadout\nRun your shipped project through Loadout to build your technical stack.",
+    ],
+    ["Loadout — shop", "## Catalog\nBuy equipment using Bolts from the Loadout shop."],
+  ] as Array<[string, string]>;
+  const index = retrieve.buildIndex(retrieve.chunkSections(sections));
+  const passages = retrieve.selectEvidence(index, "who runs it?");
+
+  assert.ok(passages.length > 0);
+  assert.ok(passages.some((passage: { source: string }) => /FAQ/i.test(passage.source)));
+  assert.ok(passages.some((passage: { source: string }) => /website/i.test(passage.source)));
+  assert.ok(passages.some((passage: { text: string }) => /lead organizer/i.test(passage.text)));
+});
+
 test("chunk size and budget constants pin the retrieval contract", () => {
   assert.equal(retrieve.MIN_CHUNK, 100);
   assert.equal(retrieve.MAX_CHUNK, 900);

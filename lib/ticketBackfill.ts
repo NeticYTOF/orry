@@ -334,6 +334,9 @@ function addReplyEvents(
       helperMessages.push(message);
       const recordFirstResponse = db.recordFirstResponse as (...args: unknown[]) => unknown;
       recordFirstResponse(ticket.id, true, tsMs(message.ts));
+      try {
+        db.recordHumanReply(Number(ticket.id), tsMs(message.ts));
+      } catch (_) {}
       if (recorded) {
         try {
           require("./helperRoute").recordReply({ programId: ticket.program_id, userId, category: ticket.category });
@@ -365,6 +368,25 @@ function openStatus(status: unknown): boolean {
   );
 }
 
+// The import only finishes tickets it imported. A ticket Orry opened live
+// (its "created" event names a live source, or it is shown in the thread)
+// belongs to the live resolution watcher: the import must not close it as
+// "no answer" or resolve it from history. A ticket with no created event is
+// treated as imported only when it is dashboard-only.
+function importOwnsTicket(ticket: AnyRow): boolean {
+  if (ticket.visibility !== "dashboard") return false;
+  const created = (db.listTicketEvents(Number(ticket.id), 500) as AnyRow[]).find(
+    (event: AnyRow) => event.event_type === "created",
+  );
+  if (!created) return true;
+  try {
+    const detail = typeof created.detail === "string" ? JSON.parse(created.detail) : created.detail;
+    return detail?.source === "backfill";
+  } catch (_) {
+    return false;
+  }
+}
+
 async function resolveOrQueue(
   ticket: AnyRow,
   program: AnyRow,
@@ -374,6 +396,7 @@ async function resolveOrQueue(
   options: AnyRow,
 ): Promise<{ resolved: boolean; closed: boolean; queued: boolean }> {
   if (!openStatus(ticket.status)) return { resolved: false, closed: false, queued: false };
+  if (!importOwnsTicket(ticket)) return { resolved: false, closed: false, queued: false };
   const answerMessages = [...replyState.helperMessages, ...replyState.orryMessages];
   const existingAnswer = (db.listTicketEvents(Number(ticket.id), 500) as AnyRow[]).some(
     (event: AnyRow) => event.event_type === "helper_reply" || event.event_type === "rivet_answer",

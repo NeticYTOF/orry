@@ -151,6 +151,62 @@ test("history import creates, enriches, resolves, closes, queues, and stays sile
   assert.deepEqual(posts, []);
 });
 
+test("history import leaves tickets Orry opened live to the live watcher", async () => {
+  const program = setup();
+  const messages = [
+    { ts: ts(NOW - 9 * DAY), user: "U-LIVE-QUIET", text: "live, never answered" },
+    { ts: ts(NOW - 8 * DAY), user: "U-LIVE-ANSWERED", text: "live, helper had the last word" },
+    { ts: ts(NOW - 10 * DAY), user: "U-OLD", text: "never seen live" },
+  ];
+  const live = [];
+  for (const [index, visibility] of [
+    [0, "dashboard"],
+    [1, "thread"],
+  ] as const) {
+    const id = db.createTicket({
+      programId: program.id,
+      channel: program.helpChannel,
+      threadTs: messages[index].ts,
+      requesterId: messages[index].user,
+      question: messages[index].text,
+      createdAt: NOW - 9 * DAY,
+      visibility,
+    });
+    db.addTicketEvent({
+      ticketId: id,
+      programId: program.id,
+      actorId: messages[index].user,
+      eventType: "created",
+      detail: { source: "support_question" },
+      createdAt: NOW - 9 * DAY,
+    });
+    live.push(id);
+  }
+  const replies = {
+    [messages[0].ts]: [messages[0]],
+    [messages[1].ts]: [messages[1], { ts: ts(NOW - 7 * DAY), user: "U-HELPER", text: "Try this." }],
+    [messages[2].ts]: [messages[2]],
+  };
+  await backfill.importProgram(program, fakeClient(messages, replies), {
+    now: () => NOW,
+    spacingMs: 0,
+    sleepFn: async () => {},
+    autoStartJudge: false,
+  });
+  for (const id of live) {
+    const ticket = db.getTicket(id);
+    assert.equal(ticket.status, "open", `live ticket #${id} stays open`);
+    assert.equal(ticket.resolution, null);
+  }
+  assert.equal(
+    db.listTicketEvents(live[1]).filter((e) => e.event_type === "helper_reply").length,
+    1,
+    "the import still records the missing helper reply",
+  );
+  const imported = db.getTicketsForProgram(program.id).find((row) => row.requester_id === "U-OLD");
+  assert.equal(imported.status, "closed", "a ticket the import created is still closed as before");
+});
+
 test("history import reruns without duplicates and resumes a failed replies page", async () => {
   const program = setup();
   const messages = [

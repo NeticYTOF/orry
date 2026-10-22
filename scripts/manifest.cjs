@@ -33,6 +33,9 @@ const BOT_SCOPES = [
   "channels:read",
   "groups:read",
   "files:read",
+  // users.info for names (POST /internal/v1/slack/users/info and the
+  // program members route). Without it every lookup fails with
+  // missing_scope and callers fall back to raw @U ids.
   "users:read",
 ];
 

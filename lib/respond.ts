@@ -872,7 +872,14 @@ async function respond({
   const inHelpChannel = role === "help";
   const isAddressed = addressed || mode === ALWAYS || role === "dm";
   const startedAt = Date.now();
-  const trace = pipelineEvents.start({ programId, role, addressed: isAddressed });
+  const trace = pipelineEvents.start({
+    programId,
+    role,
+    addressed: isAddressed,
+    channel,
+    threadTs,
+    messageTs: messageTs || null,
+  });
 
   const activeIncident = await handleActiveIncident({
     client,
@@ -1219,6 +1226,18 @@ async function respond({
     if (placeholderTimer) {
       clearTimeout(placeholderTimer);
       placeholderTimer = null;
+    }
+    if (require("./llm").isProviderFailure(error)) {
+      log.warn("respond", "all answer providers failed; staying silent");
+      trace.set({ answerMs: Date.now() - answerStartedAt });
+      try {
+        await streamer?.settle();
+      } finally {
+        await reply.discardPlaceholder(client, channel, placeholder());
+      }
+      db.recordMetric("silent", Date.now() - startedAt, "provider_unavailable", programId);
+      trace.finish({ finalAction: "silence", reason: "provider_unavailable" });
+      return false;
     }
     log.error("respond", "answer lookup failed:", errorMessage(error));
     trace.set({ answerMs: Date.now() - answerStartedAt });

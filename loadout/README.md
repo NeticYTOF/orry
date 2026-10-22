@@ -1,6 +1,6 @@
-# Orry × LOADOUT
+# Orry the ore Maulwürf × Loadout
 
-Orry is configured here as the helper bot for **LOADOUT**, the YSWS where every project levels you up as a builder. Everything a builder asks in `#loadout` is answered from `corpus/`, so Orry stays grounded in the actual program rules instead of improvising.
+Orry the ore Maulwürf is configured here as the helper bot for **Loadout**, the YSWS where every project levels you up as a builder. Everything a builder asks in `#loadout` is answered from `corpus/`, so Orry stays grounded in the actual program rules instead of improvising.
 
 ## What is in here
 
@@ -49,7 +49,7 @@ program has not claimed.
 
 ## Ground rules the bot enforces
 
-`pinnedRules` in `program.json` plus `requireGroundedAnswer` are what stop Orry from confidently getting LOADOUT wrong. The load-bearing ones:
+`pinnedRules` in `program.json` plus `requireGroundedAnswer` are what stop Orry from confidently getting Loadout wrong. The load-bearing ones:
 
 - Bolts are the global spendable currency; Track XP is separate, non-spendable, and permanent.
 - Four tracks: Tools, Systems, Compute, Hardware. Research Mode is a modifier, not a track.

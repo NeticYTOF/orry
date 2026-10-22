@@ -791,11 +791,13 @@ function register(app: AppLike): void {
     try {
       const data = JSON.parse(action.value || "{}");
       if (!data.threadTs || !data.channel || !data.summary) return;
-      await client.chat.postMessage({
+      const payload = {
         channel: data.channel,
         thread_ts: data.threadTs,
         text: reply.plainDashes(`🧵 *Thread Summary* (shared by <@${body.user!.id}>):\n\n${data.summary}`),
-      });
+      };
+      const res = await client.chat.postMessage(payload);
+      require("./outboundLog").recordSent(payload, res, "thread_summary");
     } catch (e: unknown) {
       log.debug("commands", `sum_post_to_thread error: ${errorMessage(e)}`);
     }

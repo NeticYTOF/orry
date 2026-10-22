@@ -205,6 +205,8 @@ const ANSWERED_TTL_MS = 24 * 60 * 60 * 1000;
 const THREAD_TTL_MS = 60 * 60 * 1000;
 const HISTORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+const OUTBOUND_ROW_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const ANSWER_OUTCOME_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 const CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
 const CACHE_IDLE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -286,16 +288,34 @@ function backfillResolvedCredits(database: DatabaseType) {
   database.query("INSERT INTO ticket_metrics_migrations (version, applied_at) VALUES (?, ?)").run(version, now());
 }
 
+// Tickets from before last_human_reply_at existed get the newest recorded
+// helper_reply event. That is a lower bound: thread replies used to record
+// one event per helper per ticket, so later repeat replies are not known.
+function backfillLastHumanReply(database: DatabaseType) {
+  const version = "last_human_reply_v1";
+  if (database.query("SELECT 1 FROM ticket_metrics_migrations WHERE version = ?").get(version)) return;
+  database.exec(`
+    UPDATE tickets AS t SET last_human_reply_at = (
+      SELECT MAX(e.created_at) FROM ticket_events e
+      WHERE e.ticket_id = t.id AND e.program_id = t.program_id AND e.event_type = 'helper_reply'
+    ) WHERE t.last_human_reply_at IS NULL;
+  `);
+  database.query("INSERT INTO ticket_metrics_migrations (version, applied_at) VALUES (?, ?)").run(version, now());
+}
+
 function open(filename = (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH) || DEFAULT_PATH) {
   if (db) return db;
   db = new Database(filename, { create: true });
   // SQLite WAL
+  db.exec("PRAGMA secure_delete = ON");
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec(SCHEMA);
   migrate(db);
   backfillResolvedCredits(db);
+  backfillLastHumanReply(db);
   db.exec(POST_MIGRATION_SCHEMA);
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   log.info("db", `opened ${filename}`);
   return db;
 }
@@ -303,12 +323,15 @@ function open(filename = (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH)
 function ensureSchema(filename: string | null = null) {
   const file = filename || (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH) || DEFAULT_PATH;
   const database = new Database(file, { create: true });
+  database.exec("PRAGMA secure_delete = ON");
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA busy_timeout = 5000");
   database.exec(SCHEMA);
   migrate(database);
   backfillResolvedCredits(database);
+  backfillLastHumanReply(database);
   database.exec(POST_MIGRATION_SCHEMA);
+  database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   database.close();
 }
 
@@ -1039,6 +1062,12 @@ function recordRequest(userId: string) {
   query("INSERT INTO rate_limits (user_id, created_at) VALUES (?, ?)").run(userId, now());
 }
 
+// The outbound log stores metadata only and keeps rows for a year.
+function purgeOutboundMessages(t = now()) {
+  const removed = query("DELETE FROM outbound_messages WHERE created_at < ?").run(t - OUTBOUND_ROW_TTL_MS).changes;
+  return { removed };
+}
+
 function sweep() {
   const t = now();
   query("DELETE FROM answered_messages WHERE answered_at < ?").run(t - ANSWERED_TTL_MS);
@@ -1048,6 +1077,16 @@ function sweep() {
   query("DELETE FROM user_messages WHERE created_at < ?").run(t - USER_MESSAGE_TTL_MS);
   query("DELETE FROM answer_cache WHERE COALESCE(last_asked_at, created_at) < ?").run(t - CACHE_IDLE_MS);
   query("DELETE FROM rate_limits WHERE created_at < ?").run(t - 60 * 60 * 1000);
+  try {
+    purgeOutboundMessages(t);
+  } catch (e: unknown) {
+    log.warn("db", `outbound log purge failed: ${errorMessage(e)}`);
+  }
+  try {
+    query("DELETE FROM answer_outcomes WHERE created_at < ?").run(t - ANSWER_OUTCOME_TTL_MS);
+  } catch (e: unknown) {
+    log.warn("db", `answer outcome purge failed: ${errorMessage(e)}`);
+  }
 
   try {
     handle().exec("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -1530,6 +1569,19 @@ function recordFirstResponse(id: number, human = false, at = null) {
   );
 }
 
+// Every human (helper or admin) reply moves this forward, including repeat
+// replies in the same thread. updated_at is left alone on purpose: the SLA
+// loop reads it, and a reply must not change what Orry posts.
+function recordHumanReply(id: number, at: number | null = null) {
+  const t = at === null || at === undefined ? now() : Number(at);
+  if (!Number.isFinite(t)) return false;
+  return (
+    query(
+      "UPDATE tickets SET last_human_reply_at = ? WHERE id = ? AND (last_human_reply_at IS NULL OR last_human_reply_at < ?)",
+    ).run(t, id, t).changes > 0
+  );
+}
+
 function getTicketsForProgram(programId: string, status = null): TicketRow[] {
   if (status) {
     return query<TicketRow>("SELECT * FROM tickets WHERE program_id = ? AND status = ? ORDER BY created_at DESC").all(
@@ -1688,6 +1740,23 @@ function listTicketEvents(ticketId: number, limit = 100): TicketEventRow[] {
   );
 }
 
+// Newest events first for timelines: skip `offset` of the newest, take
+// `limit`, and return them oldest-first so a page reads top to bottom.
+// listTicketEvents (oldest 100) stays as it is for its existing callers.
+function listRecentTicketEvents(
+  ticketId: number,
+  { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+) {
+  const rows = query<TicketEventRow>(
+    "SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+  ).all(ticketId, limit, offset);
+  return rows.reverse();
+}
+
+function countTicketEvents(ticketId: number): number {
+  return Number(query("SELECT COUNT(*) AS n FROM ticket_events WHERE ticket_id = ?").get(ticketId)?.n || 0);
+}
+
 function getHistoryImportProgress(programId: string, channelId: string): HistoryImportRow | null;
 function getHistoryImportProgress(programId: string, channelId?: null): HistoryImportRow[];
 function getHistoryImportProgress(
@@ -1783,14 +1852,43 @@ function recordAuditEvent({
   return res.changes > 0 ? Number(res.lastInsertRowid) : null;
 }
 
-function listAuditEvents({ programId = null, limit = 100 }: Record<string, unknown> = {}): AuditEventRow[] {
+// action matches exactly, or as a prefix when it ends in "*" ("ticket.*").
+// since/until bound created_at (since exclusive, until inclusive).
+function listAuditEvents({
+  programId = null,
+  limit = 100,
+  offset = 0,
+  action = null,
+  since = null,
+  until = null,
+}: Record<string, unknown> = {}): AuditEventRow[] {
+  const clauses: string[] = [];
+  const params: DbValue[] = [];
   if (programId) {
-    return query<AuditEventRow>("SELECT * FROM audit_events WHERE program_id = ? ORDER BY created_at DESC LIMIT ?").all(
-      programId,
-      limit,
-    );
+    clauses.push("program_id = ?");
+    params.push(String(programId));
   }
-  return query<AuditEventRow>("SELECT * FROM audit_events ORDER BY created_at DESC LIMIT ?").all(limit);
+  if (typeof action === "string" && action) {
+    if (action.endsWith("*")) {
+      clauses.push("action LIKE ? ESCAPE '\\'");
+      params.push(`${action.slice(0, -1).replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+    } else {
+      clauses.push("action = ?");
+      params.push(action);
+    }
+  }
+  if (since !== null && since !== undefined && Number.isFinite(Number(since))) {
+    clauses.push("created_at > ?");
+    params.push(Number(since));
+  }
+  if (until !== null && until !== undefined && Number.isFinite(Number(until))) {
+    clauses.push("created_at <= ?");
+    params.push(Number(until));
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  return query<AuditEventRow>(
+    `SELECT * FROM audit_events ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+  ).all(...params, Number(limit) || 100, Math.max(Number(offset) || 0, 0));
 }
 
 function syncHelper({ programId, userId, source = "manual", role = "helper" }: Record<string, unknown>) {
@@ -1881,6 +1979,8 @@ export = {
   now,
   handle,
   sweep,
+  purgeOutboundMessages,
+  OUTBOUND_ROW_TTL_MS,
   recordAnsweredThread,
   getRecentAnsweredThreads,
   getLearnedFactsWithThreads,
@@ -1969,6 +2069,7 @@ export = {
   setResolutionSummary,
   getResolutionSummary,
   recordFirstResponse,
+  recordHumanReply,
   getTicketsForProgram,
   searchTickets,
   claimProgramChannel,
@@ -1980,6 +2081,8 @@ export = {
   assignUnownedLearnedFacts,
   addTicketEvent,
   listTicketEvents,
+  listRecentTicketEvents,
+  countTicketEvents,
   getHistoryImportProgress,
   upsertHistoryImportProgress,
   addTicketNote,

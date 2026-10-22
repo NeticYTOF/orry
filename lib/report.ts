@@ -10,6 +10,7 @@ const llm = require("./llm");
 const log = require("./log");
 const brand = require("./brand");
 const jobLease = require("./jobLease");
+const outboundLog = require("./outboundLog");
 const { coverageStats, relativeTime } = require("./stats");
 import type { Program, SlackClient } from "./types";
 
@@ -446,11 +447,13 @@ async function postWeekly(client: SlackClient, programId: string | null = null):
       const channel = reportChannel(programId);
       if (!channel) return false;
       const text = reportText(0, programId);
-      await client.chat.postMessage({
+      const payload = {
         channel,
         text: `${brand.name()} weekly report`,
         blocks: reply.plainDashesInBlocks(reportBlocks(0, programId)),
-      });
+      };
+      const res = await client.chat.postMessage(payload);
+      outboundLog.recordSent(payload, res, "weekly_report", programId || null);
       db.recordMetric(SENT_METRIC);
       log.info("report", `weekly report posted to ${channel}`);
       return true;
@@ -479,7 +482,8 @@ async function postDailyCosts(client: SlackClient): Promise<boolean> {
     const text = costReport.costDigestText(rows, at);
     // No calls in the reporting window is not worth a message.
     if (!text) return false;
-    await client.chat.postMessage({ channel, text });
+    const res = await client.chat.postMessage({ channel, text });
+    outboundLog.recordSent({ channel, text }, res, "cost_digest");
     costReport.markCostReportSent(day);
     log.info("report", `daily cost digest posted to ${channel}`);
     return true;
@@ -538,7 +542,8 @@ async function postOperationalHealth(client: SlackClient): Promise<boolean> {
   const text = current.lines.length
     ? `Orry operational alert\n${current.lines.map((line) => `• ${line}`).join("\n")}`
     : "Orry operational alert: the reported issues have cleared.";
-  await client.chat.postMessage({ channel, text });
+  const res = await client.chat.postMessage({ channel, text });
+  outboundLog.recordSent({ channel, text }, res, "ops_alert");
   db.recordMetric(OPS_STATE_METRIC, null, JSON.stringify(current.keys));
   log.info("report", `operational health update posted to ${channel}`);
   return true;

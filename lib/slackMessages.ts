@@ -40,6 +40,14 @@ function recordSendFailure(program: Program | null | undefined, err: SlackError)
   } catch (_) {}
 }
 
+// The outbound log must never break a send; it swallows its own errors and
+// this wrapper guards the require as well.
+function logSend(entry: Record<string, unknown>): void {
+  try {
+    require("./outboundLog").recordPost(entry);
+  } catch (_) {}
+}
+
 function brandingFor(program: Program | null | undefined): Record<string, string> {
   // Slack branding limits
   if (!program) return {};
@@ -98,6 +106,9 @@ async function sendProgramMessage({
   threadTs = null,
   text,
   blocks = null,
+  logSource = "program_message",
+  logPrivate = false,
+  logTicketId = null,
 }: {
   client: MessageClient;
   program?: Program | null;
@@ -105,6 +116,9 @@ async function sendProgramMessage({
   threadTs?: string | null;
   text?: string;
   blocks?: unknown[] | null;
+  logSource?: string;
+  logPrivate?: boolean;
+  logTicketId?: number | null;
 }): Promise<SendResult> {
   if (!client || !client.chat || typeof client.chat.postMessage !== "function") {
     throw new Error("slack client unavailable");
@@ -125,18 +139,37 @@ async function sendProgramMessage({
     ...(blocks ? { blocks } : {}),
   };
 
+  const logBase = {
+    programId: program && program.id ? program.id : null,
+    channel,
+    threadTs,
+    text: text || null,
+    blocks,
+    source: logSource,
+    private: logPrivate,
+    ticketId: logTicketId,
+  };
+  const failed = (err: unknown) => {
+    try {
+      logSend({ ...logBase, status: "failed", error: require("./outboundLog").errorCode(err) });
+    } catch (_) {}
+    return err;
+  };
+
   let useBrand = Object.keys(brand).length > 0;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const payload = useBrand ? { ...base, ...brand } : base;
     try {
-      return (await client.chat.postMessage(payload as ChatPostMessageArguments)) as SendResult;
+      const res = (await client.chat.postMessage(payload as ChatPostMessageArguments)) as SendResult;
+      logSend({ ...logBase, ts: res && typeof res.ts === "string" ? res.ts : null, status: "sent" });
+      return res;
     } catch (err) {
       const error = (err && typeof err === "object" ? err : {}) as SlackError;
       const code = error.code || (error.data && error.data.error);
       if (useBrand && (code === "invalid_arguments" || code === "not_allowed" || code === "missing_scope")) {
         if (attempt >= MAX_ATTEMPTS - 1) {
           recordSendFailure(program, error);
-          throw err;
+          throw failed(err);
         }
         log.warn("slackMessages", `program branding rejected (${code}) — retrying as ${botBrand.name()}`);
         useBrand = false;
@@ -144,7 +177,7 @@ async function sendProgramMessage({
       }
       if (isPermanentError(error)) {
         recordSendFailure(program, error);
-        throw err;
+        throw failed(err);
       }
       const wait = retryAfterMs(error);
       if (wait !== null && attempt < MAX_ATTEMPTS - 1) {
@@ -156,7 +189,7 @@ async function sendProgramMessage({
         continue;
       }
       recordSendFailure(program, error);
-      throw err;
+      throw failed(err);
     }
   }
   throw new Error("slack message attempts exhausted");

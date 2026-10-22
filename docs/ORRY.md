@@ -1,7 +1,9 @@
 # Orry the ore Maulwürf — feature and behavior guide
 
-This guide describes the Orry bot as configured for Loadout and the behavior
-implemented in Core.
+This guide describes Orry the ore Maulwürf, Netic's Slack bot for Loadout, and
+the behavior implemented in Orry Core. Orry is the bot's public name and also
+the repository and internal project name. The older name, Rivet, still works
+as the fallback for RIVET_* env vars.
 
 ## Identity and personality
 
@@ -144,7 +146,8 @@ messages.
 
 ## When Orry replies, waits, or stays quiet
 
-1. **Addressing:** Slack @mentions and “orry”/the configured bot name can address Orry. Name detection works anywhere in a
+1. **Addressing:** Slack @mentions, “orry”/the configured bot name, and the
+   “Orry” name reference can address the bot. Name detection works anywhere in a
    message and recognizes a name with a word suffix (such as “Orrybot”).
 2. **Name references:** wording such as “ask Orry”, “Orry already answered”,
    or “ignore Orry” is treated as a reference rather than a request to speak.
@@ -185,7 +188,7 @@ every message containing its name; normal policy and safety checks still run.
 - **Retrieval:** sources are assembled into a program-scoped corpus and ranked
   with BM25 text search. Orry does not use embeddings or a vector database.
   Source text is cached in SQLite and refreshed at startup and on a timer
-  (30-minute default).
+  (60-minute default).
 - **Grounding:** numeric claims must be supported verbatim; program claims must
   match the same program; unsupported hedge/filler answers are rejected; final
   actions decide whether to reply, decline, escalate, or stay silent. Strict

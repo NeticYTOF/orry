@@ -162,7 +162,7 @@ async function runLive(opts: Options): Promise<void> {
   }
 
   // Keep the run off the real database unless the user chose one.
-  if (!process.env.ORRY_DB_PATH && !process.env.RIVET_DB_PATH) process.env.ORRY_DB_PATH = ":memory:";
+  if (!process.env.ORRY_DB_PATH && !(process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH)) process.env.ORRY_DB_PATH = ":memory:";
 
   // loadout/program.json is one object. programs.ts reads a JSON array here.
   const programFile = JSON.parse(readFileSync(programPath, "utf8")) as unknown;

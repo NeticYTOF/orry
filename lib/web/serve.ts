@@ -702,13 +702,34 @@ async function handleApi(req: Request): Promise<Response | null> {
     const auditRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/audit$/);
     if (auditRoute && method === "GET") {
       const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 100, 1), 500);
-      return json(require("../db").listAuditEvents({ programId: auditRoute[1], limit }));
+      const offset = Math.min(Math.max(Math.trunc(Number(url.searchParams.get("offset"))) || 0, 0), 100000);
+      const action = (url.searchParams.get("action") || "").trim().slice(0, 80) || null;
+      return json(
+        require("../db").listAuditEvents({
+          programId: auditRoute[1],
+          limit,
+          offset,
+          action,
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+        }),
+      );
     }
     if (url.pathname === "/internal/v1/slack/channels" && method === "GET") {
       return json(await api.slackChannels());
     }
     if (url.pathname === "/internal/v1/slack/membership" && method === "GET") {
       return json(await api.internalSlackMembership(url.searchParams.get("channel")));
+    }
+    const membersRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/members$/);
+    if (membersRoute && method === "GET") {
+      const res = await api.internalProgramMembers(
+        decodeURIComponent(membersRoute[1]),
+        url.searchParams.get("channel"),
+      );
+      const status =
+        res.error === "unknown program" ? 404 : res.error === "slack not connected" ? 503 : res.error ? 400 : 200;
+      return json(res, status);
     }
     if (url.pathname === "/internal/v1/slack/users/info" && method === "GET") {
       return json(await api.internalUserInfo(url.searchParams.get("user")));
@@ -734,7 +755,10 @@ async function handleApi(req: Request): Promise<Response | null> {
     }
     const ticketRoute = url.pathname.match(/^\/internal\/v1\/tickets\/(\d+)$/);
     if (ticketRoute && method === "GET") {
-      const detail = api.ticketDetail(Number(ticketRoute[1]));
+      const detail = api.ticketDetail(Number(ticketRoute[1]), {
+        eventsLimit: url.searchParams.get("eventsLimit"),
+        eventsOffset: url.searchParams.get("eventsOffset"),
+      });
       if (!detail) return json({ error: "ticket not found" }, 404);
       if (url.searchParams.get("programId") && url.searchParams.get("programId") !== detail.ticket.program_id) {
         return json({ error: "program mismatch" }, 403);
@@ -994,6 +1018,9 @@ async function handleApi(req: Request): Promise<Response | null> {
           status: url.searchParams.get("status"),
           statusGroup: url.searchParams.get("statusGroup"),
           assigneeId: url.searchParams.get("assigneeId"),
+          unassigned: url.searchParams.get("unassigned"),
+          hasAssignedAt: url.searchParams.get("hasAssignedAt"),
+          visibility: url.searchParams.get("visibility"),
           requesterId: url.searchParams.get("requesterId"),
           category: url.searchParams.get("category"),
           priority: url.searchParams.get("priority"),
@@ -1008,12 +1035,49 @@ async function handleApi(req: Request): Promise<Response | null> {
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
+      const dashClosing = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/tickets\/closing$/);
+      if (dashClosing && method === "GET") {
+        const res = dashboardApi.ticketClosing(decodeURIComponent(dashClosing[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        });
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
       const dashTicketDetail = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/tickets\/(\d+)$/);
       if (dashTicketDetail && method === "GET") {
         const res = dashboardApi.ticketDetailScoped(
           decodeURIComponent(dashTicketDetail[1]),
           Number(dashTicketDetail[2]),
+          { eventsLimit: url.searchParams.get("eventsLimit"), eventsOffset: url.searchParams.get("eventsOffset") },
         );
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
+      const outcomesRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/answers\/outcomes$/);
+      if (outcomesRoute && method === "GET") {
+        const res = require("../answerOutcomes").listForProgram(decodeURIComponent(outcomesRoute[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        });
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
+      const outboundRoute = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/outbound$/);
+      if (outboundRoute && method === "GET") {
+        const res = require("../outboundLog").listForProgram(decodeURIComponent(outboundRoute[1]), {
+          since: url.searchParams.get("since"),
+          until: url.searchParams.get("until"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+          source: url.searchParams.get("source"),
+          channel: url.searchParams.get("channel"),
+          includeBlocks: url.searchParams.get("includeBlocks"),
+        });
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
@@ -1042,6 +1106,12 @@ async function handleApi(req: Request): Promise<Response | null> {
       const dashRoster = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/helpers\/roster$/);
       if (dashRoster && method === "GET") {
         const res = dashboardApi.helperRoster(decodeURIComponent(dashRoster[1]));
+        const notFound = dashNotFound(res);
+        return json(res, notFound || (res.error ? 400 : 200));
+      }
+      const dashAccess = url.pathname.match(/^\/internal\/v1\/programs\/([A-Za-z0-9-]+)\/access$/);
+      if (dashAccess && method === "GET") {
+        const res = dashboardApi.userAccess(decodeURIComponent(dashAccess[1]), url.searchParams.get("userId"));
         const notFound = dashNotFound(res);
         return json(res, notFound || (res.error ? 400 : 200));
       }
@@ -1093,25 +1163,67 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
+const DEFAULT_WEB_HOST = "0.0.0.0";
+const DEFAULT_WEB_PORT = 4100;
+
+// ORRY_WEB_PORT wins over PORT so a co-located process that sets PORT for
+// itself cannot move Core's bridge. PORT stays as a fallback for Railway and
+// Docker, which inject it. ORRY_WEB_HOST (RIVET_WEB_HOST still works) defaults
+// to 0.0.0.0 for the same hosts; an explicitly empty value is refused because
+// Bun would bind every interface (dual-stack) instead of the one the operator
+// meant.
+function resolveWebBind(env: Record<string, string | undefined> = process.env): {
+  host: string | null;
+  port: number;
+  error: string | null;
+} {
+  const port =
+    validPort(env.ORRY_WEB_PORT) || validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
+  const rawHost = env.ORRY_WEB_HOST ?? env.RIVET_WEB_HOST;
+  if (rawHost === undefined) return { host: DEFAULT_WEB_HOST, port, error: null };
+  const host = rawHost.trim();
+  if (!host) return { host: null, port, error: "ORRY_WEB_HOST is set but empty" };
+  return { host, port, error: null };
+}
+
+function validPort(value: string | undefined): number | null {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 && n < 65536 ? n : null;
+}
+
+// Never throws: a bad host or a port already in use leaves the console off
+// and returns null, so the Slack bot keeps running without its web server.
 function start() {
   const clientId = process.env.SLACK_CLIENT_ID;
   if (!clientId) {
     log.info("web", "SLACK_CLIENT_ID not set — passcode auth & screenshot serving enabled");
   }
 
-  const port = Number(process.env.PORT) || Number((process.env.ORRY_WEB_PORT ?? process.env.RIVET_WEB_PORT)) || 4100;
+  const bind = resolveWebBind();
+  if (bind.error || !bind.host) {
+    log.error("web", `console not started: ${bind.error}`);
+    return null;
+  }
+
+  let server;
+  try {
+    server = Bun.serve({
+      port: bind.port,
+      hostname: bind.host,
+      fetch: handleRequest,
+    });
+  } catch (e) {
+    log.error(
+      "web",
+      `console not started on ${bind.host}:${bind.port}: ${e instanceof Error ? e.message : String(e)} — the bot keeps running without it`,
+    );
+    return null;
+  }
 
   startLogFeed();
   startMetricTicks();
-
-  const server = Bun.serve({
-    port,
-    hostname: "0.0.0.0",
-    fetch: handleRequest,
-  });
-
-  log.info("web", `console running on http://0.0.0.0:${port}`);
+  log.info("web", `console running on http://${bind.host}:${bind.port}`);
   return server;
 }
 
-export = { start, broadcastSSE, handleRequest, sseStream, sseClientCount: () => sseClients.size };
+export = { start, resolveWebBind, broadcastSSE, handleRequest, sseStream, sseClientCount: () => sseClients.size };

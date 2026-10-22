@@ -6,10 +6,11 @@ that have already been made here so you do not repeat them.
 
 ## What this is
 
-Orry is a Slack help-channel bot (Bun + TypeScript, Socket Mode — it dials
-out to Slack, nothing listens inbound). It answers questions from a program's
-own documentation corpus, routes what it cannot answer to human helpers, and
-learns from resolutions. It currently serves **Loadout**, a Hack Club YSWS.
+Orry the ore Maulwürf is Netic's Slack help-channel bot (Bun + TypeScript,
+Socket Mode — it dials out to Slack, nothing listens inbound). Orry Core
+answers questions from a program's documentation corpus, routes what it cannot
+answer to human helpers, and learns from resolutions. It currently serves
+**Loadout**, a Hack Club YSWS.
 Live in `#loadout` (main), `#loadout-help` (help/tickets), `#loadout-development`
 (report + mentions only).
 
@@ -99,7 +100,7 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
 - `lib/retrieve.ts` — hand-rolled **BM25** (K1=1.2), no embeddings, no
   vector store. Budgets: `TOTAL_CONTEXT_BUDGET=8000`, `LEARNED_BUDGET=1500`.
 - `lib/knowledge.ts` — corpus assembly; `file://` sources resolve under the
-  app root; `source_cache` in SQLite; 30-min auto-refresh.
+  app root; `source_cache` in SQLite; hourly auto-refresh.
 - `lib/answer.ts` — system prompts; `reasoningEffort` forwarded to the
   provider (DeepSeek reasons at full effort otherwise: 15–40s vs 4.4s).
   `ORRY_REQUIRE_GROUNDED_ANSWER` disables streaming + chat replies.

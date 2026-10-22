@@ -465,6 +465,9 @@ async function escalateSensitive({
     channel: event.channel,
     threadTs,
     text: replyText.plainDashes(text),
+    // The log must not become a list of sensitive threads with their text.
+    logSource: "sensitive_reply",
+    logPrivate: true,
   });
   context.addToThread(threadTs, "assistant", text, null, event.channel);
   db.recordMetric("fallback", null, "sensitive_unticketed", prog.id);
@@ -477,12 +480,18 @@ function threadRequiresMention(prog: Program | null): boolean {
   );
 }
 
-function shouldConsiderThreadReply(event: HandlerEvent, prog: Program | null = null): boolean {
+function shouldConsiderThreadReply(
+  event: HandlerEvent,
+  prog: Program | null = null,
+  workspaceId: string | null = null,
+): boolean {
   if (!event.thread_ts || event.thread_ts === event.ts) return true;
   if (db.isThreadMuted(event.thread_ts)) {
     return mentionsOrryDirectly(event.text);
   }
   if (mentionsOrryByName(event.text) || mentionsOrryDirectly(event.text)) return true;
+  const ticket = db.getTicketByThreadTs(event.thread_ts, workspaceId);
+  if (ticket && !["resolved", "closed"].includes(ticket.status)) return true;
   if (threadRequiresMention(prog)) return false;
   return context.hasSpokenInThread(event.thread_ts);
 }
@@ -560,6 +569,37 @@ function checkEligibility({
   }
   if (decision.decision === elig.ESCALATE) return "escalate";
   return "proceed";
+}
+
+async function ensureTopLevelHelpTicket({
+  event,
+  client,
+  workspaceId,
+  prog,
+  role,
+}: {
+  event: HandlerEvent;
+  client: SlackClient;
+  workspaceId: string | null;
+  prog: Program | null;
+  role: string;
+}): Promise<void> {
+  if (role !== "help" || (event.thread_ts && event.thread_ts !== event.ts) || !prog) return;
+  try {
+    await require("./tickets").ensureSupportTicket({
+      program: prog,
+      channel: event.channel,
+      threadTs: event.ts,
+      requesterId: event.user,
+      question: (event.text || "").trim(),
+      client,
+      workspaceId,
+      role: "help",
+      source: "help_channel_message",
+    });
+  } catch (error: unknown) {
+    log.warn("tickets", `help-channel ticket creation failed for ${event.channel}/${event.ts}: ${errorMessage(error)}`);
+  }
 }
 
 async function refuseUnauthorizedCommand({
@@ -739,11 +779,13 @@ async function handleSumRequest({
 
     const formatted = replyText.plainDashes(summary);
     if (isPublic) {
-      await client.chat.postMessage({
+      const payload = {
         channel: event.channel,
         thread_ts: event.thread_ts,
         text: `🧵 *Thread Summary* (requested by <@${event.user}>):\n\n${formatted}`,
-      });
+      };
+      const res = await client.chat.postMessage(payload);
+      require("./outboundLog").recordSent(payload, res, "thread_summary");
     } else {
       await client.chat.postEphemeral({
         channel: event.channel,
@@ -900,6 +942,13 @@ async function handleMacroTrigger({
 async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (event.bot_id || event.subtype === "bot_message") return;
   if (stagingBlocked(event.channel)) return;
+
+  // A participant deleting or editing their message: drop the stored copy.
+  // Nothing is posted and the message is never answered.
+  if (event.subtype === "message_deleted" || event.subtype === "message_changed") {
+    require("./messageRedaction").handleMessageChange(event, workspace.workspaceOf(event, body));
+    return;
+  }
 
   const allowedSubtypes = ["file_share", "thread_broadcast"];
   if (event.subtype && !allowedSubtypes.includes(event.subtype)) return;
@@ -1061,6 +1110,8 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (!isDm && !inHelpChannel && !isProgChannel) return;
   if (!isDm && policy.settings && policy.settings.enabled === false) return;
 
+  await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
+
   if (question) {
     db.recordUserMessage({ userId: event.user, channel: event.channel, threadTs, text: question });
   }
@@ -1152,7 +1203,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
       return;
     }
 
-    if (!shouldConsiderThreadReply(event, prog)) {
+    if (!shouldConsiderThreadReply(event, prog, workspaceId)) {
       log.debug("intent", "skipping thread reply — orry not in this thread / not addressed");
       return;
     }
@@ -1187,7 +1238,7 @@ async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
   if (!inHelpChannel) return;
 
   if (event.thread_ts && !named) {
-    if (!shouldConsiderThreadReply(event, prog)) {
+    if (!shouldConsiderThreadReply(event, prog, workspaceId)) {
       log.debug("intent", "skipping help thread reply — orry not in this thread / not addressed");
       return;
     }
@@ -1265,6 +1316,8 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
       ? { ...selectedSettings, enabled: false }
       : selectedSettings;
   if (settings && settings.enabled === false) return;
+
+  await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
 
   if (db.wasAnswered(event.ts)) return;
 

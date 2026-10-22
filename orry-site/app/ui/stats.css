@@ -1,0 +1,185 @@
+/* ORRY UI page layer: stats. Weekly rewards (pd-*), My week (me-*), Closed tickets (cl-*). Owned by one agent; uses the kit
+   classes (kit.css) and only lays them out. Spacing is on an 8px scale: 16 inside a block, 24 to 40 between blocks.
+   Spec: reports/orry-redesign-2026-10-20/SPEC.md */
+
+/* ---------- shared bits ---------- */
+.pg-stats .ph { margin-bottom: 32px; }
+.pg-stats .pg-tabs { margin-bottom: 32px; }
+.pg-stats .sec { margin-top: 40px; }
+.pg-stats .pg-tabs + .sec { margin-top: 0; }
+.pg-stats .sec-h { margin-bottom: 24px; }
+.pg-stats .state-note { margin-bottom: 8px; }
+.ph-side .title-side { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+
+/* the on/off switch: a lifted pixel button whose box fills when it is on, and says On or Off in words */
+.btn.tog { min-width: 96px; justify-content: flex-start; }
+.btn.tog::before { content: ""; width: 12px; height: 12px; flex: none; border: 2px solid currentColor; }
+.btn.tog[aria-pressed="true"] { color: var(--acf); background: var(--ac); }
+.btn.tog[aria-pressed="true"]::before { background: currentColor; }
+
+.tbl td.q.hid { color: var(--mut); font-style: italic; }
+.tbl td.q.hid .chip { font-style: normal; margin-right: 4px; }
+.tbl .few { font-size: 13px; color: var(--mut); }
+.tbl td.n.few { white-space: normal; }
+
+/* data tables that turn into stacked rows on a phone (class "stack"); each cell carries its label in data-l */
+@media (max-width: 700px) {
+  .tbl.stack thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .tbl.stack, .tbl.stack tbody { display: block; }
+  .tbl.stack tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 16px; border-bottom: 2px solid var(--stroke); }
+  .tbl.stack tbody tr:last-child { border-bottom: 0; }
+  .tbl.stack tbody :is(th, td) { display: block; padding: 0; border: 0; min-width: 0; max-width: none; text-align: left; white-space: normal; }
+  .tbl.stack tbody tr:hover > :is(td, th) { background: none; }
+  .tbl.stack tbody th { font: 700 18px/1.2 var(--font-pixel); }
+  .tbl.stack td[data-l]::before { content: attr(data-l); display: inline-block; min-width: 88px; margin-right: 8px; font: 600 11px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mut); }
+  .tbl.stack td.q::before { display: none; }
+  .tbl.stack td.q { font-size: 15px; line-height: 1.5; }
+  .tbl.stack .empty-note { display: block; padding: 24px 16px; text-align: center; }
+  .tbl.stack tbody tr:has(.empty-note) { display: block; padding: 0; }
+}
+
+/* ============================== Weekly rewards ============================== */
+
+/* where you stand: four compact panels (on My week, one bordered row of four cells) */
+.pd-stand { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.pd-st { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 16px 24px 24px; background: var(--panel); }
+.pd-st.st-out.panel { border-style: dashed; }
+.pd-st .kicker { color: var(--dim); }
+.pd-st-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pd-st-r { font: 500 40px/1 var(--font-pixel); letter-spacing: .2px; color: var(--ink); }
+.pd-st-r small { margin-right: 2px; font-size: 20px; color: var(--mut); }
+.pd-st-v { font-size: 13px; color: var(--dim); }
+.pd-st-v b { margin-left: 4px; font: 400 20px/1 var(--font-pixel); color: var(--ink); }
+.pd-st-l { font-size: 13px; line-height: 1.5; color: var(--dim); }
+.pd-stand.is-row { gap: 2px; background: var(--stroke); border: 2px solid var(--stroke); box-shadow: var(--drop); }
+
+/* podiums: a 2x2 grid of identical panels */
+.pd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; align-items: stretch; }
+.pd-card { display: flex; flex-direction: column; min-width: 0; }
+.pd-card .panel-h { min-height: 64px; padding: 16px 24px; }
+.pd-rows { display: flex; flex-direction: column; flex: 1; }
+.pd-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 56px; padding: 8px 24px; border-bottom: 1px solid var(--stroke); }
+.pd-row:last-child { border-bottom: 0; }
+.pd-row .who { min-width: 0; justify-self: start; }
+.pd-row.me { background: color-mix(in srgb, var(--ac) 16%, transparent); }
+.pd-rk { display: grid; place-items: center; width: 36px; height: 36px; font: 400 18px/1 var(--font-pixel); color: var(--ink); border: 2px solid var(--stroke); }
+.pd-row.r1 .pd-rk { color: var(--acf); background: var(--ac); }
+.pd-val { display: grid; justify-items: end; text-align: right; line-height: 1.1; }
+.pd-val b { font: 400 22px/1 var(--font-pixel); letter-spacing: .2px; color: var(--ink); white-space: nowrap; }
+.pd-val small { margin-top: 4px; font-size: 11px; line-height: 1.3; color: var(--mut); }
+.pd-row.pd-empty { border-bottom: 1px dashed var(--stroke); }
+.pd-row.pd-empty:last-child { border-bottom: 0; }
+.pd-empty .pd-rk { color: var(--mut); border-style: dashed; }
+.pd-none { grid-column: 2 / -1; font-size: 13px; color: var(--dim); }
+
+/* full ranking tab */
+.pd-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; margin-bottom: 24px; }
+.pd-tools .field { min-width: 0; }
+.pd-tools select { min-width: 240px; }
+.pd-result { margin-left: auto; font-size: 13px; color: var(--dim); }
+.pd-lb .rank { font: 400 18px/1 var(--font-pixel); }
+.pd-lb thead th { vertical-align: middle; }
+.pd-lb :is(th, td) { white-space: nowrap; }
+.pd-lb td.few { white-space: normal; min-width: 96px; }
+.pd-lb tbody th, .pd-lb tfoot th, .pd-matrix tbody th { min-width: 160px; }
+.sortbtn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: -11px 0; padding: 0; font: inherit; letter-spacing: inherit; color: inherit; text-align: left; background: none; border: 0; cursor: pointer; }
+.sortbtn:hover, .sortbtn[aria-pressed="true"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.sortbtn[aria-pressed="true"]::after { content: "\25BC"; font-size: 9px; }
+.pd-tools + .tbl-wrap { margin-top: 0; }
+.tbl-wrap + .caption { margin-top: 16px; }
+/* week matrix: the person column stays while the weeks scroll */
+.pd-matrix :is(thead th:first-child, tbody th, tfoot th) { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+.pd-matrix thead th:first-child { z-index: 2; background: var(--panel-2); }
+.pd-matrix tfoot th:first-child { background: var(--panel-2); }
+.pd-matrix tbody tr:hover > th { background: color-mix(in srgb, var(--ink) 5%, var(--panel)); }
+.pd-matrix tbody tr.me > th { background: color-mix(in srgb, var(--ac) 18%, var(--panel)); }
+.pd-matrix td.n { min-width: 56px; }
+
+@media (max-width: 1100px) { .pd-stand { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .pd-stand, .pd-grid { grid-template-columns: minmax(0, 1fr); }
+  .pd-stand { gap: 16px; }
+  .pd-stand.is-row { gap: 2px; }
+  .pd-grid { gap: 24px; }
+  .pd-row, .pd-card .panel-h { padding-inline: 16px; }
+  .pd-st { padding: 16px 16px 24px; }
+  .pd-result { margin-left: 0; width: 100%; }
+  .pd-tools select { min-width: 0; width: 100%; }
+  .pd-tools .field { flex: 1 1 100%; }
+}
+
+/* ============================== My week ============================== */
+.pg-stats .stats + .sec { margin-top: 40px; }
+.me-sentence { max-width: 62ch; margin-bottom: 24px; padding-left: 16px; font-size: 14px; line-height: 1.6; color: var(--ink); border-left: 4px solid var(--ac); }
+.me-trend .panel-b { padding: 24px; }
+.me-trend-box { max-width: 760px; }
+.me-grid .tbl .empty-note, .pg-stats .panel .tbl .empty-note { text-align: left; }
+
+/* the chart (components/viz/TrendChart.tsx markup): bars are you, the dashed line with dots is the average person */
+.me-trend .viz { position: relative; }
+.me-trend .viz[data-view="chart"] .viz-tbl { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.me-trend .viz[data-view="table"] .plot-me { display: none; }
+.me-trend .bars { display: block; width: 100%; height: auto; }
+.me-trend .bars text { font: 12px var(--font-mono); fill: var(--mut); }
+.me-trend .bars .axis { stroke: var(--mut); stroke-width: 1; }
+.me-trend .bars .me-bar { fill: var(--chart-a); }
+.me-trend .bars .val { fill: var(--ink); font-weight: 600; }
+.me-trend .bars .avg { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; }
+.me-trend .bars .avg-dot { fill: var(--panel); stroke: var(--ink); stroke-width: 2; }
+.me-trend .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: 13px; color: var(--dim); }
+.me-trend .legend li { display: inline-flex; align-items: center; }
+.me-trend .legend i { display: inline-block; width: 14px; height: 10px; margin-right: 8px; }
+.me-trend .legend .l-me { background: var(--chart-a); }
+.me-trend .legend .l-avg { width: 18px; height: 0; border-top: 2px dashed var(--ink); }
+.me-trend .viz-tbl table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.me-trend .viz-tbl :is(th, td) { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--stroke); }
+.me-trend .viz-tbl thead th { font: 600 13px var(--font-pixel); letter-spacing: .5px; background: var(--panel-2); border-bottom: 2px solid var(--stroke); }
+.me-trend .viz-tbl tbody tr:last-child > * { border-bottom: 0; }
+.me-trend .viz-tbl .n { text-align: right; }
+.me-trend .viz-tbl .table-frame { border: 2px solid var(--stroke); }
+
+/* profile: facts on the left, the switches on the right when there is room */
+.me-prof { container-type: inline-size; }
+.me-prof .panel-b { padding: 24px; }
+.me-prof-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; align-items: start; }
+.me-switches { border-top: 2px solid var(--stroke); }
+.me-switches .toggle-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 24px; padding: 16px 0; border-bottom: 1px solid var(--stroke); }
+.me-switches .toggle-row:last-child { border-bottom: 0; }
+.me-switches .toggle-row h3 { font: 600 16px/1.3 var(--font-pixel); }
+.me-switches .toggle-row p { max-width: 54ch; margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+.me-switches .inline-form { margin: 0; }
+@container (min-width: 880px) { .me-prof-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; } .me-switches { border-top: 0; } .me-switches .toggle-row:first-child { padding-top: 0; } }
+@container (max-width: 520px) { .me-switches .toggle-row { grid-template-columns: minmax(0, 1fr); } .me-switches .toggle-row > :is(.tog, .tabs, form) { justify-self: start; } }
+
+/* ============================== Closed tickets ============================== */
+.cl-top { display: grid; gap: 16px; margin-bottom: 24px; }
+.cl-top .tabs { justify-self: start; }
+.cl-tools { display: flex; gap: 16px; align-items: stretch; }
+.cl-search { flex: 1 1 auto; min-width: 0; }
+.cl-fbtn { flex: none; }
+.cl-fbtn .n { padding: 0 6px; font: 600 12px/1.4 var(--font-mono); border: 2px solid currentColor; }
+.cl-filters { display: grid; gap: 24px; }
+.cl-filters .field { min-width: 0; }
+.cl-picker { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.cl-picker .btn { min-height: 44px; }
+.cl-cur { display: inline-flex; flex-direction: column; justify-content: center; min-height: 44px; padding: 2px 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; background: var(--bg); border: 2px solid var(--stroke); }
+.cl-cur small { font-size: 11px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); }
+.cl-result { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 16px; font-size: 13px; color: var(--dim); }
+.cl-result .result { margin-right: auto; }
+.cl-result .txt-link[hidden], .cl-pager [hidden] { display: none; }
+.cl-chip { cursor: pointer; font-family: var(--font-mono); }
+.cl-chip:hover { color: var(--bg); background: var(--ink); }
+.cl-tbl td.q { min-width: 260px; max-width: 520px; overflow-wrap: anywhere; }
+.cl-tbl td[data-l="Closed by"] { min-width: 160px; }
+.cl-tbl .who { text-align: left; }
+.cl-tbl .by-orry b { display: inline-block; align-self: flex-start; padding: 0 8px; font: 600 12px/1.5 var(--font-pixel); letter-spacing: .06em; border: 2px solid var(--ink); }
+.cl-tbl .by-orry small { margin-top: 4px; }
+.cl-tbl time { white-space: nowrap; }
+.cl-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 16px 24px; background: var(--panel-2); border-top: 2px solid var(--stroke); }
+.cl-pager p { font-size: 13px; color: var(--dim); }
+@media (max-width: 700px) {
+  .cl-tbl td.q { min-width: 0; max-width: none; }
+  .cl-tbl time { white-space: normal; }
+  .cl-pager { padding: 16px; }
+  .cl-result .result { width: 100%; margin-right: 0; }
+}

@@ -777,4 +777,49 @@ test("editing a queued fact keeps its program; dashboard teach requires a progra
   assert.match(api.handleTeach("q", "a", "U-e").error, /programId required/);
   assert.ok(api.handleTeach("q2", "a2", "U-e", "edit-prog"));
 });
+
+test("program members: humans in the program's organizer channel only, bots and deactivated people dropped", async () => {
+  api.internalProgramSync("members-prog", {
+    name: "Members",
+    workspaceId: "TW-MEM",
+    programChannels: [
+      { id: "C-MEM-HELP", kind: "help" },
+      { id: "C-MEM-ORG", kind: "organizer" },
+    ],
+  });
+  const people: Record<string, Record<string, unknown>> = {
+    "U-MEM-A": { name: "pixel-otter", profile: { real_name: "Juno Baker", display_name: "juno" } },
+    "U-MEM-B": { name: "copper-wren", profile: { real_name: "Leila Haddad" } },
+    "U-MEM-BOT": { name: "somebot", is_bot: true, profile: { real_name: "Some Bot" } },
+    "U-MEM-GONE": { name: "gone", deleted: true, profile: { real_name: "Gone Person" } },
+  };
+  const asked: string[] = [];
+  api.setSlackClient({
+    conversations: {
+      members: async ({ channel, cursor }: { channel: string; cursor?: string }) => {
+        asked.push(channel);
+        return cursor
+          ? { members: ["U-MEM-BOT", "U-MEM-GONE", "USLACKBOT"], response_metadata: { next_cursor: "" } }
+          : { members: ["U-MEM-B", "U-MEM-A"], response_metadata: { next_cursor: "page-2" } };
+      },
+    },
+    users: { info: async ({ user }: UserInfoRequest) => ({ user: { id: user, ...people[user] } }) },
+  } as any);
+  try {
+    const res = await api.internalProgramMembers("members-prog");
+    assert.equal(res.channel, "C-MEM-ORG", "defaults to the organizer channel");
+    assert.deepEqual(res.members, [
+      { id: "U-MEM-A", handle: "pixel-otter", realName: "Juno Baker", displayName: "juno" },
+      { id: "U-MEM-B", handle: "copper-wren", realName: "Leila Haddad", displayName: "Leila Haddad" },
+    ]);
+    assert.equal(res.truncated, false);
+    const cached = await api.internalProgramMembers("members-prog");
+    assert.equal(cached, res, "a second call inside 10 minutes is served from cache");
+    assert.equal(asked.length, 2, "two pages, fetched once");
+    assert.match((await api.internalProgramMembers("members-prog", "C-SOMEONE-ELSE")).error, /not one of this program/);
+    assert.equal((await api.internalProgramMembers("members-missing")).error, "unknown program");
+  } finally {
+    api.setSlackClient(null as any);
+  }
+});
 export {};

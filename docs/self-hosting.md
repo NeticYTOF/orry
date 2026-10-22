@@ -34,7 +34,7 @@ and the other commands. If you choose another slug, set the same
 `ORRY_BOT_SLUG` in the deployment environment before generating the manifest;
 the installed commands and runtime listeners must match.
 
-One constraint that matters if your workspace already has a orry-like bot in it:
+One constraint that matters if your workspace already has a bot using the same slash commands:
 **slash command names are unique per workspace.** Two bots can't both own
 `/orry`. If the name is taken, choose another slug before generating the
 manifest.
@@ -120,7 +120,7 @@ SLACK_FAQ_CHANNELS=C_MAIN             # must match a configured program channel
 SLACK_HELP_CHANNEL=C_HELP              # optional dedicated help channel
 OPENCODE_API_KEY=...
 
-ORRY_BOT_NAME=orry
+ORRY_BOT_NAME=Orry the ore Maulwürf
 ORRY_BOT_SLUG=orry
 ORRY_ADMIN_USER_IDS=U01ABCDEF        # your Slack user ID
 ORRY_DB_PATH=/data/rivet.db

@@ -16,6 +16,7 @@ every mutating internal route.
 | Shared Slack tokens | Core env / secret manager | program rows, logs, snapshots |
 | Model provider keys | Core env (pooled, rotated) | program rows, Wizard browser |
 | `ORRY_INTERNAL_TOKEN` | Core env + Wizard server env | browser bundles, logs |
+| `ORRY_INTERNAL_READ_TOKEN` (optional; GET routes and `slack/users/info` only; `RIVET_INTERNAL_READ_TOKEN` still works) | Core env + a read-only caller's proxy | browser bundles, logs, anything that needs to write |
 | Per-trial legacy tokens | Wizard AES-256-GCM columns | plaintext, `config_snapshot` (redacted) |
 | Railway pool tokens | Wizard AES-256-GCM columns | hosted rows, logs |
 | Supabase service key | Wizard server env | `NEXT_PUBLIC_*`, browser |

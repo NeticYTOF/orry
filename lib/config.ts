@@ -19,7 +19,7 @@ const DEFAULT_MODEL = "deepseek-v4-flash-free";
 const DEFAULT_INTENT_MODEL = "gpt-4.1-nano";
 
 const DEFAULT_VISION_MODEL = "mimo-v2.5-free";
-const DEFAULT_REFRESH_INTERVAL_MIN = 30;
+const DEFAULT_REFRESH_INTERVAL_MIN = 60;
 
 const NINE_ROUTER_BASE_URL = "http://rivet.railway.internal:20128/v1";
 const ANSWER_FALLBACK_MODEL = "gc/gemini-3.1-flash-lite-preview";

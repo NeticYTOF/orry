@@ -14,6 +14,7 @@ const answer = require("./answer") as unknown as {
   getAnswerOrChatStream: (...args: unknown[]) => Promise<unknown>;
   getAnswerOrChat: (...args: unknown[]) => Promise<unknown>;
   verifyGrounding: (...args: unknown[]) => Promise<unknown>;
+  expandSearchQueries: (...args: unknown[]) => Promise<unknown>;
 };
 const intent = require("./intent") as unknown as {
   HELP_NEEDED: string;
@@ -88,6 +89,7 @@ let savedBlob;
 const realStream = answer.getAnswerOrChatStream;
 const realAnswer = answer.getAnswerOrChat;
 const realVerifier = answer.verifyGrounding;
+const realExpand = answer.expandSearchQueries;
 const realIntent = intent.classifyIntent;
 
 before(() => {
@@ -100,6 +102,8 @@ beforeEach(() => {
   process.env.ORRY_PROGRAMS_JSON = FLEET;
   programs.invalidate();
   intent.classifyIntent = async () => intent.HELP_NEEDED;
+  // Weak-match evidence triggers an LLM query expansion; stub it so no test reaches a provider.
+  answer.expandSearchQueries = async () => [];
   answer.verifyGrounding = async (...args: unknown[]) => {
     const claims = args[0] as Array<{ claim: string; evidenceIds: string[] }>;
     const evidence = args[1] as Array<{ id: string }>;
@@ -120,6 +124,7 @@ afterEach(() => {
   answer.getAnswerOrChatStream = realStream;
   answer.getAnswerOrChat = realAnswer;
   answer.verifyGrounding = realVerifier;
+  answer.expandSearchQueries = realExpand;
   intent.classifyIntent = realIntent;
   if (savedBlob === undefined) delete process.env.ORRY_PROGRAMS_JSON;
   else process.env.ORRY_PROGRAMS_JSON = savedBlob;
