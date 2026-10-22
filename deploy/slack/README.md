@@ -11,7 +11,7 @@ change.
 
 ## 1. Create the Slack app from the generated manifest
 
-Command names are derived from `RIVET_BOT_SLUG` (`lib/brand.ts`), and the
+Command names are derived from `ORRY_BOT_SLUG` (`lib/brand.ts`), and the
 bot registers its listeners from the same slug. Generating the manifest rather
 than writing it is what keeps the two in step — an app advertising
 `/pixl-teach` while the process listens for `/orry-teach` fails silently, with
@@ -22,9 +22,9 @@ bun install
 bun run manifest
 ```
 
-The defaults generate `/orry`, `/orry-teach`, `/orry-gaps`,
+The defaults in `.env.example` generate `/orry`, `/orry-teach`, `/orry-gaps`,
 and the other `/orry-*` commands. If you choose another display name or slug,
-put the same `RIVET_BOT_NAME` and `RIVET_BOT_SLUG` in the runtime environment
+put the same `ORRY_BOT_NAME` and `ORRY_BOT_SLUG` in the runtime environment
 before generating the manifest. **Slash command names are unique per workspace**
 — two apps cannot both own `/orry`, so choose a free slug before installing.
 
@@ -38,7 +38,7 @@ That single manifest sets, for you:
 
 | Setting | Value | Where in the manifest |
 | --- | --- | --- |
-| Bot scopes | the 14 in `BOT_SCOPES` | `manifest.oauth_config.scopes.bot` in `scripts/manifest.cjs` |
+| Bot scopes | the 16 in `BOT_SCOPES` | `manifest.oauth_config.scopes.bot` in `scripts/manifest.cjs` |
 | Bot events | the 8 in `BOT_EVENTS` | `scripts/manifest.cjs` |
 | Slash commands | the 12 in `COMMANDS` | `manifest.features.slash_commands` in `scripts/manifest.cjs` |
 | Socket Mode | on | `scripts/manifest.cjs` |
@@ -68,7 +68,7 @@ They are not interchangeable and they come from different screens.
 **Socket Mode means no ingress.** The bot dials out to Slack over a websocket and
 listens on no port (`index.ts`, `socketMode: true`), so there is no public
 URL, no domain, no tunnel, and no healthcheck — `Dockerfile` says so and
-`railway.json` defines no port. The `RIVET_WEB_PORT` you may see referenced
+`railway.json` defines no port. The `ORRY_WEB_PORT` you may see referenced
 (default `4100`, `lib/config.ts`) is the optional local web console, not how
 Slack reaches the bot.
 
@@ -98,12 +98,12 @@ fallbacks at answer time (`validate()` in `lib/config.ts`, called at startup in 
 | `SLACK_FAQ_CHANNELS` | yes | step 3 |
 | `SLACK_HELP_CHANNEL` | no | step 3; a dedicated help channel that replies to every top-level post |
 | `HCAI_API_KEY` | no | optional HCAI answer/help/ping/vision tiers (`.env.example`) |
-| `RIVET_PROGRAMS_JSON` | no, but nothing to answer from without it | the program JSON **inline as a value**, not a path — step 5 |
-| `RIVET_BOT_NAME` | no | step 1 |
-| `RIVET_BOT_SLUG` | no | step 1. Must match the installed app exactly |
-| `RIVET_ADMIN_USER_IDS` | no | your Slack user ID — profile → three dots → **Copy member ID**. **Fails closed**: empty means nobody can teach the bot anything (`.env.example`) |
-| `RIVET_DB_PATH` | no | point at a volume, e.g. `/data/rivet.db` (`.env.example`) |
-| `RIVET_WORKSPACE_ID` | no | Slack team id, for tenant boundaries on a hosted deployment |
+| `ORRY_PROGRAMS_JSON` | no, but nothing to answer from without it | the program JSON **inline as a value**, not a path — step 5 |
+| `ORRY_BOT_NAME` | no | step 1 |
+| `ORRY_BOT_SLUG` | no | step 1. Must match the installed app exactly |
+| `ORRY_ADMIN_USER_IDS` | no | your Slack user ID — profile → three dots → **Copy member ID**. **Fails closed**: empty means nobody can teach the bot anything (`.env.example`) |
+| `ORRY_DB_PATH` | no | point at a volume, e.g. `/data/rivet.db` (`.env.example`) |
+| `ORRY_WORKSPACE_ID` | no | Slack team id, for tenant boundaries on a hosted deployment |
 
 Attach a volume mounted at `/data` **before the first deploy finishes**: the bot
 opens its database on boot (`index.ts`), so a volume attached afterwards means
@@ -118,7 +118,7 @@ existing `.env` (`scripts/slack-bootstrap.mjs`).
 
 ## 5. Give it something to answer from
 
-`RIVET_PROGRAMS_JSON` is `JSON.parse`d straight from the variable
+`ORRY_PROGRAMS_JSON` is `JSON.parse`d straight from the variable
 (`lib/programs.ts`) — it is the JSON itself, not a filename. Accepted
 shapes are an array or an object with a `programs` array; entries without an
 `id` are dropped (`lib/programs.ts`).
@@ -149,17 +149,17 @@ Railway: service → **Deployments** → latest → **Logs**. A typical boot end
 these three lines, in this order:
 
 ```
-[rivet/db] opened /data/rivet.db
-[rivet/knowledge] corpus refreshed — 7/7 sources loaded
-[rivet/bot] connected via Socket Mode as U01ABCDEF
+[orry/db] opened /data/rivet.db
+[orry/knowledge] corpus refreshed — 7/7 sources loaded
+[orry/bot] connected via Socket Mode as U01ABCDEF
 ```
 
-- `[rivet/db] opened …` — `lib/db.ts`, on its way to `index.ts`. Before
-  it, one `[rivet/db] migrated: <column>` line per schema addition is normal and
+- `[orry/db] opened …` — `lib/db.ts`, on its way to `index.ts`. Before
+  it, one `[orry/db] migrated: <column>` line per schema addition is normal and
   only happens once per database.
 - `corpus refreshed — N/M sources loaded` — `lib/knowledge.ts`. **`N` must
   equal `M`.** `0/0` means nothing is configured to answer from; `3/7` means
-  four sources failed, and the reason is on a `[rivet/knowledge] failed to fetch
+  four sources failed, and the reason is on a `[orry/knowledge] failed to fetch
   "<name>": …` line just above (`lib/knowledge.ts`).
 - `connected via Socket Mode as U…` — `index.ts`, printed after `app.start()`
   (`index.ts`) and `auth.test` (`lib/config.ts`). The `U…` is the bot
@@ -219,10 +219,10 @@ LOADOUT corpus answers (`loadout/corpus/03-economy.md`,
 your docs cover:
 
 ```sh
-RIVET_SMOKE_QUESTION="how do I submit my project" RIVET_SMOKE_PROGRAM=myprogram bun run smoke
+ORRY_SMOKE_QUESTION="how do I submit my project" ORRY_SMOKE_PROGRAM=myprogram bun run smoke
 ```
 
-Check 4 needs `bun` on your PATH and a `RIVET_PROGRAMS_JSON` with a `sources`
+Check 4 needs `bun` on your PATH and a `ORRY_PROGRAMS_JSON` with a `sources`
 array on the service. When either is missing it prints `SKIP:` with the reason and
 what to do about it, and moves on (`scripts/smoke-test.js`) — it never
 passes silently.
@@ -246,5 +246,5 @@ Once the smoke test passes, in the workspace:
 - Post in the help channel — every top-level message gets a reply there.
 
 If a command silently does nothing, suspect a slug mismatch between the installed
-app and `RIVET_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that
+app and `ORRY_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that
 answers, the program is loaded but owns no channels — step 5.

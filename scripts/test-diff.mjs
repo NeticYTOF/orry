@@ -46,23 +46,23 @@ eq("mismatch detected",
 eq("new optional becomes wouldSet",
   diff(
     { ...BASE_VARS, HCAI_API_KEY: "x" },
-    { ...BASE_VARS, HCAI_API_KEY: "x", RIVET_DB_PATH: "/data/rivet.db" },
+    { ...BASE_VARS, HCAI_API_KEY: "x", ORRY_DB_PATH: "/data/rivet.db" },
   ).wouldSet,
-  ["RIVET_DB_PATH"]);
+  ["ORRY_DB_PATH"]);
 
 eq("set on current but blank in file -> extra",
   diff(
-    { ...BASE_VARS, HCAI_API_KEY: "x", RIVET_FEEDBACK_REACTIONS: "yesyes" },
+    { ...BASE_VARS, HCAI_API_KEY: "x", ORRY_FEEDBACK_REACTIONS: "yesyes" },
     { ...BASE_VARS, HCAI_API_KEY: "x" },
   ).extra,
-  ["RIVET_FEEDBACK_REACTIONS"]);
+  ["ORRY_FEEDBACK_REACTIONS"]);
 
 eq("typo flagged as unexpected",
   diff(
     { ...BASE_VARS },
-    { ...BASE_VARS, RIVET_BUG: "typo" },
+    { ...BASE_VARS, ORRY_BUG: "typo" },
   ).unexpected,
-  ["RIVET_BUG"]);
+  ["ORRY_BUG"]);
 
 eq("a numbered HCAI key is accepted by the migration contract",
   diff(

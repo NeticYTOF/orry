@@ -29,13 +29,13 @@ the twelve slash commands. Read it as JSON:
 bun run manifest
 ```
 
-It reads `RIVET_BOT_NAME` and `RIVET_BOT_SLUG` from the environment
+It reads `ORRY_BOT_NAME` and `ORRY_BOT_SLUG` from the environment
 (`lib/brand.ts`) and builds every command name from the slug
 (`lib/brand.ts`), which is the same function `lib/commands.ts`
 uses to register the listeners.
 
 The header comment of `scripts/manifest.cjs` states the failure mode directly
-(`scripts/manifest.cjs`): command names come from `RIVET_BOT_SLUG`, and
+(`scripts/manifest.cjs`): command names come from `ORRY_BOT_SLUG`, and
 hand-editing a manifest is how you end up with an app advertising
 `/pixl-teach` while the process listens for `/orry-teach` — a failure with no
 error anywhere, because Slack is perfectly happy with a command nobody handles.
@@ -81,7 +81,7 @@ arrives at all.
 **Socket Mode means no ingress.** The bot dials out to Slack over a websocket and
 listens on no port, so there is no public URL, no domain, no tunnel and no
 reverse proxy to configure (`.env.example`, `scripts/manifest.cjs`).
-The port you may see referenced elsewhere (`RIVET_WEB_PORT`, default `4100`, at
+The port you may see referenced elsewhere (`ORRY_WEB_PORT`, default `4100`, at
 `lib/config.ts` and `lib/web/serve.ts`) is the optional local web
 console, not how Slack reaches the bot. Unlike Pixorpheus's HTTP receiver, Orry
 needs an `xapp-` app-level token; `SLACK_SIGNING_SECRET` is not used.
@@ -113,10 +113,10 @@ model; `HCAI_INTENT_MODEL` routes that classifier through HCAI.
 Orry answers from a program corpus. With no program configured, `programs.all()`
 is empty and there is no knowledge to retrieve.
 
-`RIVET_PROGRAMS_JSON` takes the program's JSON **inline as a value** — it is
+`ORRY_PROGRAMS_JSON` takes the program's JSON **inline as a value** — it is
 `JSON.parse`d straight from the variable (`lib/programs.ts`). It is not
 a path to a file. Setting it to `loadout/program.json` logs
-`RIVET_PROGRAMS_JSON is not valid JSON … — falling back to files` and configures
+`ORRY_PROGRAMS_JSON is not valid JSON … — falling back to files` and configures
 zero programs (verified by running the loader that way). Accepted shapes are an
 array, or an object with a `programs` array (`lib/programs.ts`); entries
 without an `id` are dropped (`lib/programs.ts`).
@@ -127,7 +127,7 @@ To run this repo's bundled LOADOUT program, inline its contents:
 bun -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("loadout/program.json","utf8"));console.log(JSON.stringify([p]))'
 ```
 
-Paste that single line into `.env` as the value of `RIVET_PROGRAMS_JSON`.
+Paste that single line into `.env` as the value of `ORRY_PROGRAMS_JSON`.
 
 Two things to know about that file:
 
@@ -176,7 +176,7 @@ Then, in Slack:
 - Post in the help channel — every top-level message gets a reply there.
 
 If a command silently does nothing, suspect a slug mismatch between the app and
-`RIVET_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that answers,
+`ORRY_BOT_SLUG`, not Slack. If `/orry-sources` is the only thing that answers,
 the program is loaded but owns no channels (step 5).
 
 ---
@@ -196,22 +196,22 @@ client ID alone does nothing, which is the deliberate design noted at
 `lib/web/auth.ts`. The footgun is the pair: set both in a real deployment
 and every visitor is an admin. Never ship `NODE_ENV=development`.
 
-**2. `RIVET_DASHBOARD_PASSCODE` is fail-closed, not a default.** An unset
+**2. `ORRY_DASHBOARD_PASSCODE` is fail-closed, not a default.** An unset
 passcode resolves to `null` (`lib/web/serve.ts`) and passcode login is
 refused outright with a 503 and an error naming the variable
 (`lib/web/serve.ts`) — there is no guessable default password. Set
-`RIVET_DASHBOARD_PASSCODE` to anything before running the console, and note
+`ORRY_DASHBOARD_PASSCODE` to anything before running the console, and note
 that with `SLACK_CLIENT_ID` unset there is no Slack login to fall back to
 (`lib/web/serve.ts`), so an unconfigured passcode means the console is
 simply closed rather than quietly open.
 
 Neither variable appears in `.env.example` — verified by grepping it: it
-documents neither `RIVET_DASHBOARD_PASSCODE` nor `NODE_ENV`. If you start the
+documents neither `ORRY_DASHBOARD_PASSCODE` nor `NODE_ENV`. If you start the
 console, read `lib/web/serve.ts` before assuming anything about who can
 get in.
 
 > These two were weaker earlier in this repo's history: the passcode used to
-> fall back to the literal `"rivet"`, and the sentinel client ID alone unlocked
+> fall back to the literal `"orry"`, and the sentinel client ID alone unlocked
 > admin. Both are fixed in the current tree; this note is here because older
 > forks and older write-ups still describe the old behaviour.
 

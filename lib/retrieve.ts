@@ -111,7 +111,6 @@ const STOPWORDS = new Set([
   "yes",
   "so",
   "just",
-  "rivet",
   "whats",
   "hows",
   "wheres",
@@ -355,11 +354,25 @@ function questionParts(question: string): string[] {
   return parts.length > 1 ? parts : [question];
 }
 
+// Cuts text to at most `limit` chars, preferring a sentence end and otherwise a
+// whitespace boundary, so a word is never split. Returns "" when no boundary fits.
+function truncateAtBoundary(text: string, limit: number): string {
+  if (limit <= 0) return "";
+  if (text.length <= limit) return text;
+  const head = text.slice(0, limit + 1);
+  const sentenceEnds = Array.from(head.matchAll(/[.!?](?=\s)/g));
+  const lastSentence = sentenceEnds.length ? sentenceEnds[sentenceEnds.length - 1].index + 1 : 0;
+  const lastSpace = head.search(/\s\S*$/);
+  const cut = lastSentence > limit / 2 ? lastSentence : lastSpace;
+  return cut > 0 ? head.slice(0, cut).trimEnd() : "";
+}
+
 function selectChunks(
   index: SearchIndex,
   question: string,
   budget = DEFAULT_BUDGET,
   exclude: Set<string> | string[] | null = null,
+  fillUnmatched = false,
 ): Chunk[] {
   const rankings = questionParts(question)
     .map((part) => score(index, [...new Set(tokenize(part))]))
@@ -368,12 +381,33 @@ function selectChunks(
   const selected: Chunk[] = [];
   const seen = new Set<Chunk>();
   let used = 0;
+  let topTruncationTried = false;
   for (let rank = 0; ; rank++) {
     if (rankings.every((ranking) => rank >= ranking.length)) break;
     for (const ranking of rankings) {
       const chunk = ranking[rank]?.chunk;
       if (!chunk || seen.has(chunk) || dropped.has(chunk.source)) continue;
       seen.add(chunk);
+      if (used + chunk.text.length <= budget) {
+        selected.push(chunk);
+        used += chunk.text.length;
+      } else if (selected.length === 0 && !topTruncationTried) {
+        // The best-ranked chunk is too big for the whole budget. Keep its opening
+        // rather than skipping it, so a small budget still sees the most relevant text.
+        topTruncationTried = true;
+        const text = truncateAtBoundary(chunk.text, budget - used);
+        if (text) {
+          selected.push({ ...chunk, text });
+          used += text.length;
+        }
+      }
+    }
+  }
+  // A small corpus that fits the budget is sent whole, so questions that share
+  // no words with the docs (e.g. "what YSWS are we?") still see the program text.
+  if (fillUnmatched) {
+    for (const { chunk } of index.docs) {
+      if (seen.has(chunk) || dropped.has(chunk.source)) continue;
       if (used + chunk.text.length <= budget) {
         selected.push(chunk);
         used += chunk.text.length;
@@ -410,8 +444,9 @@ function selectEvidence(
   budget = DEFAULT_BUDGET,
   exclude: Set<string> | string[] | null = null,
   semanticFallback = true,
+  fillUnmatched = false,
 ) {
-  let chunks = selectChunks(index, question, budget, exclude);
+  let chunks = selectChunks(index, question, budget, exclude, fillUnmatched);
   const questionTerms = new Set(questionParts(question).flatMap((part) => tokenize(part)));
   if (semanticFallback && questionTerms.size > 0 && (chunks.length === 0 || questionTerms.size <= 1)) {
     const dropped = exclude instanceof Set ? exclude : new Set(exclude || []);

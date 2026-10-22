@@ -1,4 +1,4 @@
-# Rivet — agent instructions
+# Orry — agent instructions
 
 Read this before touching anything in this repo. It is the whole contract:
 how the code is organized, what you may and may not do, and the mistakes
@@ -6,8 +6,8 @@ that have already been made here so you do not repeat them.
 
 ## What this is
 
-Orry the ore Maulwürf is Loadout's Slack help-channel bot (Bun + TypeScript,
-Socket Mode — it dials out to Slack, nothing listens inbound). Rivet Core
+Orry the ore Maulwürf is Netic's Slack help-channel bot (Bun + TypeScript,
+Socket Mode — it dials out to Slack, nothing listens inbound). Orry Core
 answers questions from a program's documentation corpus, routes what it cannot
 answer to human helpers, and learns from resolutions. It currently serves
 **Loadout**, a Hack Club YSWS.
@@ -22,7 +22,7 @@ Two deployables, one direction of coupling:
 | **Wizard** | `rivet-wizard/` | Next.js 16 + Postgres | All configuration (separate npm package) |
 
 Wizard never imports Core. It pushes config over Core's `/internal/v1/*`
-bridge (`rivet-wizard/lib/rivetCore.ts`, bearer `RIVET_INTERNAL_TOKEN`).
+bridge (`rivet-wizard/lib/rivetCore.ts`, bearer `ORRY_INTERNAL_TOKEN`).
 
 ## Commands
 
@@ -84,7 +84,7 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
 
 - `index.ts` — entry: `--ask` branch, `--doctor` branch, `startBot()`
 - `lib/config.ts` — all env parsing, the ONLY `dotenv.config()` call.
-  `RIVET_SKIP_DOTENV=1` opts out (the test harness sets it so `.env`
+  `ORRY_SKIP_DOTENV=1` opts out (the test harness sets it so `.env`
   cannot leak into test children).
 - `lib/handlers.ts` — Slack events: `onMessage`, `onAppMention`, threading
   rule (`thread_ts = event.thread_ts || event.ts`), dedupe via
@@ -103,7 +103,7 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
   app root; `source_cache` in SQLite; hourly auto-refresh.
 - `lib/answer.ts` — system prompts; `reasoningEffort` forwarded to the
   provider (DeepSeek reasons at full effort otherwise: 15–40s vs 4.4s).
-  `RIVET_REQUIRE_GROUNDED_ANSWER` disables streaming + chat replies.
+  `ORRY_REQUIRE_GROUNDED_ANSWER` disables streaming + chat replies.
 - `lib/lookup.ts` — 4-layer grounding: numeric claims verbatim in corpus,
   same-program evidence, no hedge phrases, `finalAction` matrix.
 - `lib/pipeline/messagePolicy.ts` — reply/uncertain/escalate/silence matrix.
@@ -119,8 +119,8 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
 - `lib/identity.ts` — bot self-description corpus. Program-specific facts
   go in per-program branches of `makerLine`, not generic fallbacks.
 - `lib/web/` — Core HTTP: `serve.ts` router, `api.ts` business logic,
-  `auth.ts` (`rivet_sid` HMAC cookie, 7d). Bridge auth: static bearer
-  `RIVET_INTERNAL_TOKEN`, constant-time compare, 404 when unset.
+  `auth.ts` (`rivet_sid` HMAC cookie, 7d; name kept for existing sessions). Bridge auth: static bearer
+  `ORRY_INTERNAL_TOKEN`, constant-time compare, 404 when unset.
 - `lib/veyDecision.ts` + `lib/vey/sidecar.py` — VEY decision client + Python
   sidecar. **Evaluated and rejected as a classifier** (structured lane
   tie-breaks alphabetically on ungrounded input). Kept for cost-routing
@@ -163,9 +163,9 @@ superseded; `lib/loadoutProgram.test.ts` fails the build if it returns.
 - `--ask` never resolved a program → always read the empty shared corpus.
   Now `--program <id>`, defaults to the single configured program.
 - `helpAnswer`/`pingAnswer` hardwired to 9Router, ignoring `HCAI_*`.
-  Routed via `RIVET_ANSWER_*` env instead.
+  Routed via `ORRY_ANSWER_*` env instead.
 - `.env` re-loaded inside test children by dotenv, defeating the harness's
-  env stripping → configured workspace broke 6 suites. `RIVET_SKIP_DOTENV`.
+  env stripping → configured workspace broke 6 suites. `ORRY_SKIP_DOTENV`.
 - `--doctor` had no channel-role check → green while the bot crash-looped.
 - Validator refused one channel as both help+main; single-channel deploys
   couldn't boot. Help now wins over main (see `programModel.ts`).
@@ -187,7 +187,7 @@ superseded; `lib/loadoutProgram.test.ts` fails the build if it returns.
 ## Deployment
 
 Local (current): `bun index.ts` in `C:\Users\aarav\Projects\Rivet`, supervised
-as `rivet` (PTY off, restart on-failure), `.env` holds all keys, `config/`
+as `orry` (PTY off, restart on-failure), `.env` holds all keys, `config/`
 holds channel ids. `autosync` polls every 120s and fast-forwards merged PRs;
 it never pushes and refuses on clashing local edits. VPS deploy = clone +
 copy `config/programs.json` + provider `.env` values. Bot dies if this

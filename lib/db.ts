@@ -303,7 +303,7 @@ function backfillLastHumanReply(database: DatabaseType) {
   database.query("INSERT INTO ticket_metrics_migrations (version, applied_at) VALUES (?, ?)").run(version, now());
 }
 
-function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
+function open(filename = (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH) || DEFAULT_PATH) {
   if (db) return db;
   db = new Database(filename, { create: true });
   // SQLite WAL
@@ -321,7 +321,7 @@ function open(filename = process.env.RIVET_DB_PATH || DEFAULT_PATH) {
 }
 
 function ensureSchema(filename: string | null = null) {
-  const file = filename || process.env.RIVET_DB_PATH || DEFAULT_PATH;
+  const file = filename || (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH) || DEFAULT_PATH;
   const database = new Database(file, { create: true });
   database.exec("PRAGMA secure_delete = ON");
   database.exec("PRAGMA journal_mode = WAL");
@@ -368,7 +368,7 @@ function touchThread(threadTs: string, channel: string | null = null, fields: Re
          rivet_spoke   = MAX(threads.rivet_spoke, excluded.rivet_spoke),
          helper_pinged = MAX(threads.helper_pinged, excluded.helper_pinged),
          updated_at    = excluded.updated_at`,
-  ).run(threadTs, channel, fields.seeded ? 1 : 0, fields.rivetSpoke ? 1 : 0, fields.helperPinged ? 1 : 0, now());
+  ).run(threadTs, channel, fields.seeded ? 1 : 0, fields.orrySpoke ? 1 : 0, fields.helperPinged ? 1 : 0, now());
 }
 
 function getThread(threadTs: string) {

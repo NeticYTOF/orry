@@ -2,13 +2,15 @@
 
 **What is Loadout?** A technical builder YSWS where shipped projects become a persistent Digital Loadout and rewards build your Physical Loadout. The tagline is "build your own technical stack."
 
+**Which YSWS is this?** This is Loadout, a Hack Club YSWS ("You Ship, We Ship") for technical builders. You specialise in one of four tracks, level it up, and earn permanent discounts on items related to that track. Shipped projects earn Bolts and Track XP.
+
 **What is a YSWS?** YSWS means "You Ship, We Ship": a family of teen-led programs that encourage teens to learn and build by offering rewards for shipped projects.
 
 **How many tracks are there?** Four: Tools, Systems, Compute, and Hardware. Research Mode is a modifier you apply to a project, not a fifth track. Each track records its own progress and caps at LV.15.
 
 **Who made Loadout?** Loadout was built by Netic, Wind, and Jerry, who are also the org behind it.
 
-**Who is the org of this YSWS?** Jerry is Loadout's lead organizer. Fazin / Wind and Netic are co-organizers; Netic built Orry, Loadout's Slack bot.
+**Who is the org of this YSWS?** Jerry is Loadout's lead organizer. Fazin / Wind and Netic are co-organizers; Netic built Orry for Loadout.
 
 **Are there levels and what do they do?** Each track has 15 lifetime levels. Level determines pricing advantage, unlocks, and Requisition milestones. Levels are permanent and never reset between seasons.
 

@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 const validator = require("./validator");
 
 test("parseGithubUrl parses full GitHub URLs", () => {
-  const r1 = validator.parseGithubUrl("https://github.com/hackclub/rivet");
+  const r1 = validator.parseGithubUrl("https://github.com/hackclub/orry");
   assert.equal(r1.owner, "hackclub");
-  assert.equal(r1.repo, "rivet");
-  assert.equal(r1.fullName, "hackclub/rivet");
+  assert.equal(r1.repo, "orry");
+  assert.equal(r1.fullName, "hackclub/orry");
 
   const r2 = validator.parseGithubUrl("github.com/torvalds/linux.git");
   assert.equal(r2.owner, "torvalds");

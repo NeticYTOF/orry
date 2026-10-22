@@ -1,4 +1,4 @@
-# systemd user unit for rivet.
+# systemd user unit for orry.
 #
 # Install:
 #   mkdir -p ~/.config/systemd/user
@@ -14,7 +14,7 @@
 # Set WorkingDirectory to your checkout.
 
 [Unit]
-Description=Rivet program support bot
+Description=Orry program support bot
 After=network-online.target
 Wants=network-online.target
 # A config error (missing env var) exits 1 immediately and would otherwise

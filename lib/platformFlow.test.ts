@@ -1,5 +1,5 @@
-process.env.RIVET_DB_PATH = ":memory:";
-process.env.RIVET_INTERNAL_TOKEN = "test-internal-token";
+process.env.ORRY_DB_PATH = ":memory:";
+process.env.ORRY_INTERNAL_TOKEN = "test-internal-token";
 
 interface TestRow {
   program?: { id: string };

@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const axios = require("axios");
-axios.defaults.headers.common["User-Agent"] = "RivetBot";
+axios.defaults.headers.common["User-Agent"] = "OrryBot";
 const retrieve = require("./retrieve");
 const log = require("./log");
 const programs = require("./programs");
@@ -1019,32 +1019,45 @@ function getEvidenceContext(
 ) {
   const sources = sourceSections(programId);
   const generated = generatedSections(programId, question);
-  const index = retrieve.buildIndex(retrieve.chunkSections([...generated, ...sources]));
-  const programSourceNames = new Set(sources.map(([name]) => name.toLowerCase()));
-  const weakMatch = retrieve.hasWeakMatch(index, matchQuestion);
-  const queries = [...new Set([question, ...additionalQueries].filter((query) => query.trim()))];
-  let selected = queries.flatMap((query) =>
-    retrieve.selectEvidence(index, query, retrieve.DEFAULT_BUDGET, null, false),
+  const program = programId ? programs.get(programId) : null;
+  const budget = program?.evidenceBudget || retrieve.DEFAULT_BUDGET;
+  const fillUnmatched = Boolean(program?.evidenceBudget);
+  const weakMatch = retrieve.hasWeakMatch(
+    retrieve.buildIndex(retrieve.chunkSections([...generated, ...sources])),
+    matchQuestion,
   );
-  selected = [...new Map(selected.map((passage) => [passage.id, passage])).values()];
-  if (additionalQueries.length && selected.length === 0 && semanticFallback) {
-    selected = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, true);
-  } else if (!additionalQueries.length) {
-    selected = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, semanticFallback);
-  }
+  const queries = [...new Set([question, ...additionalQueries].filter((query) => query.trim()))];
+  // Each pass searches its own index, so a large generated section cannot push program sources out.
+  const selectPass = (index: ReturnType<typeof retrieve.buildIndex>, passBudget: number) => {
+    let selected = queries.flatMap((query) =>
+      retrieve.selectEvidence(index, query, passBudget, null, false, fillUnmatched),
+    );
+    selected = [...new Map(selected.map((passage) => [passage.id, passage])).values()];
+    if (additionalQueries.length && selected.length === 0 && semanticFallback) {
+      return retrieve.selectEvidence(index, question, passBudget, null, true, fillUnmatched);
+    }
+    if (!additionalQueries.length) {
+      return retrieve.selectEvidence(index, question, passBudget, null, semanticFallback, fillUnmatched);
+    }
+    return selected;
+  };
+  // Program source passages are selected first, from sources only.
+  const sourcePassages = selectPass(retrieve.buildIndex(retrieve.chunkSections(sources)), budget);
+  // Generated sections (identity, timeline, learned answers) only get what the sources left.
+  const remaining = budget - sourcePassages.reduce((size, passage) => size + passage.text.length, 0);
+  const generatedPassages =
+    remaining > 0 ? selectPass(retrieve.buildIndex(retrieve.chunkSections(generated)), remaining) : [];
   let passageBudget = additionalQueries.length ? retrieve.TOTAL_CONTEXT_BUDGET : Infinity;
-  const passages = selected
+  const passages = [
+    ...sourcePassages.map((passage) => ({ ...passage, programId, kind: "source" })),
+    ...generatedPassages.map((passage) => ({ ...passage, programId, kind: "generated" })),
+  ]
     .slice(0, 80)
     .filter((passage) => {
       if (passage.text.length > passageBudget) return false;
       passageBudget -= passage.text.length;
       return true;
-    })
-    .map((passage) => ({
-      ...passage,
-      programId,
-      kind: programSourceNames.has(passage.source.toLowerCase()) ? "source" : "generated",
-    }));
+    });
   return {
     context: passages
       .map(({ id, source, heading, text }) => `### ${source} [${id}]${heading ? ` — ${heading}` : ""}\n${text}`)

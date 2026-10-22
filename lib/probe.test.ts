@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface ProbeOptions {
   onText?: (text: string) => void;
@@ -46,7 +46,7 @@ test("probe handles null source for conversational answer", async () => {
   answer.getAnswerOrChatStream = async () => ({ source: null, answer: "hey there" });
   intent.classifyIntent = async () => "CASUAL_CHAT";
 
-  const result = await probe("hey rivet");
+  const result = await probe("hey orry");
   assert.equal(result.source, null);
   assert.ok(result.answer);
 });

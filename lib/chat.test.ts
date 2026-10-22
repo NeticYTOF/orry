@@ -24,19 +24,19 @@ test("looksLikeQuestion catches question marks and question words", () => {
 });
 
 test("looksLikeQuestion handles apostrophe-less contractions", () => {
-  assert.equal(looksLikeQuestion("rivet whats up"), true);
+  assert.equal(looksLikeQuestion("orry whats up"), true);
   assert.equal(looksLikeQuestion("hows the deadline looking"), true);
   assert.equal(looksLikeQuestion("wheres the repo"), true);
 });
 
 test("looksLikeQuestion treats greetings as worth a reply", () => {
-  assert.equal(looksLikeQuestion("hey rivet"), true);
+  assert.equal(looksLikeQuestion("hey orry"), true);
   assert.equal(looksLikeQuestion("yo"), true);
   assert.equal(looksLikeQuestion("thanks!"), true);
 });
 
 test("looksLikeQuestion is false for statements and empties", () => {
-  assert.equal(looksLikeQuestion("rivet ur the best"), false);
+  assert.equal(looksLikeQuestion("orry ur the best"), false);
   assert.equal(looksLikeQuestion(""), false);
   assert.equal(looksLikeQuestion(undefined), false);
 });

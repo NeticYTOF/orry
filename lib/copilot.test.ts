@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface VerdictRow {
   sentence: string;
@@ -45,10 +45,10 @@ const BLOB = JSON.stringify([
 ]);
 
 async function withCorpus(fn: () => unknown) {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const axios = require("axios");
   const realGet = axios.get;
-  process.env.RIVET_PROGRAMS_JSON = BLOB;
+  process.env.ORRY_PROGRAMS_JSON = BLOB;
   programs.invalidate();
   knowledge.invalidate();
   axios.get = async () => {
@@ -59,8 +59,8 @@ async function withCorpus(fn: () => unknown) {
     return await fn();
   } finally {
     axios.get = realGet;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
     knowledge.invalidate();
   }

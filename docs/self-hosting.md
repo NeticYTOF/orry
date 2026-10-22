@@ -1,6 +1,6 @@
 # Run your own copy
 
-Rivet is one program. What makes it *your* program's bot is configuration —
+Orry is one program. What makes it *your* program's bot is configuration —
 nothing in this repo needs editing. Fork it, set some variables, deploy. About
 twenty minutes, most of it waiting on Slack's UI.
 
@@ -31,7 +31,7 @@ bun run manifest
 
 The default slug is `orry`, producing `/orry`, `/orry-teach`, `/orry-gaps`,
 and the other commands. If you choose another slug, set the same
-`RIVET_BOT_SLUG` in the deployment environment before generating the manifest;
+`ORRY_BOT_SLUG` in the deployment environment before generating the manifest;
 the installed commands and runtime listeners must match.
 
 One constraint that matters if your workspace already has a bot using the same slash commands:
@@ -77,7 +77,7 @@ One JSON value carries the whole thing — channels, docs, behaviour:
 }]
 ```
 
-Minified, that becomes `RIVET_PROGRAMS_JSON`. Set it to override the ignored
+Minified, that becomes `ORRY_PROGRAMS_JSON`. Set it to override the ignored
 `config/programs.json` fallback — the bundled `loadout/program.json` is an
 example and is not loaded automatically.
 
@@ -120,11 +120,11 @@ SLACK_FAQ_CHANNELS=C_MAIN             # must match a configured program channel
 SLACK_HELP_CHANNEL=C_HELP              # optional dedicated help channel
 OPENCODE_API_KEY=...
 
-RIVET_BOT_NAME=Orry the ore Maulwürf
-RIVET_BOT_SLUG=orry
-RIVET_ADMIN_USER_IDS=U01ABCDEF        # your Slack user ID
-RIVET_DB_PATH=/data/rivet.db
-RIVET_PROGRAMS_JSON=[{"id":"example",...}]
+ORRY_BOT_NAME=Orry the ore Maulwürf
+ORRY_BOT_SLUG=orry
+ORRY_ADMIN_USER_IDS=U01ABCDEF        # your Slack user ID
+ORRY_DB_PATH=/data/rivet.db
+ORRY_PROGRAMS_JSON=[{"id":"example",...}]
 ```
 
 The four listed provider and Slack values are validated at boot; the process
@@ -133,7 +133,7 @@ is optional; set it only for a dedicated channel that should reply to every
 top-level post. The `SLACK_APP_TOKEN` must be the Socket Mode `xapp-` token with
 `connections:write`; a Pixl `SLACK_SIGNING_SECRET` is not used by Orry.
 
-`RIVET_ADMIN_USER_IDS` **fails closed**: leave it empty and nobody, including
+`ORRY_ADMIN_USER_IDS` **fails closed**: leave it empty and nobody, including
 you, can teach the bot anything. Your Slack ID is in your Slack profile → three
 dots → Copy member ID.
 
@@ -151,7 +151,7 @@ boot. Then ask it something your docs cover and confirm an answer comes back.
 `/orry-sources` (or `/<your-slug>-sources`) shows what it managed to load, which is the fastest way to spot a
 docs URL that 404s.
 
-If it's quiet: `RIVET_DEBUG=1` for per-message logging, and check `posture` isn't
+If it's quiet: `ORRY_DEBUG=1` for per-message logging, and check `posture` isn't
 `muted`.
 
 ---
@@ -185,7 +185,7 @@ way to tell whether your sources are actually loading.
 Three ways, in increasing order of effort.
 
 **Teach it directly.** `/orry-teach how do i submit :: open a PR against the
-projects repo`. Available to `RIVET_ADMIN_USER_IDS` only, and it takes effect
+projects repo`. Available to `ORRY_ADMIN_USER_IDS` only, and it takes effect
 immediately.
 
 **Let it capture answers.** When a human answers a question the bot couldn't, it

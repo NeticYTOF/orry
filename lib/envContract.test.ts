@@ -1,4 +1,4 @@
-process.env.RIVET_SKIP_DOTENV = "1";
+process.env.ORRY_SKIP_DOTENV = "1";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");

@@ -242,7 +242,7 @@ async function askCommand({ command, ack, respond: sendEphemeral }: CommandArgs)
   const askPolicy = require("./channelPolicy").resolve(command.channel_id, command.team_id || null);
   const askProgram = askPolicy.role === "none" ? null : askPolicy.program;
   const requireGrounded =
-    process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || Boolean(askProgram?.requireGroundedAnswer);
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || Boolean(askProgram?.requireGroundedAnswer);
   try {
     const result = askProgram
       ? await lookupAnswer(question, "", askProgram, command.channel_id as string, { skipCache: requireGrounded })
@@ -389,7 +389,7 @@ async function teachCommand({ command, ack, respond: sendEphemeral, client }: Co
     await sendEphemeral({
       response_type: "ephemeral",
       text: id
-        ? `got it, i'll use that from now on :yesyes:\n>*Q:* ${parsed.question}\n>*A:* ${parsed.answer}\n\n_#${id} — remove it with \`/rivet-forget ${id}\`_`
+        ? `got it, i'll use that from now on :yesyes:\n>*Q:* ${parsed.question}\n>*A:* ${parsed.answer}\n\n_#${id} — remove it with \`/orry-forget ${id}\`_`
         : "couldn't save that one, try again",
     });
     return;
@@ -422,7 +422,7 @@ async function teachCommand({ command, ack, respond: sendEphemeral, client }: Co
         await sendEphemeral({
           response_type: "ephemeral",
           text: id
-            ? `🧚 Summarized and added this thread to active memory! :yesyes:\n>*Q:* ${threadResult.question}\n>*A:* ${threadResult.answer}\n\n_#${id} — remove with \`/rivet-forget ${id}\`_`
+            ? `🧚 Summarized and added this thread to active memory! :yesyes:\n>*Q:* ${threadResult.question}\n>*A:* ${threadResult.answer}\n\n_#${id} — remove with \`/orry-forget ${id}\`_`
             : "already memorized this thread or couldn't save it",
         });
         return;
@@ -463,7 +463,7 @@ async function teachThreadShortcut({ shortcut, ack, client }: ShortcutArgs): Pro
       channel,
       user,
       text: id
-        ? `queued for review :thonk:\n>*Q:* ${parsed.question}\n>*A:* ${parsed.answer}\n\n_#${id} — approve with \`/rivet-approve ${id}\`, or \`/rivet-forget ${id}\` to drop it_`
+        ? `queued for review :thonk:\n>*Q:* ${parsed.question}\n>*A:* ${parsed.answer}\n\n_#${id} — approve with \`/orry-approve ${id}\`, or \`/orry-forget ${id}\` to drop it_`
         : `already queued this thread, or couldn't save it — check \`${brand.cmd("pending")}\``,
     });
   } catch (e: unknown) {
@@ -666,7 +666,7 @@ async function programCommand({ command, ack, respond: sendEphemeral }: CommandA
       text:
         val === "on"
           ? `ticket auto-creation from this channel is back *on* :yesyes:`
-          : `ticket auto-creation from this channel is *off* — Rivet will still answer, just won't open tickets here until this is turned back on.`,
+          : `ticket auto-creation from this channel is *off* — Orry will still answer, just won't open tickets here until this is turned back on.`,
     });
     return;
   }

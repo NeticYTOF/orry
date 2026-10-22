@@ -1,14 +1,15 @@
 # Orry the ore Maulwürf — feature and behavior guide
 
-This guide describes Orry the ore Maulwürf, Loadout's Slack bot, and the
-behavior implemented in Rivet Core. Orry is the bot's public name; Rivet is
-the repository and internal project name.
+This guide describes Orry the ore Maulwürf, Netic's Slack bot for Loadout, and
+the behavior implemented in Orry Core. Orry is the bot's public name and also
+the repository and internal project name. The older name, Rivet, still works
+as the fallback for RIVET_* env vars.
 
 ## Identity and personality
 
 - **Display name:** Orry the ore Maulwürf.
 - **Slash-command prefix:** `/orry` (for example, `/orry`, `/orry-sources`,
-  `/orry-teach`). `RIVET_BOT_NAME` and `RIVET_BOT_SLUG` control the generated
+  `/orry-teach`). `ORRY_BOT_NAME` and `ORRY_BOT_SLUG` control the generated
   name and commands.
 - **Character:** a cheerful, cheeky mine-mole who likes ore, tiny tools, and
   helping people get things working. Warm, curious, and lively, with patient,
@@ -125,8 +126,8 @@ model will never violate them.
 
 ## Where Orry listens
 
-Rivet Core connects to Slack through Socket Mode. It opens an outbound
-connection; Slack does not call an inbound Rivet endpoint. Current Loadout
+Orry Core connects to Slack through Socket Mode. It opens an outbound
+connection; Slack does not call an inbound Orry endpoint. Current Loadout
 channel roles are:
 
 | Surface | Behavior |

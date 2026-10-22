@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -17,74 +17,74 @@ const sumThread = require("./sumThread");
 const intent = require("./intent");
 
 db.open(":memory:");
-config.slack.botUserId = "U0RIVET";
+config.slack.botUserId = "U0ORRY";
 
-test("mentionsRivetByName matches the name and its suffixes", () => {
-  assert.equal(handlers.mentionsRivetByName("rivet help"), true);
-  assert.equal(handlers.mentionsRivetByName("hey Rivet!"), true);
-  assert.equal(handlers.mentionsRivetByName("rivets are cool"), true);
+test("mentionsOrryByName matches the name and its suffixes", () => {
+  assert.equal(handlers.mentionsOrryByName("orry help"), true);
+  assert.equal(handlers.mentionsOrryByName("hey Orry!"), true);
+  assert.equal(handlers.mentionsOrryByName("orrys are cool"), true);
 });
 
-test("mentionsRivetByName recognizes Orry anywhere in a message", () => {
-  const savedName = process.env.RIVET_BOT_NAME;
-  const savedSlug = process.env.RIVET_BOT_SLUG;
-  process.env.RIVET_BOT_NAME = "Orry the ore Maulwürf";
-  process.env.RIVET_BOT_SLUG = "orry";
+test("mentionsOrryByName recognizes Orry anywhere in a message", () => {
+  const savedName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
+  const savedSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  process.env.ORRY_BOT_NAME = "Orry the ore Maulwürf";
+  process.env.ORRY_BOT_SLUG = "orry";
   try {
-    assert.equal(handlers.mentionsRivetByName("hey orry can you check this?"), true);
-    assert.equal(handlers.mentionsRivetByName("Orrybot, quick question"), true);
-    assert.equal(handlers.mentionsRivetByName("sorry, quick question"), false);
+    assert.equal(handlers.mentionsOrryByName("hey orry can you check this?"), true);
+    assert.equal(handlers.mentionsOrryByName("Orrybot, quick question"), true);
+    assert.equal(handlers.mentionsOrryByName("sorry, quick question"), false);
   } finally {
-    if (savedName === undefined) delete process.env.RIVET_BOT_NAME;
-    else process.env.RIVET_BOT_NAME = savedName;
-    if (savedSlug === undefined) delete process.env.RIVET_BOT_SLUG;
-    else process.env.RIVET_BOT_SLUG = savedSlug;
+    if (savedName === undefined) delete process.env.ORRY_BOT_NAME;
+    else process.env.ORRY_BOT_NAME = savedName;
+    if (savedSlug === undefined) delete process.env.ORRY_BOT_SLUG;
+    else process.env.ORRY_BOT_SLUG = savedSlug;
   }
 });
 
-test("mentionsRivetByName ignores unrelated text", () => {
-  assert.equal(handlers.mentionsRivetByName("acme is great"), false);
-  assert.equal(handlers.mentionsRivetByName(""), false);
-  assert.equal(handlers.mentionsRivetByName(undefined), false);
+test("mentionsOrryByName ignores unrelated text", () => {
+  assert.equal(handlers.mentionsOrryByName("acme is great"), false);
+  assert.equal(handlers.mentionsOrryByName(""), false);
+  assert.equal(handlers.mentionsOrryByName(undefined), false);
 });
 
-test("mentionsRivetByName follows the configured bot identity", () => {
-  const savedName = process.env.RIVET_BOT_NAME;
-  const savedSlug = process.env.RIVET_BOT_SLUG;
-  process.env.RIVET_BOT_NAME = "Live Helper";
-  process.env.RIVET_BOT_SLUG = "live-helper";
+test("mentionsOrryByName follows the configured bot identity", () => {
+  const savedName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
+  const savedSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  process.env.ORRY_BOT_NAME = "Live Helper";
+  process.env.ORRY_BOT_SLUG = "live-helper";
   try {
-    assert.equal(handlers.mentionsRivetByName("live helper can you help?"), true);
-    assert.equal(handlers.mentionsRivetByName("rivet can you help?"), false);
+    assert.equal(handlers.mentionsOrryByName("live helper can you help?"), true);
+    assert.equal(handlers.mentionsOrryByName("orry can you help?"), false);
   } finally {
-    if (savedName === undefined) delete process.env.RIVET_BOT_NAME;
-    else process.env.RIVET_BOT_NAME = savedName;
-    if (savedSlug === undefined) delete process.env.RIVET_BOT_SLUG;
-    else process.env.RIVET_BOT_SLUG = savedSlug;
+    if (savedName === undefined) delete process.env.ORRY_BOT_NAME;
+    else process.env.ORRY_BOT_NAME = savedName;
+    if (savedSlug === undefined) delete process.env.ORRY_BOT_SLUG;
+    else process.env.ORRY_BOT_SLUG = savedSlug;
   }
 });
 
-test("mentionsRivetDirectly matches the resolved bot user id", () => {
-  assert.equal(handlers.mentionsRivetDirectly("<@U0RIVET> whats up"), true);
-  assert.equal(handlers.mentionsRivetDirectly("<@U0SOMEONE> whats up"), false);
+test("mentionsOrryDirectly matches the resolved bot user id", () => {
+  assert.equal(handlers.mentionsOrryDirectly("<@U0ORRY> whats up"), true);
+  assert.equal(handlers.mentionsOrryDirectly("<@U0SOMEONE> whats up"), false);
 });
 
-test("mentionsRivetDirectly is false when the bot id is unresolved", () => {
+test("mentionsOrryDirectly is false when the bot id is unresolved", () => {
   const saved = config.slack.botUserId;
   config.slack.botUserId = null;
   try {
-    assert.equal(handlers.mentionsRivetDirectly("<@undefined> hi"), false);
+    assert.equal(handlers.mentionsOrryDirectly("<@undefined> hi"), false);
   } finally {
     config.slack.botUserId = saved;
   }
 });
 
 test("stripBotMention removes every ping and trims", () => {
-  assert.equal(handlers.stripBotMention("<@U0RIVET> how do i join <@U0RIVET>"), "how do i join");
+  assert.equal(handlers.stripBotMention("<@U0ORRY> how do i join <@U0ORRY>"), "how do i join");
 });
 
 test("stripBotMention leaves other people's mentions intact", () => {
-  assert.equal(handlers.stripBotMention("<@U0RIVET> ask <@U0ALEX> about it"), "ask <@U0ALEX> about it");
+  assert.equal(handlers.stripBotMention("<@U0ORRY> ask <@U0ALEX> about it"), "ask <@U0ALEX> about it");
 });
 
 test("shouldConsiderThreadReply allows all top-level messages", () => {
@@ -92,47 +92,47 @@ test("shouldConsiderThreadReply allows all top-level messages", () => {
   assert.equal(handlers.shouldConsiderThreadReply({ ts: "1.1", thread_ts: "1.1", text: "hi" }), true);
 });
 
-test("shouldConsiderThreadReply skips threads rivet has not spoken in", () => {
+test("shouldConsiderThreadReply skips threads orry has not spoken in", () => {
   assert.equal(handlers.shouldConsiderThreadReply({ ts: "2.2", thread_ts: "1.1", text: "lol same" }), false);
 });
 
-test("shouldConsiderThreadReply allows a thread reply that names or pings rivet", () => {
-  assert.equal(handlers.shouldConsiderThreadReply({ ts: "2.2", thread_ts: "1.1", text: "rivet help" }), true);
-  assert.equal(handlers.shouldConsiderThreadReply({ ts: "2.2", thread_ts: "1.1", text: "<@U0RIVET> help" }), true);
+test("shouldConsiderThreadReply allows a thread reply that names or pings orry", () => {
+  assert.equal(handlers.shouldConsiderThreadReply({ ts: "2.2", thread_ts: "1.1", text: "orry help" }), true);
+  assert.equal(handlers.shouldConsiderThreadReply({ ts: "2.2", thread_ts: "1.1", text: "<@U0ORRY> help" }), true);
 });
 
-test("shouldConsiderThreadReply allows a thread rivet already replied in", () => {
+test("shouldConsiderThreadReply allows a thread orry already replied in", () => {
   context.addToThread("thread-spoken", "assistant", "here you go", null, "C1");
   assert.equal(handlers.shouldConsiderThreadReply({ ts: "3.3", thread_ts: "thread-spoken", text: "thanks" }), true);
 });
 
-test("shouldConsiderThreadReply skips unaddressed thread when RIVET_THREAD_REQUIRE_MENTION is set", () => {
-  const origEnv = process.env.RIVET_THREAD_REQUIRE_MENTION;
+test("shouldConsiderThreadReply skips unaddressed thread when ORRY_THREAD_REQUIRE_MENTION is set", () => {
+  const origEnv = (process.env.ORRY_THREAD_REQUIRE_MENTION ?? process.env.RIVET_THREAD_REQUIRE_MENTION);
   try {
-    process.env.RIVET_THREAD_REQUIRE_MENTION = "1";
+    process.env.ORRY_THREAD_REQUIRE_MENTION = "1";
     context.addToThread("thread-spoken-req", "assistant", "here you go", null, "C1");
     assert.equal(
       handlers.shouldConsiderThreadReply({ ts: "4.4", thread_ts: "thread-spoken-req", text: "asking another human" }),
       false,
     );
     assert.equal(
-      handlers.shouldConsiderThreadReply({ ts: "4.4", thread_ts: "thread-spoken-req", text: "rivet help" }),
+      handlers.shouldConsiderThreadReply({ ts: "4.4", thread_ts: "thread-spoken-req", text: "orry help" }),
       true,
     );
   } finally {
-    process.env.RIVET_THREAD_REQUIRE_MENTION = origEnv;
+    process.env.ORRY_THREAD_REQUIRE_MENTION = origEnv;
   }
 });
 
-test("mentionsRivetByName supports RIVET_BOT_ALIASES", () => {
-  const origAliases = process.env.RIVET_BOT_ALIASES;
+test("mentionsOrryByName supports ORRY_BOT_ALIASES", () => {
+  const origAliases = (process.env.ORRY_BOT_ALIASES ?? process.env.RIVET_BOT_ALIASES);
   try {
-    process.env.RIVET_BOT_ALIASES = "seb,seba,sebastian";
-    assert.equal(handlers.mentionsRivetByName("hey seb check this"), true);
-    assert.equal(handlers.mentionsRivetByName("sebastian what is live"), true);
-    assert.equal(handlers.mentionsRivetByName("hey bob check this"), false);
+    process.env.ORRY_BOT_ALIASES = "seb,seba,sebastian";
+    assert.equal(handlers.mentionsOrryByName("hey seb check this"), true);
+    assert.equal(handlers.mentionsOrryByName("sebastian what is live"), true);
+    assert.equal(handlers.mentionsOrryByName("hey bob check this"), false);
   } finally {
-    process.env.RIVET_BOT_ALIASES = origAliases;
+    process.env.ORRY_BOT_ALIASES = origAliases;
   }
 });
 
@@ -167,7 +167,7 @@ test("onAppMention analyses an attached image instead of replying blind", async 
         ts: "500.1",
         channel: "C0MENTION",
         user: "U0ASKER",
-        text: "<@U0RIVET> bruda cant u see the IMAGE",
+        text: "<@U0ORRY> bruda cant u see the IMAGE",
         files: [{ mimetype: "image/png", url_private: "https://files.slack.com/x.png" }],
       },
       client: { chat: { postMessage: async (args: any) => void posted.push(args) } },
@@ -193,7 +193,7 @@ test("onAppMention still uses the text path when there is no image", async () =>
 
   try {
     await handlers.onAppMention({
-      event: { ts: "501.1", channel: "C0MENTION", user: "U0ASKER", text: "<@U0RIVET> how do i ship" },
+      event: { ts: "501.1", channel: "C0MENTION", user: "U0ASKER", text: "<@U0ORRY> how do i ship" },
       client: {},
     });
   } finally {
@@ -250,7 +250,7 @@ test("explicit human review requests escalate once without calling the provider"
   const posted: any[] = [];
   const program = {
     id: "sandbox-escalation",
-    name: "Rivet Sandbox",
+    name: "Orry Sandbox",
     supportName: "Sandbox Help",
     posture: "active",
     ticketsEnabled: true,
@@ -325,8 +325,10 @@ test("a casual help-channel root stays silent but still opens the required ticke
     reactions: { add: async () => ({}) },
   };
   const event = { ts: "qg-1", channel: HELP_CHANNEL, user: "U0ASKER", team: "T-QG", text: "hi" };
+  let postsAfterFirstDelivery = 0;
   try {
     await handlers.onMessage({ event, client });
+    postsAfterFirstDelivery = posts.length;
     await handlers.onMessage({ event, client });
   } finally {
     programs.forChannel = savedForChannel;
@@ -336,7 +338,7 @@ test("a casual help-channel root stays silent but still opens the required ticke
   const ticket = db.getTicketByThreadTs("qg-1", "T-QG");
   assert.ok(ticket, "every help-channel root message gets a ticket");
   assert.equal(ticket.question, "hi");
-  assert.equal(responded, false, "the eligibility gate keeps Rivet from answering a greeting");
+  assert.equal(responded, false, "the eligibility gate keeps Orry from answering a greeting");
   assert.equal(posts.length, 2, "one public acknowledgement and one organizer card are posted once");
 });
 
@@ -375,15 +377,15 @@ test("isolated app_mention ignores bot and self events", async () => {
   respond.respond = async (args: any) => void calls.push(args);
   try {
     for (const event of [
-      { ts: "mention-bot", channel: HELP_CHANNEL, user: "U-other", bot_id: "B-other", text: "<@U0RIVET> help" },
+      { ts: "mention-bot", channel: HELP_CHANNEL, user: "U-other", bot_id: "B-other", text: "<@U0ORRY> help" },
       {
         ts: "mention-subtype",
         channel: HELP_CHANNEL,
         user: "U-other",
         subtype: "bot_message",
-        text: "<@U0RIVET> help",
+        text: "<@U0ORRY> help",
       },
-      { ts: "mention-self", channel: HELP_CHANNEL, user: "U0RIVET", text: "<@U0RIVET> help" },
+      { ts: "mention-self", channel: HELP_CHANNEL, user: "U0ORRY", text: "<@U0ORRY> help" },
     ])
       await handlers.onAppMention({ event, client: {} });
   } finally {
@@ -417,11 +419,11 @@ test("help channel skips a thread reply that has no content signal", async () =>
   assert.match(context.getThreadContext("300.1"), /👍/);
 });
 
-test("help channel answers a thread reply that names rivet", async () => {
+test("help channel answers a thread reply that names orry", async () => {
   const calls = await routeHelpMessage({
     ts: "400.2",
     thread_ts: "400.1",
-    text: "rivet, i still can't connect my keyboard",
+    text: "orry, i still can't connect my keyboard",
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].mode, respond.ALWAYS);
@@ -429,7 +431,7 @@ test("help channel answers a thread reply that names rivet", async () => {
   assert.ok(calls[0].seedClient);
 });
 
-test("help channel hands an unnamed thread reply to the gate once rivet has spoken there", async () => {
+test("help channel hands an unnamed thread reply to the gate once orry has spoken there", async () => {
   context.addToThread("700.1", "assistant", "try reinstalling the extension", null, HELP_CHANNEL);
 
   const calls = await routeHelpMessage({
@@ -443,7 +445,7 @@ test("help channel hands an unnamed thread reply to the gate once rivet has spok
   assert.equal(calls[0].addressed, false);
 });
 
-test("help channel: an untagged question in a thread rivet never spoke in is left to the humans", async () => {
+test("help channel: an untagged question in a thread orry never spoke in is left to the humans", async () => {
   const calls = await routeHelpMessage({
     ts: "799.2",
     thread_ts: "799.1",
@@ -452,7 +454,7 @@ test("help channel: an untagged question in a thread rivet never spoke in is lef
   assert.equal(calls.length, 0);
 });
 
-test("help channel ignores non-question chatter in a thread rivet never spoke in", async () => {
+test("help channel ignores non-question chatter in a thread orry never spoke in", async () => {
   const calls = await routeHelpMessage({ ts: "798.2", thread_ts: "798.1", text: "ok cool" });
   assert.equal(calls.length, 0);
   assert.equal(context.getThreadContext("798.1"), null);
@@ -570,7 +572,7 @@ test("onReactionAdded still records ordinary feedback on a normal message", asyn
         reaction: "upvote",
         user: "U-fan",
         item: { type: "message", channel: "C0DOCS", ts: "702.1" },
-        item_user: "U0RIVET",
+        item_user: "U0ORRY",
       },
       client: {},
     });
@@ -581,7 +583,7 @@ test("onReactionAdded still records ordinary feedback on a normal message", asyn
   assert.deepEqual(calls, [["702.1", "U-fan", 1]]);
 });
 
-test("onReactionAdded deletes rivet's own message on :x:", async () => {
+test("onReactionAdded deletes orry's own message on :x:", async () => {
   const deleted: any[] = [];
   await handlers.onReactionAdded({
     event: {
@@ -593,7 +595,7 @@ test("onReactionAdded deletes rivet's own message on :x:", async () => {
       conversations: {
         history: async (args: any) => {
           assert.equal(args.channel, "C0DEL");
-          return { messages: [{ user: "U0RIVET", ts: "800.2" }] };
+          return { messages: [{ user: "U0ORRY", ts: "800.2" }] };
         },
       },
       chat: {
@@ -617,7 +619,7 @@ test("onReactionAdded deletes a threaded reply using item_user, with no history 
       reaction: "x",
       user: "U-someone",
       item: { type: "message", channel: "C0DEL", ts: "900.1" },
-      item_user: "U0RIVET",
+      item_user: "U0ORRY",
     },
     client: {
       conversations: {
@@ -634,7 +636,7 @@ test("onReactionAdded deletes a threaded reply using item_user, with no history 
     },
   });
 
-  assert.equal(deleted.length, 1, "a threaded reply by rivet should still be deletable");
+  assert.equal(deleted.length, 1, "a threaded reply by orry should still be deletable");
   assert.equal(deleted[0].channel, "C0DEL");
   assert.equal(deleted[0].ts, "900.1");
 });
@@ -683,7 +685,7 @@ test("message edits and deletes stay silent and file nothing", async () => {
   assert.equal(deleted.length, 0);
 });
 
-test("takeover cue parks the thread until Rivet is invited back", async () => {
+test("takeover cue parks the thread until Orry is invited back", async () => {
   context.addToThread("800.1", "assistant", "here's the answer", null, HELP_CHANNEL);
   const cue = await routeHelpMessage({ ts: "800.2", thread_ts: "800.1", text: "I'll handle this" });
   assert.equal(cue.length, 0);
@@ -692,7 +694,7 @@ test("takeover cue parks the thread until Rivet is invited back", async () => {
   const chatter = await routeHelpMessage({ ts: "800.3", thread_ts: "800.1", text: "any update?" });
   assert.equal(chatter.length, 0, "takeover stays silent");
 
-  const back = await routeHelpMessage({ ts: "800.4", thread_ts: "800.1", text: "rivet come back, need you" });
+  const back = await routeHelpMessage({ ts: "800.4", thread_ts: "800.1", text: "orry come back, need you" });
   assert.equal(back.length, 1);
   assert.equal(db.isTakeover("800.1"), false);
 });
@@ -702,7 +704,7 @@ test("muted thread reactivates only on explicit invitation", async () => {
   try {
     const quiet = await routeHelpMessage({ ts: "801.2", thread_ts: "801.1", text: "what about the pcb" });
     assert.equal(quiet.length, 0);
-    const invited = await routeHelpMessage({ ts: "801.3", thread_ts: "801.1", text: "rivet help" });
+    const invited = await routeHelpMessage({ ts: "801.3", thread_ts: "801.1", text: "orry help" });
     assert.equal(invited.length, 1);
     assert.equal(db.isThreadMuted("801.1"), false);
   } finally {
@@ -731,7 +733,7 @@ test("onAppMention answers once in a muted thread without clearing the mute", as
         thread_ts: "810.1",
         channel: "C0MENTION",
         user: "U0ASKER",
-        text: "<@U0RIVET> is pcbway allowed?",
+        text: "<@U0ORRY> is pcbway allowed?",
       },
       client: {},
     });
@@ -753,7 +755,7 @@ test("onAppMention reactivates a muted thread only on explicit invitation", asyn
   db.muteThread("811.1", "C0MENTION");
   try {
     await handlers.onAppMention({
-      event: { ts: "811.2", thread_ts: "811.1", channel: "C0MENTION", user: "U0ASKER", text: "<@U0RIVET> come back" },
+      event: { ts: "811.2", thread_ts: "811.1", channel: "C0MENTION", user: "U0ASKER", text: "<@U0ORRY> come back" },
       client: {},
     });
   } finally {
@@ -770,12 +772,12 @@ test("staging allowlist drops non-sandbox channels before any handling", async (
   config.slack.stagingOnlyChannels = ["C0HELP00001"];
   config.slack.faqChannels = ["C0HELP00001"];
   try {
-    const prod = await routeHelpMessage({ ts: "950.1", channel: "C0PIXEL", text: "rivet how do i submit my project" });
+    const prod = await routeHelpMessage({ ts: "950.1", channel: "C0PIXEL", text: "orry how do i submit my project" });
     assert.equal(prod.length, 0, "production channel event must not be handled in staging");
     const sandbox = await routeHelpMessage({
       ts: "950.2",
       channel: "C0HELP00001",
-      text: "rivet how do i submit my project",
+      text: "orry how do i submit my project",
     });
     assert.equal(sandbox.length, 1, "sandbox channel event is handled");
   } finally {
@@ -784,7 +786,7 @@ test("staging allowlist drops non-sandbox channels before any handling", async (
   }
 });
 
-test("a plain message naming Rivet in an unclaimed channel gets total silence", async () => {
+test("a plain message naming Orry in an unclaimed channel gets total silence", async () => {
   const savedRespond = respond.respond;
   const posted: any[] = [];
   respond.respond = async (args: any) => void posted.push(args);
@@ -794,7 +796,7 @@ test("a plain message naming Rivet in an unclaimed channel gets total silence", 
         ts: "990.1",
         channel: "C0RANDOM-UNCLAIMED",
         user: "U0ASKER",
-        text: "rivet, what do you think about this pcb layout?",
+        text: "orry, what do you think about this pcb layout?",
       },
       client: {
         chat: {
@@ -831,7 +833,7 @@ test("an @-mention in an unclaimed channel reaches the safety path, never silenc
           channel: "C0RANDOM-UNCLAIMED-2",
           team: "T_UNCLAIMED",
           user: "U0ASKER",
-          text: `<@U0RIVET> is anyone else feeling ${phrase}`,
+          text: `<@U0ORRY> is anyone else feeling ${phrase}`,
         },
         client: {
           chat: {
@@ -1054,20 +1056,20 @@ test("onAppMention routes to respond ALWAYS addressed (mention path parity)", as
   const calls: any[] = [];
   respond.respond = async (args: any) => void calls.push(args);
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "charmen", name: "CharMen", helpChannel: "C-CHARMEN", channels: ["C-CHARMEN"] },
   ]);
   programs.invalidate();
   try {
     await handlers.onAppMention({
-      event: { ts: "993.1", channel: "C-CHARMEN", user: "U0ASKER", text: "<@U0RIVET> how do i submit" },
+      event: { ts: "993.1", channel: "C-CHARMEN", user: "U0ASKER", text: "<@U0ORRY> how do i submit" },
       client: {},
     });
   } finally {
     respond.respond = savedRespond;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
   assert.equal(calls.length, 1);
@@ -1078,7 +1080,7 @@ test("onAppMention routes to respond ALWAYS addressed (mention path parity)", as
 
 test("an unclaimed direct mention keeps the safely resolved Loadout program context", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const configured = {
     id: "loadout",
     name: "Loadout",
@@ -1087,18 +1089,18 @@ test("an unclaimed direct mention keeps the safely resolved Loadout program cont
     posture: "active",
   };
   const calls: any[] = [];
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([configured]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([configured]);
   require("./programs").invalidate();
   respond.respond = async (args: any) => void calls.push(args);
   try {
     await handlers.onAppMention({
-      event: { ts: "993.3", channel: "C-UNCLAIMED", team: "T_LOADOUT", user: "U0ASKER", text: "<@U0RIVET> help" },
+      event: { ts: "993.3", channel: "C-UNCLAIMED", team: "T_LOADOUT", user: "U0ASKER", text: "<@U0ORRY> help" },
       client: {},
     });
   } finally {
     respond.respond = savedRespond;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     require("./programs").invalidate();
   }
   assert.equal(calls.length, 1);
@@ -1109,22 +1111,22 @@ test("an unclaimed direct mention keeps the safely resolved Loadout program cont
 
 test("an unclaimed mention cannot borrow a Loadout config owned by another workspace", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const calls: any[] = [];
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", workspaceId: "T_OWNER", requireGroundedAnswer: true },
   ]);
   require("./programs").invalidate();
   respond.respond = async (args: any) => void calls.push(args);
   try {
     await handlers.onAppMention({
-      event: { ts: "993.4", channel: "C-OTHER-SPACE", team: "T_OTHER", user: "U0ASKER", text: "<@U0RIVET> help" },
+      event: { ts: "993.4", channel: "C-OTHER-SPACE", team: "T_OTHER", user: "U0ASKER", text: "<@U0ORRY> help" },
       client: {},
     });
   } finally {
     respond.respond = savedRespond;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     require("./programs").invalidate();
   }
   assert.equal(calls.length, 1);
@@ -1134,26 +1136,26 @@ test("an unclaimed mention cannot borrow a Loadout config owned by another works
 
 test("an unclaimed mention without workspace identity cannot borrow a workspace-owned Loadout config", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
-  const savedWorkspace = process.env.RIVET_WORKSPACE_ID;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedWorkspace = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
   const calls: any[] = [];
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", workspaceId: "T_OWNER", requireGroundedAnswer: true },
   ]);
-  process.env.RIVET_WORKSPACE_ID = "T_OWNER";
+  process.env.ORRY_WORKSPACE_ID = "T_OWNER";
   require("./programs").invalidate();
   respond.respond = async (args: any) => void calls.push(args);
   try {
     await handlers.onAppMention({
-      event: { ts: "993.5", channel: "C-NO-WORKSPACE", user: "U0ASKER", text: "<@U0RIVET> help" },
+      event: { ts: "993.5", channel: "C-NO-WORKSPACE", user: "U0ASKER", text: "<@U0ORRY> help" },
       client: {},
     });
   } finally {
     respond.respond = savedRespond;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
-    if (savedWorkspace === undefined) delete process.env.RIVET_WORKSPACE_ID;
-    else process.env.RIVET_WORKSPACE_ID = savedWorkspace;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
+    if (savedWorkspace === undefined) delete process.env.ORRY_WORKSPACE_ID;
+    else process.env.ORRY_WORKSPACE_ID = savedWorkspace;
     require("./programs").invalidate();
   }
   assert.equal(calls.length, 1);
@@ -1166,20 +1168,20 @@ test("a direct ping in a message event uses the mention route and dedupes app_me
   const savedHelp = config.slack.helpChannel;
   const savedFaq = config.slack.faqChannels;
   const savedAuto = config.slack.autoReplyChannel;
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const calls: any[] = [];
   const event = {
     ts: "993.2",
     channel: "C-CHARMEN-MAIN",
     user: "U0ASKER",
-    text: "<@U0RIVET> how do i submit",
+    text: "<@U0ORRY> how do i submit",
   };
   const client = {};
 
   config.slack.helpChannel = null;
   config.slack.faqChannels = [event.channel];
   config.slack.autoReplyChannel = event.channel;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "charmen", name: "CharMen", channels: [event.channel] }]);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "charmen", name: "CharMen", channels: [event.channel] }]);
   programs.invalidate();
   respond.respond = async (args: any) => void calls.push(args);
 
@@ -1194,8 +1196,8 @@ test("a direct ping in a message event uses the mention route and dedupes app_me
     config.slack.helpChannel = savedHelp;
     config.slack.faqChannels = savedFaq;
     config.slack.autoReplyChannel = savedAuto;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
   }
 
@@ -1252,19 +1254,19 @@ test("!sum and !teach from a helper still run in a taken-over help thread", asyn
   assert.equal(taught?.answer, "august 18");
 });
 
-test("untagged thread message: addressed while it is just Rivet and the asker; silent once another human joins", async () => {
+test("untagged thread message: addressed while it is just Orry and the asker; silent once another human joins", async () => {
   const FAQ_CHANNEL = "C0FAQTZ";
   const savedFaq = config.slack.faqChannels;
   const savedRespond = respond.respond;
   const savedBot = config.slack.botUserId;
   const calls: any[] = [];
   config.slack.faqChannels = [FAQ_CHANNEL];
-  config.slack.botUserId = "URIVET";
+  config.slack.botUserId = "UORRY";
   respond.respond = async (args: any) => void calls.push(args);
   context.addToThread("crowd-thread", "assistant", "restoration energy comes from restoring pixels", null, FAQ_CHANNEL);
   let thread: Array<{ user: string; ts: string; text?: string }> = [
     { user: "U0CROWDASK", ts: "7200.0", text: "what is restoration energy" },
-    { user: "URIVET", ts: "7200.1", text: "restoration energy comes from restoring pixels" },
+    { user: "UORRY", ts: "7200.1", text: "restoration energy comes from restoring pixels" },
   ];
   const client = { conversations: { replies: async () => ({ messages: thread }) } };
   const send = (ts: any, user: any, text: any) =>
@@ -1294,7 +1296,7 @@ test("untagged thread message: addressed while it is just Rivet and the asker; s
   );
 });
 
-test("untagged chatter in a two-person Rivet thread produces no Slack post", async () => {
+test("untagged chatter in a two-person Orry thread produces no Slack post", async () => {
   const FAQ_CHANNEL = "C0FAQOFFTOPIC";
   const savedFaq = config.slack.faqChannels;
   const savedIntent = intent.classifyIntentContext;
@@ -1317,7 +1319,7 @@ test("untagged chatter in a two-person Rivet thread produces no Slack post", asy
       replies: async () => ({
         messages: [
           { user: "U0ASKER", ts: "7400.0", text: "what is restoration energy?" },
-          { user: "U0RIVET", ts: "7400.1", text: "restoration energy comes from restoring pixels" },
+          { user: "U0ORRY", ts: "7400.1", text: "restoration energy comes from restoring pixels" },
         ],
       }),
     },
@@ -1351,7 +1353,7 @@ test("a pinged sensitive message with no ticket possible still gets a reply", as
   const savedEscalate = tickets.escalateTicket;
   const savedHandOff = tickets.handOffToHelper;
   config.slack.faqChannels = [FAQ_CHANNEL];
-  config.slack.botUserId = "URIVET";
+  config.slack.botUserId = "UORRY";
   tickets.escalateTicket = async () => null;
   tickets.handOffToHelper = async () => null;
   const posted: any[] = [];
@@ -1365,7 +1367,7 @@ test("a pinged sensitive message with no ticket possible still gets a reply", as
   };
   try {
     await handlers.onMessage({
-      event: { ts: "7300.1", channel: FAQ_CHANNEL, user: "U0SENS", text: "<@URIVET> can a human look at my account?" },
+      event: { ts: "7300.1", channel: FAQ_CHANNEL, user: "U0SENS", text: "<@UORRY> can a human look at my account?" },
       client,
     });
   } finally {
@@ -1375,7 +1377,7 @@ test("a pinged sensitive message with no ticket possible still gets a reply", as
     tickets.handOffToHelper = savedHandOff;
   }
   assert.equal(posted.length, 1);
-  assert.match(posted[0].text, /needs a person/);
+  assert.match(posted[0].text, /can't look into your account from here/);
   assert.equal(posted[0].thread_ts, "7300.1");
 });
 
@@ -1635,7 +1637,7 @@ test("macros work in any program thread for helpers, like !sum", async () => {
     assert.equal(
       db.claimMessage("handler-gate-chatter", channel),
       false,
-      "the substantive help request is claimed for normal handling or human escalation",
+      "the chatter message was already claimed by normal handling",
     );
 
     await handlers.onMessage({

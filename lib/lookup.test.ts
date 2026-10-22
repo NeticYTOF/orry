@@ -438,6 +438,29 @@ test("numericClaimsGrounded rejects invented digit-bearing claims and allows one
   assert.equal(lookup.numericClaimsGrounded("80% chance", ""), true, "no corpus supplied is a no-op, not a reject");
 });
 
+test("numericClaimsGrounded reads a dollar amount without its sentence punctuation", () => {
+  assert.equal(
+    lookup.numericClaimsGrounded("The prize is $500.", "The prize is $500 total"),
+    true,
+    "the period ends the sentence, so the claim is $500",
+  );
+  assert.equal(
+    lookup.numericClaimsGrounded("The prize is $500.", "nothing about prizes"),
+    false,
+    "$500 is still recognized as a numeric claim and rejected when uncited",
+  );
+  assert.equal(
+    lookup.numericClaimsGrounded("You get $1,000, plus bonuses.", "You get $1,000 total"),
+    true,
+    "the comma after $1,000 is not part of the amount",
+  );
+  assert.equal(
+    lookup.numericClaimsGrounded("You get $1,000, plus bonuses.", "You get $100 total"),
+    false,
+    "$1,000 is still recognized as a numeric claim and rejected when uncited",
+  );
+});
+
 test("verified answers keep evidence internally without listing sources", async () => {
   const knowledge = require("./knowledge");
   const answer = require("./answer");
@@ -841,4 +864,223 @@ test("an end-date question reaches retrieval and the answer model, not a canned 
     answer.verifyGrounding = orig.verify;
   }
 });
+function sentenceGroundingFixture(id: string, programId: string) {
+  const knowledge = require("./knowledge");
+  const passages = [
+    {
+      id,
+      programId,
+      kind: "source",
+      source: "Shop rules",
+      heading: "Bolts",
+      text: "Bolts are spendable on shop items. Track XP is permanent. Dogs are not sold here.",
+    },
+  ];
+  const prog = { id: programId, sharedSources: false, sources: [{ name: "Shop rules", type: "markdown" }] };
+  const original = knowledge.sourceEligibility;
+  knowledge.sourceEligibility = () => ({ exactClaimsAllowed: true, authority: "static" });
+  return { passages, prog, restore: () => (knowledge.sourceEligibility = original) };
+}
+
+test("a sentence containing e.g. stays whole and each cited sentence is verified on its own", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("bolt-1", "shop-whole");
+  const verified: string[] = [];
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => {
+    verified.push(...claims.map(({ claim }) => claim));
+    return {
+      ok: true,
+      verdict: "supported",
+      coverage: true,
+      errors: [],
+      claims: claims.map((claim) => ({ ...claim, supported: true, evidenceIds: ["bolt-1"] })),
+    };
+  };
+  try {
+    const result = await lookup.applyPassageCitations(
+      {
+        source: "Shop rules",
+        answer: "Bolts (e.g. shop items) are spendable [E1]. Track XP is permanent [E1].",
+      },
+      passages,
+      prog,
+    );
+    assert.deepEqual(verified, ["Bolts (e.g. shop items) are spendable.", "Track XP is permanent."]);
+    assert.equal(result.answer, "Bolts (e.g. shop items) are spendable. Track XP is permanent.");
+    assert.doesNotMatch(result.answer, /couldn't confirm/);
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
+test("'There is no official deadline' and 'check in on the FAQ' are kept when the docs support them", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("faq-1", "faq-wording");
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => ({
+    ok: true,
+    verdict: "supported",
+    coverage: true,
+    errors: [],
+    claims: claims.map((claim) => ({ ...claim, supported: true, evidenceIds: ["faq-1"] })),
+  });
+  try {
+    const deadline = await lookup.applyPassageCitations(
+      { source: "Shop rules", answer: "There is no official deadline [E1]." },
+      passages,
+      prog,
+    );
+    assert.equal(deadline.answer, "There is no official deadline.");
+    const checkIn = await lookup.applyPassageCitations(
+      { source: "Shop rules", answer: "check in on the FAQ [E1]." },
+      passages,
+      prog,
+    );
+    assert.equal(checkIn.answer, "check in on the FAQ.");
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
+test("one unsupported sentence out of three keeps the other two with an UNRESOLVED note", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("bolt-2", "shop-partial");
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => ({
+    ok: true,
+    verdict: "supported",
+    coverage: true,
+    errors: [],
+    claims: claims.map((claim) => ({
+      ...claim,
+      supported: !/Dogs/.test(claim.claim),
+      evidenceIds: ["bolt-2"],
+    })),
+  });
+  try {
+    const result = await lookup.applyPassageCitations(
+      {
+        source: "Shop rules",
+        answer: "Bolts are spendable [E1]. Dogs can fly [E1]. Track XP is permanent [E1].",
+      },
+      passages,
+      prog,
+      "what can I buy with bolts and can dogs fly?",
+    );
+    assert.equal(
+      result.answer,
+      "Bolts are spendable. Track XP is permanent.\n\nI couldn't confirm this part: “Dogs can fly” in the docs, so I can't answer those parts.",
+    );
+    assert.deepEqual(result.passageCitations, ["bolt-2"]);
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
+test("when no factual sentence is supported the whole answer still falls back", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("bolt-3", "shop-none");
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => ({
+    ok: true,
+    verdict: "unsupported",
+    coverage: true,
+    errors: [],
+    claims: claims.map((claim) => ({ ...claim, supported: false, evidenceIds: [] })),
+  });
+  try {
+    assert.equal(
+      await lookup.applyPassageCitations(
+        { source: "Shop rules", answer: "Dogs can fly [E1]. Bolts are free [E1]." },
+        passages,
+        prog,
+      ),
+      null,
+    );
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
+test("a verifier that throws or times out accepts sentences whose citations resolve, and drops uncited ones", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("bolt-4", "shop-timeout");
+  try {
+    answer.verifyGrounding = async () => {
+      throw new Error("verifier timed out");
+    };
+    const thrown = await lookup.applyPassageCitations(
+      { source: "Shop rules", answer: "Bolts are spendable [E1]. Dogs can fly." },
+      passages,
+      prog,
+      "can dogs fly?",
+    );
+    assert.match(thrown.answer, /^Bolts are spendable\./);
+    assert.match(thrown.answer, /couldn't confirm this part: “Dogs can fly”/);
+    assert.deepEqual(thrown.passageCitations, ["bolt-4"]);
+
+    answer.verifyGrounding = async () => null;
+    const nulled = await lookup.applyPassageCitations(
+      { source: "Shop rules", answer: "Bolts are spendable [E1]." },
+      passages,
+      prog,
+    );
+    assert.equal(nulled.answer, "Bolts are spendable.");
+
+    assert.equal(
+      await lookup.applyPassageCitations(
+        { source: "Shop rules", answer: "Bolts are spendable [E9]." },
+        passages,
+        prog,
+      ),
+      null,
+      "a citation that matches no passage is never accepted",
+    );
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
+test("numeric grounding reads 'five days' as 5 days, '1,000' as 1000, and never matches inside a longer number", () => {
+  assert.equal(lookup.numericClaimsGrounded("Review takes five days.", "Review takes 5 days."), true);
+  assert.equal(lookup.numericClaimsGrounded("Review takes 5 days.", "Review takes five days."), true);
+  assert.equal(lookup.numericClaimsGrounded("Review takes 5 days.", "Review takes 15 days."), false);
+  assert.equal(lookup.numericClaimsGrounded("You get 1000 bolts.", "You get 1,000 bolts."), true);
+  assert.equal(lookup.numericClaimsGrounded("You get 1,000 bolts.", "You get 1000 bolts."), true);
+});
+
+test("a number that appears only in the user's question never grounds an answer claim", () => {
+  const knowledge = require("./knowledge");
+  const original = knowledge.sourceEligibility;
+  knowledge.sourceEligibility = () => ({ exactClaimsAllowed: true, authority: "static" });
+  const prog = { id: "cap-acme", sharedSources: false, sources: [{ name: "Shop rules", type: "markdown" }] };
+  const cited = (text: string) => ({
+    source: "Shop rules",
+    answer: text,
+    groundedAnswer: text,
+    passageCitations: ["p-1"],
+    citationEvidence: [{ id: "p-1", programId: "cap-acme", source: "Shop rules", text: "The cap is 30%." }],
+  });
+  try {
+    assert.equal(
+      lookup.exactClaimAllowed(cited("The cap is 40%."), prog, "is 40% allowed?", "The cap is 30%."),
+      false,
+      "40% is not in the cited passage, whatever the question says",
+    );
+    assert.equal(
+      lookup.exactClaimAllowed(cited("The cap is 30%."), prog, "is 40% allowed?", "The cap is 30%."),
+      true,
+    );
+  } finally {
+    knowledge.sourceEligibility = original;
+  }
+});
+
 export {};

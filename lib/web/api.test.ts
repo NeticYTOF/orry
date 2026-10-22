@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface UserInfoRequest {
   user: string;
@@ -319,22 +319,22 @@ function charAnon() {
 }
 
 test("internalAuth matrix — absent token→404, bad bearer→401, good→ok", () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
   try {
-    delete process.env.RIVET_INTERNAL_TOKEN;
+    delete process.env.ORRY_INTERNAL_TOKEN;
     const disabled = api.internalAuth(charAnon());
     assert.equal(disabled.status, 404);
     assert.match(disabled.body.error, /disabled/);
 
-    process.env.RIVET_INTERNAL_TOKEN = "char-secret-token";
+    process.env.ORRY_INTERNAL_TOKEN = "char-secret-token";
     assert.equal(api.internalAuth(charAnon()).status, 401);
     assert.equal(api.internalAuth(charReq("wrong")).status, 401);
     assert.equal(api.internalAuth(charReq("char-secret-token")).ok, true);
     assert.equal(api.internalAuth({ headers: { get: () => "char-secret-token" } }).status, 401);
     assert.equal(api.internalAuth(charReq("short")).status, 401);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
@@ -452,8 +452,8 @@ test("serialization shapes carry no secrets — programs/health/detail/retention
   const progs = api.programsList();
   assert.ok(Array.isArray(progs));
   const blob = JSON.stringify(progs);
-  assert.equal(/token/i.test(blob) && /RIVET_INTERNAL_TOKEN/.test(blob), false);
-  assert.equal(blob.includes("RIVET_SESSION_SECRET"), false);
+  assert.equal(/token/i.test(blob) && /ORRY_INTERNAL_TOKEN/.test(blob), false);
+  assert.equal(blob.includes("ORRY_SESSION_SECRET"), false);
   const health = api.healthCheck();
   assert.ok(health.models && health.channels);
   const hblob = JSON.stringify(health);
@@ -648,8 +648,9 @@ test("testQuestionExpectedAction reuses the pipeline policy", () => {
     }),
     "silence",
   );
-  // An ungrounded program question in main gets an honest decline, not silence.
-  assert.equal(f({ program, role: "main", settings: main, engagement: engaged, grounded: false }), "uncertain");
+  // An unaddressed ungrounded program question in main gets a quiet reaction by default,
+  // which the API reports as silence because no reply is posted.
+  assert.equal(f({ program, role: "main", settings: main, engagement: engaged, grounded: false }), "silence");
   assert.equal(
     f({ program, role: "main", settings: main, addressed: true, engagement: engaged, grounded: false }),
     "uncertain",

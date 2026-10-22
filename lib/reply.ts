@@ -148,8 +148,33 @@ function escapeSlack(text: string) {
     .replace(/>/g, "&gt;");
 }
 
-function blocksFor(text: string): ReplyBlock[] {
-  return [{ type: "section", text: { type: "mrkdwn", text } }];
+const ASK_HELPER_ACTION = "orry_ask_helper";
+
+interface BlocksOptions {
+  program?: ProgramLike | null;
+  channel?: string | null;
+  threadTs?: string | null;
+}
+
+// The "Ask a helper" button is added only when the program has a help channel
+// and the caller passes where the answer lives. Callers that pass nothing get
+// the plain section, as before.
+function blocksFor(text: string, options: BlocksOptions = {}): ReplyBlock[] {
+  const blocks: ReplyBlock[] = [{ type: "section", text: { type: "mrkdwn", text } }];
+  if (options.program?.helpChannel && options.channel && options.threadTs) {
+    blocks.push({
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Ask a helper" },
+          action_id: ASK_HELPER_ACTION,
+          value: `${options.channel}|${options.threadTs}`,
+        },
+      ],
+    });
+  }
+  return blocks;
 }
 
 function postThinking(client: SlackClient, channel: string, threadTs: string, program: ProgramLike | null = null) {
@@ -492,7 +517,26 @@ async function seedFeedbackReactions(client: SlackClient, channel: string, messa
   }
 }
 
+const AMBIENT_REACTION = "thinking_face";
+
+// Marks an ambient program question with thinking_face. Returns false when the
+// reaction could not be added, and the caller then stays silent.
+async function reactAmbientUncertain(client: SlackClient, channel: string, messageTs: string): Promise<boolean> {
+  if (!client?.reactions?.add || !channel || !messageTs) return false;
+  try {
+    await client.reactions.add({ channel, timestamp: messageTs, name: AMBIENT_REACTION });
+    return true;
+  } catch (error: unknown) {
+    const message = errorMessage(error);
+    if (message.includes("already_reacted")) return true;
+    log.warn("respond", `could not add ${AMBIENT_REACTION}, staying silent: ${message}`);
+    return false;
+  }
+}
+
 export = {
+  reactAmbientUncertain,
+  ASK_HELPER_ACTION,
   escapeSlack,
   plainDashes,
   plainDashesInBlocks,

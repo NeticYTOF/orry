@@ -2,12 +2,12 @@
 // Slack advertises exactly the commands the bot listens for.
 //
 //   bun run manifest
-//   RIVET_BOT_NAME="Orry the ore Maulwürf" RIVET_BOT_SLUG=orry bun run manifest
+//   ORRY_BOT_NAME="Orry the ore Maulwürf" ORRY_BOT_SLUG=orry bun run manifest
 //
 // Paste the output into api.slack.com/apps → Create New App → From a manifest.
 //
 // Why generate it rather than write it out once: command names come from
-// RIVET_BOT_SLUG (see lib/brand.js). Hand-editing a manifest is how you end up
+// ORRY_BOT_SLUG (see lib/brand.js). Hand-editing a manifest is how you end up
 // with an app advertising /pixl-teach while the process listens for /orry-teach —
 // a failure with no error anywhere, the command just silently does nothing.
 const brand = require("../lib/brand");
@@ -29,6 +29,7 @@ const BOT_SCOPES = [
   "commands",
   "im:history",
   "im:write",
+  "mpim:history",
   "channels:read",
   "groups:read",
   "files:read",

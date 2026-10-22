@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -10,8 +10,8 @@ before(() => {
 });
 
 test("handleRequest dispatches /internal/v1/* to the API handler, not the static 404 fallback", async () => {
-  const savedToken = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "test-serve-token";
+  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "test-serve-token";
   try {
     const serve = require("./serve");
     const req = new Request("http://localhost/internal/v1/health", {
@@ -22,14 +22,14 @@ test("handleRequest dispatches /internal/v1/* to the API handler, not the static
     const body = await res.json();
     assert.equal(body.ok, true);
   } finally {
-    if (savedToken === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = savedToken;
+    if (savedToken === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = savedToken;
   }
 });
 
 test("handleRequest still gates /internal/v1/* with the wrong token — dispatch isn't the same as bypassing auth", async () => {
-  const savedToken = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "test-serve-token";
+  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "test-serve-token";
   try {
     const serve = require("./serve");
     const req = new Request("http://localhost/internal/v1/health", {
@@ -38,8 +38,8 @@ test("handleRequest still gates /internal/v1/* with the wrong token — dispatch
     const res = await serve.handleRequest(req);
     assert.equal(res.status, 401);
   } finally {
-    if (savedToken === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = savedToken;
+    if (savedToken === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = savedToken;
   }
 });
 
@@ -56,11 +56,11 @@ function withToken(tok: string) {
   return { Authorization: `Bearer ${tok}` };
 }
 
-test("absent RIVET_INTERNAL_TOKEN → 404 (not 401/403); bad bearer → 401", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
+test("absent ORRY_INTERNAL_TOKEN → 404 (not 401/403); bad bearer → 401", async () => {
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
   const serve = require("./serve");
   try {
-    delete process.env.RIVET_INTERNAL_TOKEN;
+    delete process.env.ORRY_INTERNAL_TOKEN;
     const disabled = await serve.handleRequest(
       new Request("http://localhost/internal/v1/health", { headers: withToken("anything") }),
     );
@@ -68,7 +68,7 @@ test("absent RIVET_INTERNAL_TOKEN → 404 (not 401/403); bad bearer → 401", as
     const body = await disabled.json();
     assert.match(body.error, /disabled/);
 
-    process.env.RIVET_INTERNAL_TOKEN = "char-serve-token";
+    process.env.ORRY_INTERNAL_TOKEN = "char-serve-token";
     const bad = await serve.handleRequest(
       new Request("http://localhost/internal/v1/health", { headers: withToken("wrong") }),
     );
@@ -81,8 +81,8 @@ test("absent RIVET_INTERNAL_TOKEN → 404 (not 401/403); bad bearer → 401", as
     assert.equal(good.status, 200);
     assert.equal((await good.json()).ok, true);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
@@ -114,16 +114,16 @@ test("dashboard gates — pulse/stream/ask/health need session; writes need admi
     (await serve.handleRequest(new Request("http://localhost/api/queue", { headers: adminHeaders }))).status,
     200,
   );
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "char-serve-token-2";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "char-serve-token-2";
   try {
     const sessOnly = await serve.handleRequest(
       new Request("http://localhost/internal/v1/health", { headers: adminHeaders }),
     );
     assert.equal(sessOnly.status, 401);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
@@ -146,8 +146,8 @@ test("a request aborted before SSE stream setup never leaves a subscriber", asyn
 });
 
 test("internal error→status mapping per route family (pinned current values)", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "char-map-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "char-map-token";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("char-map-token");
@@ -224,14 +224,14 @@ test("internal error→status mapping per route family (pinned current values)",
     );
     assert.ok([400, 404].includes(malformed.status), "malformed bodies must not become 500s");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("internal responses never leak token/secret fields", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "char-leak-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "char-leak-token";
   const serve = require("./serve");
   try {
     const H = withToken("char-leak-token");
@@ -240,17 +240,17 @@ test("internal responses never leak token/secret fields", async () => {
       const text = await res.text();
       assert.equal(text.includes("char-leak-token"), false, `${path} must not echo the bearer`);
       assert.equal(/"secret"\s*:/i.test(text), false, `${path} must not carry secret fields`);
-      assert.equal(/RIVET_INTERNAL_TOKEN/.test(text), false);
+      assert.equal(/ORRY_INTERNAL_TOKEN/.test(text), false);
     }
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("PUT /internal/v1/programs/:id maps a channel conflict to 409 naming the channel", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "dash-serve-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "dash-serve-token";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("dash-serve-token");
@@ -278,14 +278,14 @@ test("PUT /internal/v1/programs/:id maps a channel conflict to 409 naming the ch
     assert.equal(res.status, 409);
     assert.match((await res.json()).error, /C-ds-help/);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("POST /internal/v1/programs/:id/test-question proxies the probe; unknown program is 404", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "dash-serve-token-2";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "dash-serve-token-2";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("dash-serve-token-2");
@@ -349,14 +349,14 @@ test("POST /internal/v1/programs/:id/test-question proxies the probe; unknown pr
     );
     assert.equal(empty.status, 400);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("regression: DELETE /internal/v1/macros/:id reads its JSON body (actorId survives)", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "char-del-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "char-del-token";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("char-del-token");
@@ -393,14 +393,14 @@ test("regression: DELETE /internal/v1/macros/:id reads its JSON body (actorId su
     assert.equal(ok.status, 200);
     assert.equal((await ok.json()).ok, true);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("POST /internal/v1/programs/:id/incidents/manual creates only for a program helper", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "manual-incident-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "manual-incident-token";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("manual-incident-token");
@@ -442,17 +442,17 @@ test("POST /internal/v1/programs/:id/incidents/manual creates only for a program
     assert.equal(denied.status, 403);
     assert.equal(api.internalIncidents("manual-route-b", {}).length, 0);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 test("read-only token: GET routes and users/info only; writes are 403; the full token still writes", async () => {
   const serve = require("./serve");
   const api = require("./api");
-  const saved = { full: process.env.RIVET_INTERNAL_TOKEN, read: process.env.RIVET_INTERNAL_READ_TOKEN };
+  const saved = { full: (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN), read: (process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN) };
   try {
-    process.env.RIVET_INTERNAL_TOKEN = "full-token-for-writes";
-    process.env.RIVET_INTERNAL_READ_TOKEN = "read-token-for-gets";
+    process.env.ORRY_INTERNAL_TOKEN = "full-token-for-writes";
+    process.env.ORRY_INTERNAL_READ_TOKEN = "read-token-for-gets";
     api.internalProgramSync("ro-token-prog", {
       name: "RO",
       workspaceId: "TW-RO",
@@ -528,19 +528,19 @@ test("web bind: RIVET_WEB_PORT beats PORT, host defaults to 0.0.0.0, an empty ho
 test("web start: a port already in use returns null instead of throwing into the bot", () => {
   const serve = require("./serve");
   const holder = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("held") });
-  const saved = { host: process.env.RIVET_WEB_HOST, port: process.env.RIVET_WEB_PORT };
+  const keys = ["ORRY_WEB_HOST", "ORRY_WEB_PORT", "RIVET_WEB_HOST", "RIVET_WEB_PORT"] as const;
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<string, string | undefined>;
   try {
-    process.env.RIVET_WEB_HOST = "127.0.0.1";
-    process.env.RIVET_WEB_PORT = String(holder.port);
+    for (const key of ["RIVET_WEB_HOST", "RIVET_WEB_PORT"] as const) delete process.env[key];
+    process.env.ORRY_WEB_HOST = "127.0.0.1";
+    process.env.ORRY_WEB_PORT = String(holder.port);
     assert.equal(serve.start(), null);
-    process.env.RIVET_WEB_HOST = "";
+    process.env.ORRY_WEB_HOST = "";
     assert.equal(serve.start(), null, "an empty host never binds");
   } finally {
     holder.stop(true);
-    for (const [key, value] of [
-      ["RIVET_WEB_HOST", saved.host],
-      ["RIVET_WEB_PORT", saved.port],
-    ] as const) {
+    for (const key of keys) {
+      const value = saved[key];
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
@@ -549,35 +549,35 @@ test("web start: a port already in use returns null instead of throwing into the
 
 test("no RIVET_DASHBOARD_PASSCODE → passcode login refuses instead of accepting a guessable default", async () => {
   const serve = require("./serve");
-  const saved = process.env.RIVET_DASHBOARD_PASSCODE;
+  const saved = (process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE);
   try {
-    delete process.env.RIVET_DASHBOARD_PASSCODE;
+    delete process.env.ORRY_DASHBOARD_PASSCODE;
     const res = await serve.handleRequest(
       new Request("http://localhost/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "passcode=rivet",
+        body: "passcode=orry",
       }),
     );
     assert.equal(res.status, 503);
     assert.equal(res.headers.get("Set-Cookie"), null, "an unconfigured passcode must never mint a session");
-    assert.match(await res.text(), /RIVET_DASHBOARD_PASSCODE/);
+    assert.match(await res.text(), /ORRY_DASHBOARD_PASSCODE/);
 
     const page = await serve.handleRequest(new Request("http://localhost/login"));
-    assert.match(await page.text(), /RIVET_DASHBOARD_PASSCODE/, "the login page says why passcode login is off");
+    assert.match(await page.text(), /ORRY_DASHBOARD_PASSCODE/, "the login page says why passcode login is off");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_DASHBOARD_PASSCODE;
-    else process.env.RIVET_DASHBOARD_PASSCODE = saved;
+    if (saved === undefined) delete process.env.ORRY_DASHBOARD_PASSCODE;
+    else process.env.ORRY_DASHBOARD_PASSCODE = saved;
   }
 });
 
-test("a configured RIVET_DASHBOARD_PASSCODE still signs in — and the cookie is Secure off-loopback", async () => {
+test("a configured ORRY_DASHBOARD_PASSCODE still signs in — and the cookie is Secure off-loopback", async () => {
   const serve = require("./serve");
-  const saved = process.env.RIVET_DASHBOARD_PASSCODE;
+  const saved = (process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE);
   try {
-    process.env.RIVET_DASHBOARD_PASSCODE = "correct-horse";
+    process.env.ORRY_DASHBOARD_PASSCODE = "correct-horse";
     const good = await serve.handleRequest(
-      new Request("https://rivet.example.com/login", {
+      new Request("https://orry.example.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "passcode=correct-horse",
@@ -592,7 +592,7 @@ test("a configured RIVET_DASHBOARD_PASSCODE still signs in — and the cookie is
       new Request("http://localhost/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "passcode=rivet",
+        body: "passcode=orry",
       }),
     );
     assert.equal(bad.status, 200);
@@ -607,8 +607,8 @@ test("a configured RIVET_DASHBOARD_PASSCODE still signs in — and the cookie is
     );
     assert.ok(!dev.headers.get("Set-Cookie").includes("Secure"), "plain-HTTP loopback stays workable in dev");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_DASHBOARD_PASSCODE;
-    else process.env.RIVET_DASHBOARD_PASSCODE = saved;
+    if (saved === undefined) delete process.env.ORRY_DASHBOARD_PASSCODE;
+    else process.env.ORRY_DASHBOARD_PASSCODE = saved;
   }
 });
 
@@ -640,8 +640,8 @@ test("dev-testing auto-signin needs NODE_ENV=development, not just the sentinel 
 });
 
 test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400 without a userId", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "access-route-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "access-route-token";
   const serve = require("./serve");
   const api = require("./api");
   const H = withToken("access-route-token");
@@ -662,14 +662,14 @@ test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400
     );
     assert.equal(noUser.status, 400);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 
 test("GET /internal/v1/programs/:id/audit filters by action, action prefix, since/until and pages with offset", async () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "audit-route-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "audit-route-token";
   const serve = require("./serve");
   const db = require("../db");
   const H = withToken("audit-route-token");
@@ -709,8 +709,8 @@ test("GET /internal/v1/programs/:id/audit filters by action, action prefix, sinc
       [4000, 3000],
     );
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 

@@ -84,7 +84,7 @@ async function fromLegacyIntent({
   if (!result) return { engage: false, intent: null, error: "unavailable", source: "intent" };
   // The verdict decides whether this is a program question. directedAtHuman is
   // a secondary signal and must not override it: a message can be a real
-  // question aimed at a human *and* something Rivet can answer. Checking it
+  // question aimed at a human *and* something Orry can answer. Checking it
   // first silenced every such message, and the resulting log line reported
   // intent "human_conversation" - which reads as a classifier failure when the
   // classifier had in fact returned HELP_NEEDED.
@@ -107,7 +107,7 @@ function formatRecent(recentMessages: RecentMessage[] = [], userId: string | nul
   return (recentMessages || [])
     .filter((m) => m && m.text)
     .map((m) => {
-      const who = m.speaker === "rivet" ? "rivet" : userId && m.userId === userId ? "same sender" : "other member";
+      const who = m.speaker === "orry" ? "orry" : userId && m.userId === userId ? "same sender" : "other member";
       return `${who}: ${String(m.text).replace(/\s+/g, " ").slice(0, RECENT_LINE_CHARS)}`;
     })
     .join("\n");

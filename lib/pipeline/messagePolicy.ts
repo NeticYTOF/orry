@@ -10,7 +10,11 @@ interface EngagementSettings {
   ambientProgramReplies?: boolean;
   escalateUnknown?: boolean;
   helperEscalationEnabled?: boolean;
+  // What an unaddressed, ungrounded program question gets in a main channel.
+  ambientUncertainReply?: string;
 }
+const AMBIENT_UNCERTAIN_REPLIES = ["react", "silent", "reply"] as const;
+type AmbientUncertainReply = (typeof AMBIENT_UNCERTAIN_REPLIES)[number];
 interface EngagementResult {
   intent?: string | null;
   engage?: boolean;
@@ -25,7 +29,14 @@ interface PlanOptions {
 }
 type MessageKind = "program" | "general";
 type FinalAction =
-  "reply" | "reply_chat" | "uncertain" | "escalate" | "escalate_and_uncertain" | "escalate_and_reply_chat" | "silence";
+  | "reply"
+  | "reply_chat"
+  | "uncertain"
+  | "react"
+  | "escalate"
+  | "escalate_and_uncertain"
+  | "escalate_and_reply_chat"
+  | "silence";
 interface FinalActionOptions {
   role: ChannelRole;
   settings?: EngagementSettings | null;
@@ -85,6 +96,22 @@ function planEngagement({ role, settings, addressed = false, addressedHow = "men
   return { proceed: false, reason: "help_chatter" };
 }
 
+// The program's setting wins; otherwise the deployment default from config
+// (ORRY_AMBIENT_UNCERTAIN_REPLY). Anything unrecognised means "react".
+function configuredAmbientDefault(): unknown {
+  try {
+    return require("../config").config?.ambientUncertainReply;
+  } catch (_error: unknown) {
+    return undefined;
+  }
+}
+
+function ambientUncertainMode(settings: EngagementSettings | null | undefined): AmbientUncertainReply {
+  const raw = settings?.ambientUncertainReply ?? configuredAmbientDefault();
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return (AMBIENT_UNCERTAIN_REPLIES as readonly string[]).includes(value) ? (value as AmbientUncertainReply) : "react";
+}
+
 function finalAction({
   role,
   settings,
@@ -119,10 +146,14 @@ function finalAction({
   if (talk) return s.helperEscalationEnabled ? "escalate_and_reply_chat" : "reply_chat";
   if (addressed) return s.helperEscalationEnabled ? "escalate_and_uncertain" : "uncertain";
   if (s.helperEscalationEnabled) return "escalate";
-  // A question about the program that the corpus cannot answer still gets a
-  // reply: an honest "not confirmed yet". Silence here reads as "the bot is
-  // broken" or "nobody is listening", both of which are worse than saying so.
-  if (kind === "program") return "uncertain";
+  // A program question the corpus cannot answer, asked in a busy main channel
+  // nobody addressed the bot in. Default is a quiet thinking_face reaction and
+  // no public text; "reply" restores the public "not confirmed yet" line.
+  if (kind === "program") {
+    const mode = ambientUncertainMode(s);
+    if (mode === "reply") return "uncertain";
+    return mode === "silent" ? "silence" : "react";
+  }
   return "silence";
 }
 

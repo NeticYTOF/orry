@@ -29,6 +29,7 @@ interface RawProgramConfig {
   autoEscalate?: boolean;
   sensitiveCategories?: string[];
   sensitive_categories?: string[];
+  crisisResources?: unknown[];
   supportActive?: boolean;
   autoAssign?: boolean;
   auto_assign?: number;
@@ -108,6 +109,16 @@ function alt(p: RawProgramConfig | ProgramRecord, ...keys: string[]): string | u
   return undefined;
 }
 
+function normalizeCrisisResources(value: unknown): { label: string; detail: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    const label = typeof entry.label === "string" ? entry.label.trim() : "";
+    const detail = typeof entry.detail === "string" ? entry.detail.trim() : "";
+    return label && detail ? [{ label, detail }] : [];
+  });
+}
+
 function normalizeProgram(p: RawProgramConfig): ProgramRecord {
   const ticketsEnabled = p.ticketsEnabled === false ? false : true;
   return {
@@ -126,6 +137,7 @@ function normalizeProgram(p: RawProgramConfig): ProgramRecord {
     sensitiveCategories: Array.isArray(p.sensitiveCategories || p.sensitive_categories)
       ? ((p.sensitiveCategories || p.sensitive_categories) as string[])
       : [],
+    crisisResources: normalizeCrisisResources(p.crisisResources),
     supportActive: p.supportActive === false ? false : true,
     autoAssign: p.autoAssign === true || p.auto_assign === 1,
     helperPing: p.helperPing === true || p.helper_ping_enabled === 1,
@@ -149,6 +161,7 @@ function normalizeProgram(p: RawProgramConfig): ProgramRecord {
     sources: Array.isArray(p.sources) ? p.sources : [],
     sharedSources: p.sharedSources === true,
     requireGroundedAnswer: p.requireGroundedAnswer === true,
+    evidenceBudget: Number(p.evidenceBudget) > 0 ? Math.floor(Number(p.evidenceBudget)) : null,
     milestones: Array.isArray(p.milestones) ? p.milestones : [],
     pinnedRules: Array.isArray(p.pinnedRules)
       ? p.pinnedRules.filter((r): r is string => typeof r === "string" && Boolean(r.trim()))
@@ -160,7 +173,7 @@ function normalizeProgram(p: RawProgramConfig): ProgramRecord {
 }
 
 function loadEnvPrograms(): ProgramRecord[] | null {
-  const raw = (process.env.RIVET_PROGRAMS_JSON || "").trim();
+  const raw = ((process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON) || "").trim();
   if (!raw) return null;
   if (cachedEnvRaw === raw) return cachedEnvPrograms;
 
@@ -170,7 +183,7 @@ function loadEnvPrograms(): ProgramRecord[] | null {
   } catch (err: unknown) {
     log.warn(
       "programs",
-      `RIVET_PROGRAMS_JSON is not valid JSON (${err instanceof Error ? err.message : String(err)}) — falling back to files`,
+      `ORRY_PROGRAMS_JSON is not valid JSON (${err instanceof Error ? err.message : String(err)}) — falling back to files`,
     );
     cachedEnvRaw = raw;
     cachedEnvPrograms = null;
@@ -183,7 +196,7 @@ function loadEnvPrograms(): ProgramRecord[] | null {
       ? parsed.programs
       : null;
   if (!list) {
-    log.warn("programs", "RIVET_PROGRAMS_JSON must be an array or { programs: [...] } — falling back to files");
+    log.warn("programs", "ORRY_PROGRAMS_JSON must be an array or { programs: [...] } — falling back to files");
     cachedEnvRaw = raw;
     cachedEnvPrograms = null;
     return null;
@@ -191,7 +204,7 @@ function loadEnvPrograms(): ProgramRecord[] | null {
 
   const usable = list.filter((p): p is RawProgramConfig => isRawProgram(p) && Boolean(p.id?.trim()));
   if (usable.length !== list.length) {
-    log.warn("programs", `ignored ${list.length - usable.length} program(s) in RIVET_PROGRAMS_JSON with no id`);
+    log.warn("programs", `ignored ${list.length - usable.length} program(s) in ORRY_PROGRAMS_JSON with no id`);
   }
 
   cachedEnvRaw = raw;
@@ -301,6 +314,7 @@ function answerConfigurationKey(program: ProgramRecord | null, sharedSources: Pr
     channels: program.channels,
     aiAnswers: program.aiAnswers,
     requireGroundedAnswer: program.requireGroundedAnswer,
+    evidenceBudget: program.evidenceBudget,
     status: program.status,
     behavior: program.behavior,
     // Source metadata such as `dynamic` and crawler `paths` changes how the

@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -8,15 +8,15 @@ const programs = require("./programs");
 db.open(":memory:");
 
 function withEnvPrograms(value: string | undefined, fn: () => void) {
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  if (value === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-  else process.env.RIVET_PROGRAMS_JSON = value;
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  if (value === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+  else process.env.ORRY_PROGRAMS_JSON = value;
   programs.invalidate();
   try {
     fn();
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 }
@@ -39,7 +39,7 @@ test("scope defaults to any and survives a database round trip", () => {
   assert.equal(programs.scope("acme"), "any");
 });
 
-test("RIVET_PROGRAMS_JSON supplies neutral programs and takes precedence", () => {
+test("ORRY_PROGRAMS_JSON supplies neutral programs and takes precedence", () => {
   withEnvPrograms(
     JSON.stringify([
       {

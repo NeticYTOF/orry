@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 const { test, expect, beforeAll, afterAll, beforeEach } = require("bun:test");
 
 const db = require("../db");
@@ -15,7 +15,7 @@ let responds: any;
 let sums: any;
 
 function configure(behavior: any) {
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "acme", name: "Acme", helpChannel: "C_HELP", channels: ["C_HELP", "C_MAIN"], behavior },
   ]);
   programs.invalidate();
@@ -33,7 +33,7 @@ const client = {
 };
 
 beforeAll(() => {
-  savedEnv = process.env.RIVET_PROGRAMS_JSON;
+  savedEnv = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   db.open(":memory:");
   savedRespond = respond.respond;
   savedSum = sumThread.summarizeThreadForHelper;
@@ -42,8 +42,8 @@ beforeAll(() => {
 afterAll(() => {
   respond.respond = savedRespond;
   sumThread.summarizeThreadForHelper = savedSum;
-  if (savedEnv === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-  else process.env.RIVET_PROGRAMS_JSON = savedEnv;
+  if (savedEnv === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+  else process.env.ORRY_PROGRAMS_JSON = savedEnv;
   programs.invalidate();
 });
 

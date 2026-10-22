@@ -1,5 +1,5 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -18,8 +18,8 @@ test("capability help exposes public commands and hides helper commands", () => 
 });
 
 test("capability help exposes helper commands for an admin and follows the slug", () => {
-  const previousSlug = process.env.RIVET_BOT_SLUG;
-  process.env.RIVET_BOT_SLUG = "sol";
+  const previousSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  process.env.ORRY_BOT_SLUG = "sol";
   config.slack.adminUserIds = ["U-admin"];
 
   try {
@@ -28,8 +28,8 @@ test("capability help exposes helper commands for an admin and follows the slug"
     assert.match(help, /\/sol-program/);
     assert.doesNotMatch(help, /\/orry-/);
   } finally {
-    if (previousSlug === undefined) delete process.env.RIVET_BOT_SLUG;
-    else process.env.RIVET_BOT_SLUG = previousSlug;
+    if (previousSlug === undefined) delete process.env.ORRY_BOT_SLUG;
+    else process.env.ORRY_BOT_SLUG = previousSlug;
   }
 });
 

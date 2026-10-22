@@ -149,7 +149,7 @@ function suggestAction(violation: Violation, _ticket?: SlaTicket): string {
 
 function startSlaLoop(
   client: unknown,
-  intervalMin = Number(process.env.RIVET_SLA_CHECK_MIN || SLA_LOOP_DEFAULT_MIN),
+  intervalMin = Number((process.env.ORRY_SLA_CHECK_MIN ?? process.env.RIVET_SLA_CHECK_MIN) || SLA_LOOP_DEFAULT_MIN),
 ): ReturnType<typeof setInterval> | null {
   if (!client || !intervalMin || intervalMin <= 0) return null;
   const log = require("./log");

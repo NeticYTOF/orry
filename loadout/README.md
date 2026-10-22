@@ -17,13 +17,13 @@ Orry the ore Maulwürf is configured here as the helper bot for **Loadout**, the
 ## Wire it up
 
 `program.json` is a **single program object**, so wrap it depending on how you supply it.
-`RIVET_PROGRAMS_JSON` accepts only an array or `{ "programs": [...] }` — handing it the bare
+`ORRY_PROGRAMS_JSON` accepts only an array or `{ "programs": [...] }` — handing it the bare
 object logs a warning and silently falls back to files, so the program never loads.
 
 **Option A — env var.** Wrap the contents in an array:
 
 ```powershell
-$env:RIVET_PROGRAMS_JSON = "[" + (Get-Content .\loadout\program.json -Raw) + "]"
+$env:ORRY_PROGRAMS_JSON = "[" + (Get-Content .\loadout\program.json -Raw) + "]"
 bun index.ts --doctor   # confirms the program and all 7 sources resolved
 bun index.ts
 ```

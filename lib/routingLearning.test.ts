@@ -1,5 +1,5 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");

@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -116,7 +116,7 @@ test("resolution succeeds when the pipeline throws", async () => {
       throw new Error("pipeline failed");
     },
   });
-  process.env.RIVET_RESOLUTION_PIPELINE = "true";
+  process.env.ORRY_RESOLUTION_PIPELINE = "true";
   try {
     const result = tickets.resolveTicket({ ticketId, actorId: "U-helper", resolution: "Restart the process." });
     await new Promise((resolve) => setImmediate(resolve));
@@ -124,7 +124,7 @@ test("resolution succeeds when the pipeline throws", async () => {
     assert.equal(result.ok, true);
     assert.equal(db.getTicket(ticketId).status, "resolved");
   } finally {
-    process.env.RIVET_RESOLUTION_PIPELINE = "false";
+    process.env.ORRY_RESOLUTION_PIPELINE = "false";
     pipeline.steps.splice(0, pipeline.steps.length, ...savedSteps);
   }
 });

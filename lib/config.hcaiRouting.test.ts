@@ -1,4 +1,4 @@
-process.env.RIVET_SKIP_DOTENV = "1";
+process.env.ORRY_SKIP_DOTENV = "1";
 process.env.OPENCODE_API_KEY = "zen-test-key";
 process.env.HCAI_API_KEY = "hcai-test-key-1";
 process.env.HCAI_API_KEY_2 = "hcai-test-key-2";

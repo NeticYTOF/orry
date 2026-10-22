@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -101,13 +101,71 @@ test("uncertainty fallback identifies the documentation that was searched", () =
   assert.doesNotMatch(text, /Loadout docs|program docs|documentation/i);
 });
 
+test("questionTopic turns a how-to question into a short topic phrase", () => {
+  assert.equal(respond.questionTopic("how do I reset my account password?"), "how to reset your account password");
+  assert.equal(respond.questionTopic("Orry, what is the deadline?"), "what the deadline is");
+  assert.equal(respond.questionTopic("hey orry how to join?"), "how to join");
+});
+
+test("questionTopic returns null for yes/no or pronoun-led questions", () => {
+  assert.equal(respond.questionTopic("does the hardware grant cover shipping?"), null);
+  assert.equal(respond.questionTopic("it broke again, what now?"), null);
+  assert.equal(respond.questionTopic(""), null);
+});
+
+test("the fallback for an unknown addressed question names its topic without the docs wording", () => {
+  const text = respond.uncertaintyText(
+    { id: "loadout", name: "Loadout" },
+    { question: "how do I reset my account password?" },
+  );
+  assert.match(text, /can't confirm how to reset your account password/);
+  assert.match(text, /a helper can help you/);
+  assert.doesNotMatch(text, /Loadout docs|couldn't verify|docs|Loadout/i);
+});
+
+test("a personal lore question keeps its own lore line, not the topic fallback", () => {
+  const text = respond.uncertaintyText(
+    { id: "loadout", name: "Loadout" },
+    { personalLore: true, question: "what is your backstory?" },
+  );
+  assert.match(text, /part of my story/i);
+  assert.doesNotMatch(text, /can't confirm/);
+});
+
 test("uncertainty wording drops an unsupported numeric claim from the model", () => {
   const text = respond.uncertaintyText(
     { id: "loadout", name: "Loadout" },
     { result: { source: null, answer: "", uncertaintyReply: "The grant is $1,000, but I won't guess." } },
   );
   assert.doesNotMatch(text, /1,000/);
-  assert.match(text, /couldn't verify that from the Loadout docs/i);
+  assert.match(text, /can't confirm that one from what I have/);
+});
+
+test("uncertainty wording keeps a model line that only mentions the docs and a time phrase", () => {
+  const candidate = "I can't confirm that from the documentation, so I won't guess.";
+  assert.equal(
+    respond.uncertaintyText(
+      { id: "loadout", name: "Loadout" },
+      { general: true, result: { source: null, answer: "", uncertaintyReply: candidate } },
+    ),
+    candidate,
+    "mentioning documentation or sources is not a reason to drop the model's own uncertainty line",
+  );
+  assert.equal(
+    respond.uncertaintyText(
+      { id: "loadout", name: "Loadout" },
+      {
+        general: true,
+        result: {
+          source: null,
+          answer: "",
+          uncertaintyReply: "I can't confirm it lands within 2 days, so I won't guess.",
+        },
+      },
+    ),
+    "I can't confirm it lands within 2 days, so I won't guess.",
+    "a digit inside a time phrase is kept",
+  );
 });
 
 test("uncertainty wording replaces an unsupported model source claim with the searched docs", () => {
@@ -126,15 +184,20 @@ test("uncertainty wording replaces an unsupported model source claim with the se
 
 test("gap recording is gated on engagement: chatter records nothing, an engaged miss records a gap", async () => {
   let escalateAdded = false;
+  let publicPosts = 0;
   const mockClient = {
     chat: {
-      postMessage: async () => ({ ts: "msg-1" }),
+      postMessage: async () => {
+        publicPosts += 1;
+        return { ts: "msg-1" };
+      },
       update: async () => ({}),
       delete: async () => ({}),
     },
     reactions: {
-      add: async () => {
-        escalateAdded = true;
+      add: async ({ name }: { name?: string }) => {
+        if (name === "thinking_face") escalateAdded = true;
+        return {};
       },
     },
   };
@@ -167,11 +230,14 @@ test("gap recording is gated on engagement: chatter records nothing, an engaged 
       userId: "U2",
       question: "my sprite wont load at all, what should i do?",
       mode: respond.HELP_ONLY,
+      messageTs: "m-2",
     });
 
-    // Engaged but ungrounded: the gap is recorded AND the bot declines out
-    // loud rather than staying silent.
-    assert.equal(replied, true);
+    // Engaged but ungrounded, in a main channel nobody addressed: the gap is
+    // recorded, the bot adds a thinking_face reaction and posts no public text.
+    assert.equal(replied, false);
+    assert.equal(publicPosts, 0, "an ambient miss posts no public text");
+    assert.equal(escalateAdded, true, "the thinking_face reaction was added");
     const after = db.handle().query("SELECT question FROM doc_gaps").all();
     assert.equal(after.length, initialGaps + 1);
     assert.ok(after.some((g: { question: string }) => g.question === "my sprite wont load at all, what should i do?"));
@@ -198,7 +264,7 @@ test("respond refuses blocked local URLs with a friendly explanation", async () 
     channel: "C1",
     threadTs: "t-blocked",
     userId: "U1",
-    question: "rivet how does this website look to u? http://localhost:8000",
+    question: "orry how does this website look to u? http://localhost:8000",
     mode: respond.ALWAYS,
   });
 
@@ -207,7 +273,12 @@ test("respond refuses blocked local URLs with a friendly explanation", async () 
 });
 
 function fakeClient() {
-  const calls: { posts: string[]; updates: string[]; deletes: number } = { posts: [], updates: [], deletes: 0 };
+  const calls: { posts: string[]; updates: string[]; deletes: number; reactions: string[] } = {
+    posts: [],
+    updates: [],
+    deletes: 0,
+    reactions: [],
+  };
   return {
     calls,
     chat: {
@@ -224,7 +295,12 @@ function fakeClient() {
         return {};
       },
     },
-    reactions: { add: async () => ({}) },
+    reactions: {
+      add: async ({ name }: { name?: string }) => {
+        calls.reactions.push(name || "");
+        return {};
+      },
+    },
   };
 }
 
@@ -293,7 +369,7 @@ test("respond streams the answer into the placeholder instead of waiting for all
       channel: "C1",
       threadTs: "t-stream",
       userId: "U-stream",
-      question: "rivet, give me a chocolate chip cookie recipe",
+      question: "orry, give me a chocolate chip cookie recipe",
       mode: respond.ALWAYS,
     });
 
@@ -520,7 +596,7 @@ test("a gate that errors stays quiet rather than guessing", async () => {
   }
 });
 
-test("a gate outage cannot silence someone who addressed rivet directly", async () => {
+test("a gate outage cannot silence someone who addressed orry directly", async () => {
   const client = fakeClient();
   const originalIntent = intent.classifyIntent;
 
@@ -604,7 +680,7 @@ test("respond passes the latest question into context selection", async () => {
   assert.match(seen, /how do i submit this project/);
 });
 
-test("HELP_ONLY consumes structured intent and preserves Rivet follow-up context", async () => {
+test("HELP_ONLY consumes structured intent and preserves Orry follow-up context", async () => {
   const client = fakeClient();
   const originalContextIntent = intent.classifyIntentContext;
   let seen = "";
@@ -618,10 +694,10 @@ test("HELP_ONLY consumes structured intent and preserves Rivet follow-up context
     options: { threadMessages?: unknown[] },
   ) => ({
     verdict: intent.HELP_NEEDED,
-    addressedToRivet: false,
-    directedAtRivet: false,
+    addressedToOrry: false,
+    directedAtOrry: false,
     directedAtHuman: false,
-    recentRivetParticipation: true,
+    recentOrryParticipation: true,
     programRelevance: "relevant",
     needsHelp: true,
     shouldAttemptAnswer: true,
@@ -697,7 +773,7 @@ test("addressed is passed to the gate so a direct ask escapes the scope", async 
       channel: "C-scope",
       threadTs: "t-addressed",
       userId: "U-addressed",
-      question: "rivet how do i center a div",
+      question: "orry how do i center a div",
       mode: respond.HELP_ONLY,
       addressed: true,
     });
@@ -890,14 +966,14 @@ test("an unaddressed hand-back is deleted and not recorded as a docs gap", async
       userId: "U-handback",
       question: "eh how do i do tthis ?",
       mode: respond.HELP_ONLY,
+      messageTs: "m-handback",
     });
 
-    assert.equal(replied, true);
+    // Ambient in a main channel: no public hand-back, only a thinking_face reaction.
+    assert.equal(replied, false);
+    assert.deepEqual(client.calls.posts, [], "an ambient hand-back posts no public text");
+    assert.deepEqual(client.calls.reactions, ["thinking_face"]);
     assert.equal(db.topGaps(200).length, gapsBefore, "a hand-back is not a docs gap");
-    // It declines out loud, but never posts a fabricated answer.
-    assert.equal(client.calls.posts.length, 1);
-    assert.ok(!client.calls.posts[0].includes(respond.MENTION_FALLBACK));
-    assert.doesNotMatch(client.calls.posts[0], /\d/);
   } finally {
     restoreAnswers();
     restoreCache();
@@ -923,14 +999,14 @@ test("an unclear verdict is silence, not the mention fallback", async () => {
       userId: "U-unclear",
       question: "eh how do i do tthis ?",
       mode: respond.HELP_ONLY,
+      messageTs: "m-unclear",
     });
 
-    // An unanswerable program question is declined out loud, never answered
-    // from guesswork, and never recorded as a documentation gap.
-    assert.equal(replied, true);
-    assert.equal(client.calls.posts.length, 1);
-    assert.ok(!client.calls.posts[0].includes(respond.MENTION_FALLBACK));
-    assert.doesNotMatch(client.calls.posts[0], /\d/);
+    // An unanswerable ambient program question gets a thinking_face reaction
+    // and no public text, and is not recorded as a documentation gap.
+    assert.equal(replied, false);
+    assert.deepEqual(client.calls.posts, [], "an ambient unclear verdict posts no public text");
+    assert.deepEqual(client.calls.reactions, ["thinking_face"]);
     assert.equal(db.topGaps(200).length, gapsBefore, "an unanswerable message is not a docs gap");
   } finally {
     restoreAnswers();
@@ -939,7 +1015,7 @@ test("an unclear verdict is silence, not the mention fallback", async () => {
   }
 });
 
-test("an unclear verdict still answers someone who addressed rivet directly", async () => {
+test("an unclear verdict still answers someone who addressed orry directly", async () => {
   const client = fakeClient();
 
   const restoreAnswers = stubAnswers(async () => ({ source: null, answer: "", unclear: true }));
@@ -951,19 +1027,19 @@ test("an unclear verdict still answers someone who addressed rivet directly", as
       channel: "C1",
       threadTs: "t-unclear-addressed",
       userId: "U-unclear-addressed",
-      question: "rivet how do i do this",
+      question: "orry how do i do this",
       mode: respond.ALWAYS,
     });
 
     assert.equal(replied, true);
-    assert.match(client.calls.posts.concat(client.calls.updates).join(" "), /couldn't verify that from the .* docs/);
+    assert.match(client.calls.posts.concat(client.calls.updates).join(" "), /can't confirm/);
   } finally {
     restoreAnswers();
     restoreCache();
   }
 });
 
-test("stfu rivet mutes the thread and leaves", async () => {
+test("stfu orry mutes the thread and leaves", async () => {
   const client = fakeClient();
   const threadTs = "t-stfu-test";
 
@@ -972,7 +1048,7 @@ test("stfu rivet mutes the thread and leaves", async () => {
     channel: "C1",
     threadTs,
     userId: "U1",
-    question: "stfu rivet",
+    question: "stfu orry",
     mode: respond.ALWAYS,
   });
 
@@ -1053,7 +1129,7 @@ function withBrand(vars: Record<string, string | undefined>, fn: () => unknown) 
 }
 
 test("a mute request works by the bot's own name", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol", RIVET_BOT_SLUG: "sol" }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol", ORRY_BOT_SLUG: "sol" }, () => {
     assert.equal(respond.isMuteRequest("stfu sol"), true);
     assert.equal(respond.isMuteRequest("sol shut up"), true);
     assert.equal(respond.isMuteRequest("sol stfu"), true);
@@ -1063,39 +1139,39 @@ test("a mute request works by the bot's own name", () => {
 });
 
 test("an unrelated message is still not a mute request", () => {
-  withBrand({ RIVET_BOT_NAME: "Sol", RIVET_BOT_SLUG: "sol" }, () => {
+  withBrand({ ORRY_BOT_NAME: "Sol", ORRY_BOT_SLUG: "sol" }, () => {
     assert.equal(respond.isMuteRequest("how do i submit my project"), false);
     assert.equal(respond.isMuteRequest("sol how do i start"), false);
   });
 });
 
-test("with no brand set, the rivet forms still match", () => {
-  withBrand({ RIVET_BOT_NAME: undefined, RIVET_BOT_SLUG: undefined }, () => {
-    assert.equal(respond.isMuteRequest("stfu rivet"), true);
-    assert.equal(respond.isMuteRequest("rivet stfu"), true);
+test("with no brand set, the orry forms still match", () => {
+  withBrand({ ORRY_BOT_NAME: undefined, ORRY_BOT_SLUG: undefined }, () => {
+    assert.equal(respond.isMuteRequest("stfu orry"), true);
+    assert.equal(respond.isMuteRequest("orry stfu"), true);
   });
 });
 
 test("a slug containing regex metacharacters is escaped, not executed", () => {
-  withBrand({ RIVET_BOT_NAME: "c++ bot", RIVET_BOT_SLUG: undefined }, () => {
+  withBrand({ ORRY_BOT_NAME: "c++ bot", ORRY_BOT_SLUG: undefined }, () => {
     assert.doesNotThrow(() => respond.isMuteRequest("stfu c++ bot"));
     assert.equal(respond.isMuteRequest("nonsense"), false);
   });
 });
 
 test("every documented stop/leave phrasing is recognized, and 'stop' alone is anchored, not bare", () => {
-  assert.equal(respond.isMuteRequest("stop rivet"), true);
-  assert.equal(respond.isMuteRequest("rivetstop"), true);
-  assert.equal(respond.isMuteRequest("stoprivet"), true);
+  assert.equal(respond.isMuteRequest("stop orry"), true);
+  assert.equal(respond.isMuteRequest("orrystop"), true);
+  assert.equal(respond.isMuteRequest("stoporry"), true);
   assert.equal(respond.isMuteRequest("stop pinging him"), true);
   assert.equal(respond.isMuteRequest("stop pinging"), true);
-  assert.equal(respond.isMuteRequest("rivet leave"), true);
-  assert.equal(respond.isMuteRequest("shut up rivet"), true);
+  assert.equal(respond.isMuteRequest("orry leave"), true);
+  assert.equal(respond.isMuteRequest("shut up orry"), true);
 
-  assert.equal(respond.isMuteRequest("please stop, rivet already helped"), false);
+  assert.equal(respond.isMuteRequest("please stop, orry already helped"), false);
   assert.equal(respond.isMuteRequest("stop the build please"), false);
   assert.equal(respond.isMuteRequest("can we stop for today"), false);
-  assert.equal(respond.isMuteRequest("rivet is stopping by later"), false);
+  assert.equal(respond.isMuteRequest("orry is stopping by later"), false);
 });
 
 test("help channel hands an unclear question to a helper with the escalated uncertainty text", async () => {
@@ -1161,7 +1237,7 @@ test("a ping in the help channel gets the answer and still goes to a helper", as
       assert.equal(replied, true);
       const said = client.posts.map((p: SlackPost) => p.text || "").join(" ");
       assert.match(said, /wokwi simulator/);
-      assert.doesNotMatch(said, /couldn't verify/);
+      assert.doesNotMatch(said, /couldn't verify|can't confirm/);
       const ticket = db.getTicketByThreadTs("t-help-firmware");
       assert.ok(ticket);
       assert.equal(ticket.status, "waiting_for_helper");
@@ -1202,9 +1278,9 @@ test("help channel stays quiet when gate returns OFF_TOPIC in thread", async () 
   }
 });
 
-test("an ungrounded answer in help hands off with uncertainty even when RIVET_REQUIRE_GROUNDED_ANSWER is set", async () => {
+test("an ungrounded answer in help hands off with uncertainty even when ORRY_REQUIRE_GROUNDED_ANSWER is set", async () => {
   const originalIntent = intent.classifyIntent;
-  const origEnv = process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+  const origEnv = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
 
   const restoreAnswers = stubAnswers(async () => ({
     source: null,
@@ -1212,7 +1288,7 @@ test("an ungrounded answer in help hands off with uncertainty even when RIVET_RE
   }));
   const restoreCache = stubNoCache();
   intent.classifyIntent = async () => intent.HELP_NEEDED;
-  process.env.RIVET_REQUIRE_GROUNDED_ANSWER = "1";
+  process.env.ORRY_REQUIRE_GROUNDED_ANSWER = "1";
 
   await withHelpProgram({ id: "help-grounded-req" }, async (programId: string, channel: string) => {
     const client = richClient();
@@ -1229,14 +1305,14 @@ test("an ungrounded answer in help hands off with uncertainty even when RIVET_RE
       assert.equal(replied, true);
       const said = client.posts.map((p: SlackPost) => p.text || "").join(" ");
       assert.doesNotMatch(said, /grant amounts/);
-      assert.match(said, /couldn't verify that from the .* docs/);
+      assert.match(said, /can't confirm/);
       assert.ok(db.getTicketByThreadTs("t-help-ungrounded"));
     } finally {
       restoreAnswers();
       restoreCache();
       intent.classifyIntent = originalIntent;
-      if (origEnv === undefined) delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
-      else process.env.RIVET_REQUIRE_GROUNDED_ANSWER = origEnv;
+      if (origEnv === undefined) delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
+      else process.env.ORRY_REQUIRE_GROUNDED_ANSWER = origEnv;
     }
   });
 });
@@ -1297,9 +1373,47 @@ test("isGroundedAnswer correctly identifies grounded vs ungrounded answers", () 
   assert.equal(isGroundedAnswer({ source: "Live FAQ", answer: "uncited source answer" }, { id: "live" }), false);
 });
 
+test("isGroundedAnswer judges a cited answer by its citations and channel links, not its wording", () => {
+  const { isGroundedAnswer } = respond;
+  const cited = (text: string, source = "Program FAQ") => ({
+    source,
+    answer: text,
+    passageCitations: ["p1"],
+    citationEvidence: [{ id: "p1", source, text: "Source text.", programId: "live" }],
+  });
+  const live = { id: "live", helpChannel: "C_HELP" };
+
+  assert.equal(isGroundedAnswer(cited("There is no official deadline [E1]."), live), true);
+  assert.equal(isGroundedAnswer(cited("check in on the FAQ [E1]."), live), true);
+  assert.equal(isGroundedAnswer(cited("Step #2 is the upload [E1]."), live), true);
+  assert.equal(isGroundedAnswer(cited("I'm not sure about the rest [E1]. Track XP is permanent [E1]."), live), true);
+  assert.equal(
+    isGroundedAnswer(
+      cited("Kept fact [E1]. I couldn't confirm this part: “Dogs” in the docs, so I can't answer those parts."),
+      live,
+    ),
+    true,
+    "a partial answer with its UNRESOLVED note is still grounded",
+  );
+  assert.equal(isGroundedAnswer(cited("Ask in <#C_HELP> for that [E1].", "Program FAQ"), live), true);
+
+  assert.equal(isGroundedAnswer(cited("Ask in <#C_OTHER> for that [E1]."), live), false, "other channels are never linked");
+  assert.equal(
+    isGroundedAnswer(cited("Ask in <#C_HELP> for that [E1]."), { id: "live", helpChannel: "C_HELP", requireGroundedAnswer: true }),
+    false,
+    "grounded-only programs carry no channel links",
+  );
+  assert.equal(isGroundedAnswer(cited("Ask in #loadout-help [E1]."), live), false);
+
+  assert.equal(isGroundedAnswer(cited("**UNCLEAR**"), live), false);
+  assert.equal(isGroundedAnswer(cited("NONE"), live), false);
+  assert.equal(isGroundedAnswer({ ...cited("Fact [E1]."), source: "NONE" }, live), false);
+  assert.equal(isGroundedAnswer({ source: "Program FAQ", answer: "There is no official deadline." }, live), false, "uncited");
+});
+
 test("stripChannelMentions removes Slack channel tags and links", () => {
   const { stripChannelMentions } = respond;
-  assert.equal(stripChannelMentions("ask in <#C0CHAN00002|rivet>"), "ask in");
+  assert.equal(stripChannelMentions("ask in <#C0CHAN00002|orry>"), "ask in");
   assert.equal(stripChannelMentions("check #help-channel for updates"), "check for updates");
   assert.equal(stripChannelMentions("regular text without channels"), "regular text without channels");
 });
@@ -1307,7 +1421,7 @@ test("stripChannelMentions removes Slack channel tags and links", () => {
 test("a meta source or channel redirect stays unposted in a DM, with uncertainty instead", async () => {
   const client = fakeClient();
   const originalIntent = intent.classifyIntent;
-  const origEnv = process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
+  const origEnv = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
 
   const restoreAnswers = stubAnswers(async () => ({
     source: "Questions the bot should NOT invent answers for",
@@ -1315,7 +1429,7 @@ test("a meta source or channel redirect stays unposted in a DM, with uncertainty
   }));
   const restoreCache = stubNoCache();
   intent.classifyIntent = async () => intent.HELP_NEEDED;
-  process.env.RIVET_REQUIRE_GROUNDED_ANSWER = "1";
+  process.env.ORRY_REQUIRE_GROUNDED_ANSWER = "1";
 
   try {
     const replied = await respond.respond({
@@ -1330,21 +1444,21 @@ test("a meta source or channel redirect stays unposted in a DM, with uncertainty
     assert.equal(replied, true);
     const said = [...client.calls.posts, ...client.calls.updates].join(" ");
     assert.doesNotMatch(said, /help-channel/);
-    assert.match(said, /couldn't verify that from the .* docs/);
+    assert.match(said, /can't confirm/);
   } finally {
     restoreAnswers();
     restoreCache();
     intent.classifyIntent = originalIntent;
-    if (origEnv === undefined) delete process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
-    else process.env.RIVET_REQUIRE_GROUNDED_ANSWER = origEnv;
+    if (origEnv === undefined) delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
+    else process.env.ORRY_REQUIRE_GROUNDED_ANSWER = origEnv;
   }
 });
 
 test("sensitive-category questions escalate without any model call", async () => {
   const programs = require("./programs");
   const db = require("./db");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "sens", name: "Sens", helpChannel: "C-SENS", channels: ["C-SENS"], sensitiveCategories: ["reimbursement"] },
   ]);
   programs.invalidate();
@@ -1371,8 +1485,8 @@ test("sensitive-category questions escalate without any model call", async () =>
     assert.equal(ticket.program_id, "sens");
   } finally {
     answer.getAnswerOrChatStream = original;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 });
@@ -1395,7 +1509,7 @@ test("a classifier outage in a help channel preserves the support path (ticket +
     const ticket = db.getTicketByThreadTs("t-outage-1");
     assert.ok(ticket, "the outage must not swallow the support request");
     assert.equal(ticket.status, "waiting_for_helper");
-    assert.ok(client.calls.posts.some((t: string) => /couldn't verify/i.test(t)));
+    assert.ok(client.calls.posts.some((t: string) => /can't confirm/i.test(t)));
     assert.ok(client.calls.posts.some((t: string) => /helper/i.test(t)));
   } finally {
     config.slack.helpChannel = savedHelp;
@@ -1405,8 +1519,8 @@ test("a classifier outage in a help channel preserves the support path (ticket +
 test("shadow mode evaluates but sends nothing publicly", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "shdw", name: "Shadow", helpChannel: "C-SHDW", channels: ["C-SHDW"], shadowMode: true },
   ]);
   programs.invalidate();
@@ -1435,13 +1549,13 @@ test("shadow mode evaluates but sends nothing publicly", async () => {
   } finally {
     restoreAnswers();
     restoreCache();
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 });
 
-test("a support question in an active help channel opens a ticket that stays OPEN when Rivet answers it", async () => {
+test("a support question in an active help channel opens a ticket that stays OPEN when Orry answers it", async () => {
   const db = require("./db");
   const originalIntent = intent.classifyIntent;
   const restoreAnswers = stubAnswers(async () => ({
@@ -1471,7 +1585,7 @@ test("a support question in an active help channel opens a ticket that stays OPE
 
       const ticket = db.getTicketByThreadTs(threadTs);
       assert.ok(ticket, "an eligible support question MUST create a ticket");
-      assert.equal(ticket.status, "open", "a Rivet answer does not resolve or re-status the ticket");
+      assert.equal(ticket.status, "open", "a Orry answer does not resolve or re-status the ticket");
       assert.equal(ticket.assignee_id, null);
     } finally {
       restoreAnswers();
@@ -1497,7 +1611,7 @@ test("rate limiting posts limit message but does not create tickets or leave stu
     channel: "C1",
     threadTs,
     userId,
-    question: "rivet are you there?",
+    question: "orry are you there?",
     mode: respond.ALWAYS,
   });
 
@@ -1587,7 +1701,7 @@ test("prevent public reasoning and instruction leak in respond()", async () => {
       channel: "C1",
       threadTs: "t-reasoning-leak",
       userId: "U-reasoning",
-      question: "rivet explain this",
+      question: "orry explain this",
       mode: respond.ALWAYS,
     });
 
@@ -1605,8 +1719,8 @@ test("prevent public reasoning and instruction leak in respond()", async () => {
 
 test("the mute acknowledgement is branded with the resolved program's support identity", async () => {
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     {
       id: "branded-prog",
       name: "Branded",
@@ -1633,15 +1747,15 @@ test("the mute acknowledgement is branded with the resolved program's support id
       channel: "C-BRANDED",
       threadTs: "t-brand-mute",
       userId: "U-brand",
-      question: "stfu rivet",
+      question: "stfu orry",
       mode: respond.ALWAYS,
     });
     assert.equal(handled, true);
     assert.equal(posted.length, 1);
     assert.equal(posted[0].username, "Branded Help", "the mute ack must carry this program's own support identity");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 });
@@ -1651,25 +1765,27 @@ function withHelpProgram(
   fn: (programId: string, channel: string) => Promise<unknown>,
 ) {
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
   const id = overrides.id || "ticket-prog";
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id, name: id, helpChannel: `C-${id}`, channels: [`C-${id}`], ...overrides },
   ]);
   programs.invalidate();
   return Promise.resolve()
     .then(() => fn(id, `C-${id}`))
     .finally(() => {
-      if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-      else process.env.RIVET_PROGRAMS_JSON = saved;
+      if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+      else process.env.ORRY_PROGRAMS_JSON = saved;
       programs.invalidate();
     });
 }
 
 function richClient() {
   const posts: SlackPost[] = [];
+  const reacted: string[] = [];
   return {
     posts,
+    reacted,
     chat: {
       postMessage: async (payload: SlackPost) => {
         posts.push(payload);
@@ -1680,7 +1796,12 @@ function richClient() {
         return {};
       },
     },
-    reactions: { add: async () => ({}) },
+    reactions: {
+      add: async ({ name }: { name?: string }) => {
+        reacted.push(name || "");
+        return {};
+      },
+    },
   };
 }
 
@@ -2179,8 +2300,8 @@ test("chatter addressed in a help channel gets a conversational reply but opens 
 test("an off-topic question in a program scoped to itself stays silent and creates no ticket", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "scoped", name: "Scoped", scope: "program", channels: ["C-scoped"] },
   ]);
   programs.invalidate();
@@ -2203,8 +2324,8 @@ test("an off-topic question in a program scoped to itself stays silent and creat
   } finally {
     intent.classifyIntent = originalIntent;
     answer.getAnswerOrChatStream = originalAnswer;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 });
@@ -2212,8 +2333,8 @@ test("an off-topic question in a program scoped to itself stays silent and creat
 test("two tenants asking the identical question in their own help channels get separate, tenant-scoped tickets", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "tenant-a", name: "TenantA", helpChannel: "C-tenant-a", channels: ["C-tenant-a"] },
     { id: "tenant-b", name: "TenantB", helpChannel: "C-tenant-b", channels: ["C-tenant-b"] },
   ]);
@@ -2250,13 +2371,13 @@ test("two tenants asking the identical question in their own help channels get s
   } finally {
     restoreAnswers();
     intent.classifyIntent = originalIntent;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
   }
 });
 
-test("public_tickets_enabled=false: Rivet still answers, but no ticket is created", async () => {
+test("public_tickets_enabled=false: Orry still answers, but no ticket is created", async () => {
   const db = require("./db");
   await withHelpProgram({ id: "notix", publicTicketsEnabled: false }, async (programId: string, channel: string) => {
     const client = richClient();
@@ -2273,7 +2394,7 @@ test("public_tickets_enabled=false: Rivet still answers, but no ticket is create
         mode: respond.HELP_ONLY,
       });
       assert.equal(handled, true);
-      assert.equal(client.posts.length, 1, "rivet still replies");
+      assert.equal(client.posts.length, 1, "orry still replies");
       assert.equal(db.getTicketByThreadTs("t-notix-1"), null, "no ticket when public tickets are off");
     } finally {
       restoreAnswers();
@@ -2354,7 +2475,7 @@ test("HELP_ONLY answers HELP_NEEDED, drops on CASUAL_CHAT", async () => {
         question: "lol that game was wild",
         mode: respond.HELP_ONLY,
       });
-      assert.equal(handledDrop, false, "CASUAL_CHAT still suppresses Rivet's reply");
+      assert.equal(handledDrop, false, "CASUAL_CHAT still suppresses Orry's reply");
       assert.equal(db.getTicketByThreadTs("t-char-drop-1"), null, "casual chatter must not become a ticket");
       assert.ok(
         !clientDrop.posts.some((p: SlackPost) => /should never surface/.test(p.text || "")),
@@ -2489,7 +2610,7 @@ test("ALWAYS replies conversationally to chatter without opening a ticket", asyn
   });
 });
 
-test("chatter addressed at rivet opens no ticket; a real support question still does", async () => {
+test("chatter addressed at orry opens no ticket; a real support question still does", async () => {
   await withHelpProgram({ id: "charground" }, async (programId: string, channel: string) => {
     const originalIntent = intent.classifyIntent;
     const restoreAnswers = stubAnswers(async () => ({ source: "Docs", answer: "export as PNG at native size" }));
@@ -2631,8 +2752,8 @@ test("accepted support with model outage gets a helper handoff acknowledgement",
 test("HELP_ONLY suppresses hand-back clarification questions outside help", async () => {
   const originalIntent = intent.classifyIntent;
   const programs = require("./programs");
-  const saved = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "charhand", name: "charhand", channels: ["C-charhand"] }]);
+  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "charhand", name: "charhand", channels: ["C-charhand"] }]);
   programs.invalidate();
   const restoreAnswers = stubAnswers(async () => ({ source: null, answer: "sorry, what do you mean?" }));
   const restoreCache = stubNoCache();
@@ -2646,21 +2767,122 @@ test("HELP_ONLY suppresses hand-back clarification questions outside help", asyn
       userId: "U-char-hand",
       question: "eh how do i do this",
       mode: respond.HELP_ONLY,
+      messageTs: "m-char-hand-1",
     });
-    assert.equal(handled, true, "an unaddressed program question is declined, not silently dropped");
-    // It may decline, but never fabricates an answer.
-    assert.ok(client.posts.length <= 1);
-    if (client.posts.length === 1) {
-      assert.doesNotMatch(String(client.posts[0].text), /\d/);
-      assert.ok(!String(client.posts[0].text).includes(respond.MENTION_FALLBACK));
-    }
+    // An ambient clarifying question in a main channel is not asked publicly: the bot
+    // reacts with thinking_face and posts nothing.
+    assert.equal(handled, false);
+    assert.deepEqual(client.posts, [], "an ambient clarifying question posts no public text");
+    assert.deepEqual(client.reacted, ["thinking_face"]);
   } finally {
     restoreAnswers();
     restoreCache();
     intent.classifyIntent = originalIntent;
-    if (saved === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = saved;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
     programs.invalidate();
+  }
+});
+
+test("a help-channel 'X or Y' clarification is asked in the help channel", async () => {
+  await withHelpProgram({ id: "help-clarify" }, async (_programId: string, channel: string) => {
+    const originalIntent = intent.classifyIntent;
+    const restoreAnswers = stubAnswers(async () => ({ source: "Docs", answer: "Do you mean Bolts or Track XP?" }));
+    const restoreCache = stubNoCache();
+    intent.classifyIntent = async () => intent.HELP_NEEDED;
+    try {
+      const client = richClient();
+      const handled = await respond.respond({
+        client,
+        channel,
+        threadTs: "t-help-clarify-1",
+        userId: "U-help-clarify",
+        question: "how do i get more?",
+        mode: respond.HELP_ONLY,
+      });
+      assert.equal(handled, true);
+      const said = client.posts.map((post: SlackPost) => String(post.text || "")).join(" ");
+      assert.match(said, /Quick clarification: Do you mean Bolts or Track XP\?/);
+    } finally {
+      restoreAnswers();
+      restoreCache();
+      intent.classifyIntent = originalIntent;
+    }
+  });
+});
+
+test("a pinned CLARIFY rule asks in a main channel, and is skipped when the message names an option", async () => {
+  const programs = require("./programs");
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
+  const rule =
+    "CLARIFY: \\bpoints?\\b | \\bbolts?\\b|\\btrack\\s*xp\\b | Do you mean Bolts (spendable currency) or Track XP (permanent progress)?";
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
+    { id: "clarify-main", name: "clarify-main", channels: ["C-clarify-main"], pinnedRules: [rule] },
+  ]);
+  programs.invalidate();
+  const originalIntent = intent.classifyIntent;
+  const restoreAnswers = stubAnswers(async () => ({ source: null, answer: "hmm not sure on that one" }));
+  const restoreCache = stubNoCache();
+  intent.classifyIntent = async () => intent.HELP_NEEDED;
+  try {
+    const asked = richClient();
+    await respond.respond({
+      client: asked,
+      channel: "C-clarify-main",
+      threadTs: "t-clarify-rule-1",
+      userId: "U-clarify-rule-1",
+      question: "how many points do i get for shipping?",
+      mode: respond.HELP_ONLY,
+    });
+    const said = asked.posts.map((post: SlackPost) => String(post.text || "")).join(" ");
+    assert.match(said, /Quick clarification: Do you mean Bolts \(spendable currency\) or Track XP/);
+
+    const named = richClient();
+    await respond.respond({
+      client: named,
+      channel: "C-clarify-main",
+      threadTs: "t-clarify-rule-2",
+      userId: "U-clarify-rule-2",
+      question: "how many bolts do i get for shipping?",
+      mode: respond.HELP_ONLY,
+    });
+    assert.deepEqual(named.posts, [], "a message that already names an option is not asked again");
+  } finally {
+    restoreAnswers();
+    restoreCache();
+    intent.classifyIntent = originalIntent;
+    if (saved === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = saved;
+    programs.invalidate();
+  }
+});
+
+test("a grounded answer with an ASSUMPTION shows it in italics above the answer", async () => {
+  const client = fakeClient();
+  const originalIntent = intent.classifyIntent;
+  const restoreAnswers = stubAnswers(async () => ({
+    source: "Acme FAQ",
+    answer: "Use flexbox to center it.",
+    assumption: "Assuming you mean the Acme program.",
+  }));
+  const restoreCache = stubNoCache();
+  intent.classifyIntent = async () => intent.HELP_NEEDED;
+
+  try {
+    await respond.respond({
+      client,
+      channel: "C1",
+      threadTs: "t-assumption",
+      userId: "U-assumption",
+      question: "orry how do i center it",
+      mode: respond.ALWAYS,
+    });
+    const all = client.calls.posts.concat(client.calls.updates).join(" ");
+    assert.match(all, /_Assuming you mean the Acme program\._\s*Use flexbox to center it\./);
+  } finally {
+    restoreAnswers();
+    restoreCache();
+    intent.classifyIntent = originalIntent;
   }
 });
 

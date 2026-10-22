@@ -39,7 +39,7 @@ function collectTests(dir, suffixes = [".test.js", ".test.ts"]) {
 
 // Hermetic child env: strip every credential-shaped variable plus the Jev and
 // database overrides, so a local .env can never turn unit tests into live
-// integration tests. The bunfig preload still pins RIVET_DB_PATH=:memory: and
+// integration tests. The bunfig preload still pins ORRY_DB_PATH=:memory: and
 // JEV_ENABLED=false inside each child.
 function hermeticEnv() {
   const env = { ...process.env };
@@ -56,7 +56,7 @@ function hermeticEnv() {
     }
   }
   env.TZ = "UTC";
-  env.RIVET_SKIP_DOTENV = "1";
+  env.ORRY_SKIP_DOTENV = "1";
   return env;
 }
 

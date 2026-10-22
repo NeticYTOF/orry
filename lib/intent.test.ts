@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -62,7 +62,7 @@ test("an unscoped program is never offered OFF_TOPIC", () => {
   assert.match(prompt, /exactly one JSON object/);
 });
 
-test("addressing rivet lifts the scope restriction", () => {
+test("addressing orry lifts the scope restriction", () => {
   const scoped = { id: "acme", name: "Acme", scope: "program" };
   const open = { id: "sprig", name: "Sprig", scope: "any" };
 
@@ -142,7 +142,7 @@ test("short HELP_ONLY inputs pin current verdict", async () => {
 });
 
 test("duplicate-text history pins current context", async () => {
-  process.env.RIVET_DB_PATH = ":memory:";
+  process.env.ORRY_DB_PATH = ":memory:";
   const db = require("./db");
   try {
     db.open(":memory:");
@@ -167,28 +167,28 @@ test("duplicate-text history pins current context", async () => {
 });
 
 test("buildUserPrompt preserves bounded thread and recent speaker boundaries", () => {
-  const prompt = intent.buildUserPrompt("please help Rivet", [], {
+  const prompt = intent.buildUserPrompt("please help Orry", [], {
     threadMessages: [
       { speaker: "human", text: "my build fails" },
-      { speaker: "rivet", text: "What error do you see?" },
+      { speaker: "orry", text: "What error do you see?" },
     ],
     recentMessages: [{ userId: "U1", text: "talking to another human" }],
   });
   assert.match(prompt, /Thread context/);
-  assert.match(prompt, /\[rivet\] What error do you see\?/);
+  assert.match(prompt, /\[orry\] What error do you see\?/);
   assert.match(prompt, /Recent channel context/);
   assert.match(prompt, /\[human\] talking to another human/);
-  assert.match(prompt, /\[human\] please help Rivet$/);
+  assert.match(prompt, /\[human\] please help Orry$/);
 });
 
 test("parseContextResult is strict and fails closed", () => {
   const valid =
-    '{"verdict":"HELP_NEEDED","addressedToRivet":true,"directedAtHuman":false,"recentRivetParticipation":true,"programRelevance":"relevant"}';
+    '{"verdict":"HELP_NEEDED","addressedToOrry":true,"directedAtHuman":false,"recentOrryParticipation":true,"programRelevance":"relevant"}';
   assert.deepEqual(intent.parseContextResult(valid), {
     verdict: "HELP_NEEDED",
-    addressedToRivet: true,
+    addressedToOrry: true,
     directedAtHuman: false,
-    recentRivetParticipation: true,
+    recentOrryParticipation: true,
     programRelevance: "relevant",
   });
   assert.equal(intent.parseContextResult("HELP_NEEDED"), null);
@@ -199,9 +199,9 @@ test("parseContextResult is strict and fails closed", () => {
 test("parseContextResult tolerates a markdown code fence and surrounding prose", () => {
   const obj = {
     verdict: "HELP_NEEDED",
-    addressedToRivet: false,
+    addressedToOrry: false,
     directedAtHuman: false,
-    recentRivetParticipation: false,
+    recentOrryParticipation: false,
     programRelevance: "relevant",
   };
   const body = JSON.stringify(obj, null, 2);
@@ -216,9 +216,9 @@ test("a fenced HELP_NEEDED verdict still reaches shouldAttemptAnswer", () => {
     "```json\n" +
     JSON.stringify({
       verdict: "HELP_NEEDED",
-      addressedToRivet: false,
+      addressedToOrry: false,
       directedAtHuman: false,
-      recentRivetParticipation: false,
+      recentOrryParticipation: false,
       programRelevance: "relevant",
     }) +
     "\n```";
@@ -229,19 +229,19 @@ test("a fenced HELP_NEEDED verdict still reaches shouldAttemptAnswer", () => {
 test("structured intent is enriched into the canonical engagement decision", () => {
   const support = intent.normalizeIntentResult({
     verdict: intent.HELP_NEEDED,
-    addressedToRivet: false,
-    recentRivetParticipation: true,
+    addressedToOrry: false,
+    recentOrryParticipation: true,
     programRelevance: "relevant",
   });
   assert.equal(support.needsHelp, true);
   assert.equal(support.shouldAttemptAnswer, true);
-  assert.equal(support.recentRivetParticipation, true);
+  assert.equal(support.recentOrryParticipation, true);
 
   const human = intent.normalizeIntentResult({
     verdict: intent.HELP_NEEDED,
-    addressedToRivet: false,
+    addressedToOrry: false,
     directedAtHuman: true,
-    recentRivetParticipation: false,
+    recentOrryParticipation: false,
     programRelevance: "relevant",
   });
   assert.equal(human.shouldAttemptAnswer, false);
@@ -292,9 +292,9 @@ test("short-input: length<5 fail-softs to null", async () => {
         "```json\n" +
         JSON.stringify({
           verdict: "HELP_NEEDED",
-          addressedToRivet: false,
+          addressedToOrry: false,
           directedAtHuman: false,
-          recentRivetParticipation: false,
+          recentOrryParticipation: false,
           programRelevance: "relevant",
         }) +
         "\n```",

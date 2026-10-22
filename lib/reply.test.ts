@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -28,8 +28,8 @@ test("an em dash becomes a comma", () => {
 });
 
 test("en dashes and spaced double hyphens go the same way", () => {
-  assert.equal(reply.plainDashes("i'm rivet – a helper bot"), "i'm rivet, a helper bot");
-  assert.equal(reply.plainDashes("i'm rivet -- a helper bot"), "i'm rivet, a helper bot");
+  assert.equal(reply.plainDashes("i'm orry – a helper bot"), "i'm orry, a helper bot");
+  assert.equal(reply.plainDashes("i'm orry -- a helper bot"), "i'm orry, a helper bot");
 });
 
 test("a dash with no spaces around it is still a dash", () => {
@@ -131,7 +131,7 @@ test("streamed fragments are stripped as they go out", async () => {
   assert.equal(client.calls.updates.at(-1)?.text, "the price, 11,400");
 });
 
-test("the source line rivet appends carries no dash either", () => {
+test("the source line orry appends carries no dash either", () => {
   const line = reply.sourceLineFor("Some Source");
   assert.doesNotMatch(line, /[—–]/);
 });
@@ -358,6 +358,55 @@ test("finalize keeps an answer to a ping in a thread that was already taken over
   } finally {
     db.clearTakeover("take-before-1");
   }
+});
+
+test("the answer block gets an Ask a helper button only when the program has a help channel", () => {
+  const plain = reply.blocksFor("an answer");
+  assert.equal(plain.length, 1, "no options keeps the plain section");
+
+  const noHelp = reply.blocksFor("an answer", {
+    program: { id: "acme", helpChannel: null },
+    channel: "C-MAIN",
+    threadTs: "1700000000.000100",
+  });
+  assert.equal(noHelp.length, 1, "no help channel, no button");
+
+  const withHelp = reply.blocksFor("an answer", {
+    program: { id: "acme", helpChannel: "C-HELP" },
+    channel: "C-MAIN",
+    threadTs: "1700000000.000100",
+  });
+  assert.equal(withHelp[0].type, "section");
+  assert.equal(withHelp[0].text?.text, "an answer", "the section block is unchanged");
+  assert.equal(withHelp.length, 2);
+  const actions = withHelp[1];
+  assert.equal(actions.type, "actions");
+  assert.equal(actions.elements?.[0].action_id, "orry_ask_helper");
+  assert.equal(actions.elements?.[0].value, "C-MAIN|1700000000.000100");
+  assert.equal((actions.elements?.[0].text as { text?: string })?.text, "Ask a helper");
+});
+
+test("ambient thinking_face reaction is added quietly, and failure is reported to the caller", async () => {
+  const added: MessagePayload[] = [];
+  const ok = {
+    reactions: {
+      add: async (args: MessagePayload) => {
+        added.push(args);
+        return { ok: true };
+      },
+    },
+  };
+  assert.equal(await reply.reactAmbientUncertain(ok, "C1", "1.1"), true);
+  assert.deepEqual(added[0], { channel: "C1", timestamp: "1.1", name: "thinking_face" });
+
+  const failing = {
+    reactions: {
+      add: async () => {
+        throw new Error("missing_scope");
+      },
+    },
+  };
+  assert.equal(await reply.reactAmbientUncertain(failing, "C1", "1.2"), false, "caller falls back to silence");
 });
 
 test("finalize still drops the answer when the thread goes quiet mid-answer", async () => {

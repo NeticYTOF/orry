@@ -1,6 +1,6 @@
 type TestAny = any;
-process.env.RIVET_DB_PATH = ":memory:";
-process.env.RIVET_INTERNAL_TOKEN = "test-internal-token";
+process.env.ORRY_DB_PATH = ":memory:";
+process.env.ORRY_INTERNAL_TOKEN = "test-internal-token";
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");
@@ -23,10 +23,10 @@ function anon() {
 }
 
 test("internal API is disabled without a token and rejects bad bearers", () => {
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  delete process.env.RIVET_INTERNAL_TOKEN;
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  delete process.env.ORRY_INTERNAL_TOKEN;
   assert.equal(api.internalAuth(anon()).status, 404);
-  process.env.RIVET_INTERNAL_TOKEN = saved;
+  process.env.ORRY_INTERNAL_TOKEN = saved;
   assert.equal(api.internalAuth(anon()).status, 401);
   assert.equal(api.internalAuth(authed()).ok, true);
 });

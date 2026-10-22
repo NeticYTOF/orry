@@ -54,8 +54,8 @@ function clean(value: unknown, max = MAX_CHARS): string {
 
 function roleOf(message: TranscriptRow): string {
   const role = String(message?.role || message?.speaker || "other").toLowerCase();
-  if (["requester", "helper", "rivet", "other"].includes(role)) return role;
-  if (role === "assistant" || role === "bot") return "rivet";
+  if (["requester", "helper", "orry", "other"].includes(role)) return role;
+  if (role === "assistant" || role === "bot") return "orry";
   return "other";
 }
 

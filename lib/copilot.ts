@@ -224,7 +224,7 @@ function loadTranscript(messages: TranscriptMessage[] | null, threadTs: string |
 }
 
 function formatTranscriptLine(m: TranscriptMessage): string {
-  const who = m.role === "assistant" ? "rivet" : m.user_id || m.role || "user";
+  const who = m.role === "assistant" ? "orry" : m.user_id || m.role || "user";
   return `${who}: ${(m.content || "").slice(0, SUMMARY_LINE_CHARS)}`;
 }
 

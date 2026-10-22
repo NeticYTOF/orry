@@ -166,4 +166,33 @@ test("uses an injected parser without calling a live model", () => {
   assert.equal(result.supported, true);
   assert.equal(calls, 1);
 });
+test("answer sentences end only at sentence punctuation, keeping citations with the sentence they end", () => {
+  assert.deepEqual(
+    grounding.splitAnswerSentences(
+      "Bolts (e.g. shop items) are spendable [E1]. Track XP is permanent [E1] Each track progresses [E2].",
+    ),
+    ["Bolts (e.g. shop items) are spendable [E1].", "Track XP is permanent [E1] Each track progresses [E2]."],
+  );
+  assert.deepEqual(grounding.splitAnswerSentences("Pick XP vs. Bolts. Bolts are spendable."), [
+    "Pick XP vs. Bolts.",
+    "Bolts are spendable.",
+  ]);
+  assert.deepEqual(grounding.splitAnswerSentences("Use tools, e.g. 5 of them, etc. Done."), [
+    "Use tools, e.g. 5 of them, etc. Done.",
+  ]);
+  assert.deepEqual(grounding.splitAnswerSentences("First line\nSecond line"), ["First line", "Second line"]);
+  assert.deepEqual(grounding.splitAnswerSentences("Version 1.5 ships soon. It is free [E1]."), [
+    "Version 1.5 ships soon.",
+    "It is free [E1].",
+  ]);
+});
+
+test("hedge sentences are recognized by their opening words only", () => {
+  assert.equal(grounding.isHedgeSentence("Assuming you mean the Loadout program, it is open."), true);
+  assert.equal(grounding.isHedgeSentence("If you mean the grant, ask a helper."), true);
+  assert.equal(grounding.isHedgeSentence("Going by the docs, it is open."), true);
+  assert.equal(grounding.isHedgeSentence("I'm guessing it is open."), true);
+  assert.equal(grounding.isHedgeSentence("Bolts are spendable."), false);
+});
+
 export {};

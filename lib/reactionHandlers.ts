@@ -20,6 +20,7 @@ interface ReactionEvent {
 const DELETE_REACTIONS = new Set(["x", "heavy_multiplication_x"]);
 const UP_REACTIONS = new Set([
   "yay",
+  "thumbsup",
   "thumbs-up",
   "+1",
   "yesyes",

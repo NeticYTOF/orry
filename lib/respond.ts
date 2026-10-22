@@ -27,6 +27,7 @@ interface AnswerResult {
   citationEvidence?: Array<{ id: string; programId: string; source: string; text: string }>;
   uncertaintyReply?: string;
   suggestedSource?: { name: string; url?: string | null } | null;
+  assumption?: string;
 }
 interface UserContext {
   recentTopics?: string[];
@@ -143,6 +144,45 @@ function isSpecificClarification(text: string) {
   return isClarifyingQuestion(text) && /\bor\b/i.test(text) && !ASKS_WHAT_THEY_MEAN.test(text);
 }
 
+// A program can ask one clarifying question about an ambiguous term by pinning a rule of the form
+//   CLARIFY: <trigger regex> | <skip regex, may be empty> | <question>
+// Matching is case-insensitive; the skip regex suppresses the question when the message already
+// names one of the options. Rules that do not parse are ignored.
+const CLARIFY_RULE_PREFIX = /^CLARIFY:\s*/i;
+interface ProgramClarifier {
+  trigger: RegExp;
+  skip: RegExp | null;
+  question: string;
+}
+function programClarifiers(program: ProgramLike | null): ProgramClarifier[] {
+  const rules = Array.isArray(program?.pinnedRules) ? program.pinnedRules : [];
+  const clarifiers: ProgramClarifier[] = [];
+  for (const rule of rules) {
+    if (typeof rule !== "string" || !CLARIFY_RULE_PREFIX.test(rule)) continue;
+    const parts = rule.replace(CLARIFY_RULE_PREFIX, "").split(" | ").map((part) => part.trim());
+    if (parts.length !== 3 || !parts[0] || !parts[2]) continue;
+    try {
+      clarifiers.push({
+        trigger: new RegExp(parts[0], "i"),
+        skip: parts[1] ? new RegExp(parts[1], "i") : null,
+        question: parts[2],
+      });
+    } catch (_error: unknown) {
+      continue;
+    }
+  }
+  return clarifiers;
+}
+
+function programClarification(program: ProgramLike | null, question: string): string | null {
+  for (const clarifier of programClarifiers(program)) {
+    if (clarifier.trigger.test(question) && !(clarifier.skip && clarifier.skip.test(question))) {
+      return clarifier.question;
+    }
+  }
+  return null;
+}
+
 function pendingClarification(
   messages: ReturnType<typeof context.getThreadMessages>,
   userId: string,
@@ -153,7 +193,7 @@ function pendingClarification(
     const clarification = messages[index];
     const original = messages[index - 1];
     if (
-      clarification.speaker !== "rivet" ||
+      clarification.speaker !== "orry" ||
       !clarification.text.startsWith(CLARIFICATION_PREFIX) ||
       clarification.channel !== channel ||
       clarification.workspaceId !== workspaceId ||
@@ -178,7 +218,7 @@ function previousAnsweredQuestion(
   const answer = messages.at(-1);
   const question = messages.at(-2);
   if (
-    answer?.speaker !== "rivet" ||
+    answer?.speaker !== "orry" ||
     question?.speaker !== "human" ||
     question.userId !== userId ||
     question.channel !== channel ||
@@ -197,6 +237,21 @@ function stripChannelMentions(text: string) {
     .trim();
 }
 
+// A grounded reply may only point at a channel through the program's own help-channel link, and only
+// when the program is not grounded-only (those programs strip channel links from replies entirely).
+function hasDisallowedChannelMention(text: string, program: ProgramLike | null) {
+  const requireGrounded =
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    program?.requireGroundedAnswer;
+  const allowed = requireGrounded ? null : program?.helpChannel || config.slack.helpChannel || null;
+  for (const match of text.matchAll(/<#([^|>]+)(?:\|[^>]*)?>/gi)) {
+    if (!allowed || match[1].toUpperCase() !== String(allowed).toUpperCase()) return true;
+  }
+  return /(?:^|\s)#[a-z][-a-z0-9_]*/i.test(text);
+}
+
+// Wording is never a reason to reject a cited answer: only the marker replies, a missing or
+// unverifiable citation, and channel mentions are checked here.
 function isGroundedAnswer(result: AnswerResult | null, program: ProgramLike | null = null) {
   if (!result || !result.source || !result.answer) return false;
   const programId = program?.id || "";
@@ -210,30 +265,18 @@ function isGroundedAnswer(result: AnswerResult | null, program: ProgramLike | nu
     return false;
   const source = result.source.trim().toUpperCase();
   if (!source || source === "NONE") return false;
-  if (/\b(?:not invent|behavior rule|faq rule|unknown|unconfirmed)\b/i.test(source)) {
-    return false;
-  }
+  // Meta documents describing the bot's own rules are never a source of a user-facing answer.
+  if (/\b(?:not invent|behavior rule|faq rule)\b/i.test(source)) return false;
   const ans = result.answer.trim();
-  if (!ans || ans.toUpperCase() === "UNCLEAR") return false;
-
-  const nonAnswerPatterns = [
-    /\bnot sure\b/i,
-    /\bdon'?t know\b/i,
-    /\bdo not know\b/i,
-    /\bno confirmed\b/i,
-    /\bhaven'?t confirmed\b/i,
-    /\bhasn'?t confirmed\b/i,
-    /\bno official\b/i,
-    /\bask in\b/i,
-    /\bsuggest asking\b/i,
-    /\bcheck (?:with|in|the site)\b/i,
-    /<#[a-z0-9]+(?:\|[^>]+)?>/i,
-    /#[-a-z0-9_]+/i,
-  ];
-  for (const pattern of nonAnswerPatterns) {
-    if (pattern.test(ans)) return false;
-  }
+  if (!ans || ["UNCLEAR", "NONE"].includes(ans.replace(/[*_`~]/g, "").trim().toUpperCase())) return false;
+  if (hasDisallowedChannelMention(ans, program)) return false;
   return true;
+}
+
+// The model's "Assuming you mean ..." note for an ambiguous question, shown in italics above the answer.
+function assumptionLine(result: AnswerResult) {
+  const note = result.assumption?.trim();
+  return note ? `_${note}_\n` : "";
 }
 
 function buildContextPrompt(threadContext: string | null) {
@@ -277,7 +320,7 @@ async function replyFromCache({
   startedAt,
   program = null,
 }: CacheReplyArgs) {
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || program?.requireGroundedAnswer;
+  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || program?.requireGroundedAnswer;
   if (requireGrounded) {
     if (!isGroundedAnswer(result, program)) return false;
     result.answer = stripChannelMentions(result.answer);
@@ -285,7 +328,10 @@ async function replyFromCache({
 
   const cacheProgramId = program ? program.id : null;
 
-  const text = reply.withReplySignature(`${result.answer}${reply.sourceLineFor(result.source, program)}`, program);
+  const text = reply.withReplySignature(
+    `${assumptionLine(result)}${result.answer}${reply.sourceLineFor(result.source, program)}`,
+    program,
+  );
   let postedTs: string | null = null;
   try {
     const slackMessages = require("./slackMessages");
@@ -295,7 +341,7 @@ async function replyFromCache({
       channel,
       threadTs,
       text: reply.plainDashes(reply.withReplySignature(result.answer, program)),
-      blocks: reply.plainDashesInBlocks(reply.blocksFor(text)),
+      blocks: reply.plainDashesInBlocks(reply.blocksFor(text, { program, channel, threadTs })),
     });
     postedTs = res.ts;
   } catch (error: unknown) {
@@ -323,7 +369,6 @@ function isMuteRequest(text: string) {
       brand.slug(),
       brand.name().toLowerCase(),
       brand.DEFAULT_SLUG,
-      ...(brand.name() === brand.DEFAULT_NAME ? ["rivet"] : []),
     ]),
   ]
     .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
@@ -543,6 +588,109 @@ async function handleLookupFailure({
   return false;
 }
 
+const MONTH_NAME =
+  "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+// A model-written uncertainty line is dropped only if it points at a link or channel, names a person,
+// or states a specific fact (a date, price, percentage, eligibility, deadline or amount).
+const UNCERTAINTY_FACT_RE = new RegExp(
+  `https?:\\/\\/|<#[A-Z0-9]+|<@[UW][A-Z0-9]+>|\\$\\s?\\d|\\b\\d+(?:\\.\\d+)?\\s?%|\\b${MONTH_NAME}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\b|\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?${MONTH_NAME}\\b|\\b(?:19|20)\\d{2}\\b|\\b(?:mr|mrs|dr)\\.?\\s+[a-z]{2,}\\b|\\b(?:you are eligible|you will receive|the grant is|the deadline is|the amount is)\\b`,
+  "i",
+);
+
+const TOPIC_FILLER_RE = /^(?:hey|hi|hello|yo|so|ok|okay|hmm|um|and|also|but|well)\b[\s,:;.!-]*/;
+const TOPIC_NO_START_WORDS = new Set([
+  "is",
+  "are",
+  "does",
+  "do",
+  "can",
+  "could",
+  "should",
+  "will",
+  "would",
+  "did",
+  "it",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
+  "they",
+  "them",
+  "he",
+  "she",
+  "him",
+  "her",
+  "i",
+  "me",
+  "we",
+  "us",
+  "you",
+]);
+
+// A short topic phrase for the uncertainty line ("how to reset your account password"), or null for
+// yes/no questions, pronoun-led fragments, empty text, or anything longer than 12 words.
+function questionTopic(question: unknown): string | null {
+  let text = String(question || "")
+    .toLowerCase()
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[*_`~|]/g, " ")
+    .replace(/\borry(?:'s|’s)?\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  let previous = "";
+  while (previous !== text) {
+    previous = text;
+    text = text.replace(/^[\s,:;.!?-]+/, "").replace(TOPIC_FILLER_RE, "");
+  }
+  text = text
+    .replace(/[\s?!.,]+$/, "")
+    .replace(/^what's\b/, "what is")
+    .replace(/^how (?:do|can|would|could) (?:i|we) /, "how to ");
+  const what = text.match(/^what (is|are) (.+)$/);
+  if (what) text = `what ${what[2]} ${what[1]}`;
+  const when = text.match(/^when is (.+)$/);
+  if (when) text = `when ${when[1]} is`;
+  text = text.replace(/\bmy\b/g, "your").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const words = text.split(" ");
+  if (words.length > 12) return null;
+  const first = words[0].replace(/'.*$/, "");
+  if (TOPIC_NO_START_WORDS.has(first)) return null;
+  return text;
+}
+
+// The topic is read back in Orry's line, so it must stay short and must not name the program or its docs.
+function fallbackTopic(question: string) {
+  const topic = questionTopic(question);
+  return topic && topic.length <= 80 && !/\b(?:docs?|documentation|loadout)\b/i.test(topic) ? topic : null;
+}
+
+const FALLBACK_WITH_TOPIC: Array<(topic: string) => string> = [
+  (topic) => `Sorry, I can't confirm ${topic} from what I have, but a helper can help you with that.`,
+  (topic) => `Moin! Leider, I can't confirm ${topic} from what I've mined so far, but a helper can help you with that. Glück auf!`,
+  (topic) => `Oof, that one's deeper than my tunnels, so I can't confirm ${topic}. A helper can dig it out with you, though. Glück auf!`,
+  (topic) => `Sorry, I can't confirm ${topic} from the tunnels I've searched, but a helper can help you with that.`,
+];
+const FALLBACK_NO_TOPIC = [
+  "Sorry, I can't confirm that one from what I have, but a helper can help you with it.",
+  "Moin! Leider, I can't confirm that one from what I've mined so far, but a helper can help you with it. Glück auf!",
+  "Oof, that one's deeper than my tunnels, so I can't confirm it. A helper can dig it out with you, though.",
+  "Sorry, that one's still underground for me, so I can't confirm it, but a helper can help you with it.",
+];
+
+// Picks one of the stock lines from the question itself, so the same question always gets the same line.
+function pickVariant(seed: string, count: number) {
+  const hash = [...seed].reduce((hashSoFar, ch) => (hashSoFar * 31 + (ch.codePointAt(0) ?? 0)) % 1000003, 0);
+  return hash % count;
+}
+
+function fallbackOpener(question: string) {
+  const topic = fallbackTopic(question);
+  if (topic) return FALLBACK_WITH_TOPIC[pickVariant(question, FALLBACK_WITH_TOPIC.length)](topic);
+  return FALLBACK_NO_TOPIC[pickVariant(question, FALLBACK_NO_TOPIC.length)];
+}
+
 function uncertaintyText(
   prog: ProgramLike | null,
   {
@@ -551,31 +699,33 @@ function uncertaintyText(
     personalLore = false,
     general = false,
     programFact = false,
+    question = "",
   }: {
     escalated?: boolean;
     result?: AnswerResult | null;
     personalLore?: boolean;
     general?: boolean;
     programFact?: boolean;
+    question?: string;
   } = {},
 ) {
-  const name = prog?.name ? `the ${prog.name} docs` : "the program docs";
   const candidate = String(result?.uncertaintyReply || "").trim();
-  const opener =
+  const modelLine =
     candidate &&
     candidate.length <= 240 &&
     /\b(?:can't|cannot|couldn't|don't know|do not know|not sure|unsure|won't guess|will not guess|can't confirm|cannot confirm|couldn't verify)\b/i.test(
       candidate,
     ) &&
-    !/\d|https?:\/\/|<#[A-Z0-9]+|\b(?:docs?|documentation|sources?|channels?|helpers?|organizers?|officially|you are eligible|you will receive|the grant is|the deadline is|the amount is)\b/i.test(
-      candidate,
-    )
+    !UNCERTAINTY_FACT_RE.test(candidate)
       ? candidate
-      : personalLore
-        ? "I don't know that part of my story, and I won't invent it."
-        : general
-          ? "I don't know that one well enough to give you a solid answer."
-          : `I couldn't verify that from ${name}, so I won't guess.`;
+      : null;
+  const opener = modelLine
+    ? modelLine
+    : personalLore
+      ? "I don't know that part of my story, and I won't invent it."
+      : general
+        ? "I don't know that one well enough to give you a solid answer."
+        : fallbackOpener(question);
   const source = personalLore ? null : result?.suggestedSource;
   const sourceName = source?.name
     ?.replace(/[<>|\r\n]/g, " ")
@@ -594,7 +744,7 @@ function uncertaintyText(
     ? "I've flagged it for a helper :oke:"
     : programFact
       ? "A helper or organizer can confirm it :oke:"
-      : personalLore || general
+      : personalLore || general || !modelLine
         ? null
         : "A helper or organizer can confirm it :oke:";
   return [opener, nextStep, helper].filter(Boolean).join(" ");
@@ -885,7 +1035,7 @@ async function respond({
       : null;
 
   const tickets = require("./tickets");
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || prog?.requireGroundedAnswer;
+  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || prog?.requireGroundedAnswer;
   const isRootMessage = !messageTs || messageTs === threadTs;
   const supportTicketReady =
     plan.support && isRootMessage && !programs.isShadow(prog)
@@ -1171,19 +1321,14 @@ async function respond({
     return true;
   }
 
-  const pointClarification =
-    !pendingQuestion &&
-    !inHelpChannel &&
-    programId === "loadout" &&
-    !grounded &&
-    /\bpoints?\b/i.test(trimmed) &&
-    !/\bbolts?\b|\btrack\s*xp\b/i.test(trimmed)
-      ? "Do you mean Bolts (spendable currency) or Track XP (permanent progress)?"
-      : null;
-  const clarification =
-    pointClarification ||
-    (isGroundedAnswer(result, prog) && isSpecificClarification(result.answer) ? result.answer.trim() : null);
-  if (!pendingQuestion && !inHelpChannel && kind === "program" && clarification) {
+  // A pinned CLARIFY rule is main-channel only. A specific "X or Y" choice in a grounded answer
+  // is asked in help channels too. The one-follow-up cap is pendingQuestion, which covers both.
+  const ruleClarification =
+    !pendingQuestion && !inHelpChannel && !grounded ? programClarification(prog, trimmed) : null;
+  const specificClarification =
+    isGroundedAnswer(result, prog) && isSpecificClarification(result.answer) ? result.answer.trim() : null;
+  const clarification = ruleClarification || specificClarification;
+  if (!pendingQuestion && kind === "program" && clarification) {
     const text = `${CLARIFICATION_PREFIX}${clarification}`;
     await waitForSeed();
     await publishReply({
@@ -1205,7 +1350,10 @@ async function respond({
   await supportTicketReady;
 
   if (action === "reply") {
-    const text = reply.withReplySignature(`${result.answer}${reply.sourceLineFor(result.source, prog)}`, prog);
+    const text = reply.withReplySignature(
+      `${assumptionLine(result)}${result.answer}${reply.sourceLineFor(result.source, prog)}`,
+      prog,
+    );
     await waitForSeed();
     await publishReply({
       silencedBefore,
@@ -1214,7 +1362,7 @@ async function respond({
       threadTs,
       placeholder: placeholder(),
       text,
-      blocks: reply.blocksFor(text),
+      blocks: reply.blocksFor(text, { program: prog, channel, threadTs }),
       program: prog,
       seededTs,
     });
@@ -1271,6 +1419,7 @@ async function respond({
         personalLore,
         general: answerMode === "general",
         programFact,
+        question: trimmed,
       });
       if (result?.silent) {
         await reply.discardPlaceholder(client, channel, placeholder());
@@ -1314,7 +1463,13 @@ async function respond({
       trace.finish({ finalAction: "silence", reason: "subjectless" });
       return false;
     }
-    const text = uncertaintyText(prog, { result, personalLore, general: answerMode === "general", programFact });
+    const text = uncertaintyText(prog, {
+      result,
+      personalLore,
+      general: answerMode === "general",
+      programFact,
+      question: trimmed,
+    });
     await waitForSeed();
     await publishReply({
       silencedBefore,
@@ -1332,6 +1487,16 @@ async function respond({
     db.recordMetric("fallback", Date.now() - startedAt, "unverified", programId);
     trace.finish({ finalAction: "uncertain", reason: plan.reason });
     return true;
+  }
+
+  if (action === "react") {
+    // Ambient program question nobody addressed and the corpus cannot answer:
+    // a quiet thinking_face on the user's message, never public text.
+    await reply.discardPlaceholder(client, channel, placeholder());
+    const reacted = await reply.reactAmbientUncertain(client, channel, messageTs || "");
+    db.recordMetric("silent", Date.now() - startedAt, reacted ? "ambient_react" : "ambient_react_failed", programId);
+    trace.finish({ finalAction: "react", reason: plan.reason });
+    return false;
   }
 
   await reply.discardPlaceholder(client, channel, placeholder());
@@ -1358,6 +1523,7 @@ export = {
   handleLookupFailure,
   isIdentityOrSmalltalk: engagement.isIdentityOrSmalltalk,
   uncertaintyText,
+  questionTopic,
   publishReply,
   recordSpokenReply,
   DOCS_ONLY,

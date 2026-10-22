@@ -69,7 +69,7 @@ const inFlight = new Map<number, Promise<unknown>>();
 
 function formatSlackMessage(message: SlackMessage): string | null {
   if (!message?.text) return null;
-  const who = message.bot_id ? "Rivet" : message.user ? `<@${message.user}>` : "Requester";
+  const who = message.bot_id ? "Orry" : message.user ? `<@${message.user}>` : "Requester";
   return `${who}: ${message.text}`;
 }
 
@@ -251,7 +251,7 @@ async function runSteps({
 }
 
 function autoRunEnabled() {
-  return process.env.RIVET_RESOLUTION_PIPELINE !== "false";
+  return (process.env.ORRY_RESOLUTION_PIPELINE ?? process.env.RIVET_RESOLUTION_PIPELINE) !== "false";
 }
 
 function schedule(args: PipelineArgs): void {

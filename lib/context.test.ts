@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -81,7 +81,7 @@ test("relevant older turns outrank unrelated recent chatter", () => {
   assert.doesNotMatch(rendered, /unrelated chatter about lunch 0/);
 });
 
-test("hasSpokenInThread flips only once rivet replies", () => {
+test("hasSpokenInThread flips only once orry replies", () => {
   context.addToThread("ctx-2", "user", "anyone here", "U1", "C1");
   assert.equal(context.hasSpokenInThread("ctx-2"), false);
 
@@ -197,23 +197,57 @@ test("bot messages seed as assistant role", async () => {
   assert.match(context.getThreadContext("char-seed-bot"), /assistant: bot reply/);
 });
 
-test("threadCrowd: Rivet follows a thread alone only while it is her and one person", () => {
+test("threadCrowd: Orry follows a thread alone only while it is her and one person", () => {
   const BOT = "UBOT";
-  const rivet = { user: BOT, ts: "1" };
+  const orry = { user: BOT, ts: "1" };
   const me = (ts: string) => ({ user: "UME", ts });
   const other = (ts: string) => ({ user: "UOTHER", ts });
-  assert.deepEqual(context.threadCrowd([me("0"), rivet], "UME", BOT), { rivetIn: true, othersPresent: false });
-  assert.deepEqual(context.threadCrowd([me("0"), rivet, other("2")], "UME", BOT), {
-    rivetIn: true,
+  assert.deepEqual(context.threadCrowd([me("0"), orry], "UME", BOT), { orryIn: true, othersPresent: false });
+  assert.deepEqual(context.threadCrowd([me("0"), orry, other("2")], "UME", BOT), {
+    orryIn: true,
     othersPresent: true,
   });
   assert.deepEqual(
-    context.threadCrowd([other("0"), rivet], "UME", BOT),
-    { rivetIn: true, othersPresent: true },
+    context.threadCrowd([other("0"), orry], "UME", BOT),
+    { orryIn: true, othersPresent: true },
     "someone else started it",
   );
-  assert.deepEqual(context.threadCrowd([me("0")], "UME", BOT), { rivetIn: false, othersPresent: false });
-  assert.equal(context.threadCrowd([{ bot_id: "B1", ts: "1" }], "UME", BOT).rivetIn, true, "bot_id counts as Rivet");
+  assert.deepEqual(context.threadCrowd([me("0")], "UME", BOT), { orryIn: false, othersPresent: false });
+  assert.equal(context.threadCrowd([{ bot_id: "B1", ts: "1" }], "UME", BOT).orryIn, true, "bot_id counts as Orry");
+});
+
+test("threadCrowd: the original poster following up after Orry's answer is not humans talking", async () => {
+  const BOT = "UBOT";
+  const orry = { user: BOT, ts: "1" };
+  const op = (ts: string) => ({ user: "UOP", ts });
+  assert.deepEqual(context.threadCrowd([op("0"), orry, op("2")], "UOP", BOT), { orryIn: true, othersPresent: false });
+  const client = {
+    conversations: {
+      replies: async () => ({ messages: [op("0"), orry, op("2")] }),
+    },
+  };
+  const crowd = await context.fetchThreadCrowd(client, {
+    channel: "C1",
+    threadTs: "fc.op",
+    messageTs: "3",
+    userId: "UOP",
+    botUserId: BOT,
+    parentUserId: "UOP",
+  });
+  assert.equal(crowd.othersPresent, false, "the asker's own earlier messages are not another person");
+  assert.equal(crowd.orryIn, true);
+});
+
+test("threadCrowd: another human counts only if they replied within the last 10 minutes", () => {
+  const BOT = "UBOT";
+  const orry = { user: BOT, ts: "100" };
+  const other = { user: "UOTHER", ts: "100" };
+  assert.equal(context.threadCrowd([other, orry], "UME", BOT, 100 + 600).othersPresent, true, "exactly 10 minutes");
+  assert.equal(
+    context.threadCrowd([other, orry], "UME", BOT, 100 + 601).othersPresent,
+    false,
+    "older than 10 minutes",
+  );
 });
 
 test("fetchThreadCrowd falls back to the thread starter when Slack fails", async () => {

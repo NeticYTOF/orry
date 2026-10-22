@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -49,8 +49,8 @@ test("match: text-form teach parity with handlers.teachPattern(false)", () => {
     "!teach how do i join :: post in #acme-help",
     "!TEACH x :: y",
     "  !teach",
-    "rivet-teach x :: y",
-    "/rivet-teach x :: y",
+    "orry-teach x :: y",
+    "/orry-teach x :: y",
     "teach this thread",
     "teach thread",
     "teach this",
@@ -81,12 +81,12 @@ test("match: mention-form teach fires only after an explicit mention", () => {
     `<@${BOT}> memorize it`,
     `<@${BOT}> !teach x :: y`,
     `<@${BOT}> /orry-teach x :: y`,
-    `<@${BOT}|rivet> teach x`,
+    `<@${BOT}|orry> teach x`,
   ];
   for (const text of mentionCases) {
     const stripped = text.replace(new RegExp(`<@${BOT}(?:\\|[^>]+)?>`, "g"), "").trim();
     assert.equal(handlers.teachPattern(true).test(stripped), true, `setup: ${text}`);
-    const got = match(text, { botUserId: BOT, botNames: ["rivet"] });
+    const got = match(text, { botUserId: BOT, botNames: ["orry"] });
     assert.ok(got && got.command.handlerKey === "teach", `match: ${text}`);
   }
   for (const text of ["teach x", "learn this", "remember that", "memorize it", "please sum this"]) {
@@ -112,8 +112,8 @@ test("match: text-form sum parity with handlers.sumPattern(false)", () => {
     "!summary",
     "!summarize",
     "!summarise",
-    "rivet-sum",
-    "/rivet-sum",
+    "orry-sum",
+    "/orry-sum",
     "sum this",
     "sum thread",
     "summarize thread",
@@ -155,10 +155,10 @@ test("match: only the explicit !mute/!stfu command spellings route to mute", () 
   assert.equal(match("!stfu", { botUserId: BOT }).command.handlerKey, "mute");
   assert.equal(match(`<@${BOT}> !mute`, { botUserId: BOT }).command.handlerKey, "mute");
   const respond = require("./respond");
-  assert.equal(respond.isMuteRequest("stfu rivet"), true, "setup: conversational shush exists");
-  assert.equal(match("stfu rivet", { botUserId: BOT }), null);
+  assert.equal(respond.isMuteRequest("stfu orry"), true, "setup: conversational shush exists");
+  assert.equal(match("stfu orry", { botUserId: BOT }), null);
   assert.equal(match("mute", { botUserId: BOT }), null);
-  assert.equal(match("please be quiet rivet", { botUserId: BOT }), null);
+  assert.equal(match("please be quiet orry", { botUserId: BOT }), null);
 });
 
 test("match: every own-slug command_bypass form reaches a registry command", () => {

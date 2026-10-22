@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");
@@ -272,8 +272,8 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
   // Legacy/corrupt content must not be exposed by the API.
   db.handle().query("UPDATE outbound_messages SET text = 'leaked dm' WHERE channel = 'D-OR'").run();
 
-  const saved = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "outbound-route-token";
+  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "outbound-route-token";
   try {
     const serve = require("./web/serve");
     const res = await serve.handleRequest(
@@ -304,8 +304,8 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
     );
     assert.equal(missing.status, 404);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = saved;
+    if (saved === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = saved;
   }
 });
 

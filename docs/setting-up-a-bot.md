@@ -1,6 +1,6 @@
 # Setting up a bot
 
-Rivet is a program-agnostic engine. The public repository contains no program
+Orry is a program-agnostic engine. The public repository contains no program
 identity or documentation. Add a program through the dashboard, or supply the
 same configuration privately when self-hosting.
 
@@ -13,7 +13,7 @@ steps.
 
 ## Dashboard onboarding
 
-Use the dashboard onboarding flow to create a program and connect it to Rivet.
+Use the dashboard onboarding flow to create a program and connect it to Orry.
 Provide the program name, support identity, Slack channels, behavior settings,
 and documentation sources. The dashboard syncs the result through Core into
 the program database. The bot then loads those sources and keeps learned
@@ -30,10 +30,10 @@ An operator can run the engine with private files instead. Create
 under the application root. These files are intentionally absent from the
 public repository.
 
-The environment variable `RIVET_PROGRAMS_JSON` accepts the same array, or an
+The environment variable `ORRY_PROGRAMS_JSON` accepts the same array, or an
 object containing a `programs` array. It takes precedence over the local
 program file when present. If neither the environment variable nor local files
-provide programs, Rivet starts with no configured programs and no shipped
+provide programs, Orry starts with no configured programs and no shipped
 knowledge.
 
 Example private configuration:

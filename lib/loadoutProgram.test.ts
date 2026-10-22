@@ -22,6 +22,7 @@ interface LoadoutProgram {
   helpChannel?: string;
   sources: LoadoutSource[];
   pinnedRules: string[];
+  evidenceBudget?: number;
 }
 
 function loadout(): LoadoutProgram {
@@ -50,6 +51,20 @@ test("LOADOUT combines local corpus files with the live program docs", () => {
       dynamic: true,
     });
   }
+});
+
+test("the Loadout evidence budget covers the whole program corpus", () => {
+  const program = loadout();
+  const corpusBytes = program.sources
+    .filter((s) => (s.url || "").startsWith("file://"))
+    .reduce((sum, s) => sum + fs.statSync(path.join(ROOT, s.url!.replace("file://", ""))).size, 0);
+  expect(program.evidenceBudget ?? 0).toBeGreaterThanOrEqual(corpusBytes);
+});
+
+test("the not-verified page is a source and the pinned rule points at it", () => {
+  const program = loadout();
+  expect(program.sources.some((s) => s.url === "file://loadout/corpus/11-unverified.md")).toBe(true);
+  expect(program.pinnedRules.some((r) => /not verified yet/i.test(r))).toBe(true);
 });
 
 test("the LOADOUT program claims explicit Slack channels", () => {

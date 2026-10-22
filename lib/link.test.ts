@@ -5,7 +5,7 @@ const link = require("./link");
 test("extractUrl unwraps Slack formatted links and extracts the first http(s) URL", () => {
   assert.equal(link.extractUrl("check this out: <https://www.acme.rsvp/docs|Acme Docs>"), "https://www.acme.rsvp/docs");
   assert.equal(link.extractUrl("see <https://example.com/page> for details."), "https://example.com/page");
-  assert.equal(link.extractUrl("rivet how does this look? https://example.org/test"), "https://example.org/test");
+  assert.equal(link.extractUrl("orry how does this look? https://example.org/test"), "https://example.org/test");
   assert.equal(link.extractUrl("no links in this message"), null);
 });
 
@@ -48,7 +48,7 @@ test("isBlockedHost allows public domain names", async () => {
 test("fetchUrlContent returns blocked response for local or internal hosts", async () => {
   const result = await link.fetchUrlContent("http://localhost:8000");
   assert.equal(result.blocked, true);
-  assert.match(result.reason, /rivet can only open public URLs/);
+  assert.match(result.reason, /orry can only open public URLs/);
 });
 
 test("extractUrl strips trailing punctuation and handles empties", () => {

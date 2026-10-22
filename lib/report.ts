@@ -106,10 +106,10 @@ function judgePrompt() {
     "  thanks, a message aimed at one specific person, or a question about unrelated software and",
     "  general trivia. Crucially: a question whose only answer is to ask back, to talk to a human, or",
     "  to do something not in the documentation is also noise — the docs are not the place for it.",
-    '  Examples: "even sp[aces failed me", "ridit isn\'t", "what should i add to rivet", "PIXOSTART",',
-    '            "need to expand the docs", "what if i just used 60 api keys", "rivet say my name",',
+    '  Examples: "even sp[aces failed me", "ridit isn\'t", "what should i add to orry", "PIXOSTART",',
+    '            "need to expand the docs", "what if i just used 60 api keys", "orry say my name",',
     '            "marketing as in?", "what tht does", "what colour scheme is catppuccin",',
-    '            "does rivet have a boyfriend", "are you a real person", "say something funny",',
+    '            "does orry have a boyfriend", "are you a real person", "say something funny",',
     '            "can you do my homework for me", "what do you look like".',
     "",
     `Reply with EXACTLY one word: ${DOCS}, ${TRANSIENT} or ${NOISE}.`,
@@ -540,8 +540,8 @@ async function postOperationalHealth(client: SlackClient): Promise<boolean> {
   if (JSON.stringify(previous) === JSON.stringify(current.keys)) return false;
 
   const text = current.lines.length
-    ? `Rivet operational alert\n${current.lines.map((line) => `• ${line}`).join("\n")}`
-    : "Rivet operational alert: the reported issues have cleared.";
+    ? `Orry operational alert\n${current.lines.map((line) => `• ${line}`).join("\n")}`
+    : "Orry operational alert: the reported issues have cleared.";
   const res = await client.chat.postMessage({ channel, text });
   outboundLog.recordSent({ channel, text }, res, "ops_alert");
   db.recordMetric(OPS_STATE_METRIC, null, JSON.stringify(current.keys));

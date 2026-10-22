@@ -42,8 +42,8 @@ for (const key of Object.keys(process.env)) {
     delete process.env[key];
   }
 }
-const tokenFromEnv = Boolean(process.env.RIVET_INTERNAL_TOKEN);
-const readFromEnv = Boolean(process.env.RIVET_INTERNAL_READ_TOKEN);
+const tokenFromEnv = Boolean((process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN));
+const readFromEnv = Boolean((process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN));
 // One temp file per port, replaced on every run, so killed runs leave
 // nothing behind to pile up.
 const dbPath = keepDb ? path.resolve(keepDb) : path.join(os.tmpdir(), `orry-dev-bridge-${port}.db`);
@@ -60,8 +60,8 @@ const people = require("../lib/devBridgePeople");
 Object.assign(process.env, {
   RIVET_SKIP_DOTENV: "1",
   RIVET_DB_PATH: dbPath,
-  RIVET_INTERNAL_TOKEN: process.env.RIVET_INTERNAL_TOKEN || DEV_TOKEN,
-  RIVET_INTERNAL_READ_TOKEN: process.env.RIVET_INTERNAL_READ_TOKEN || DEV_READ_TOKEN,
+  RIVET_INTERNAL_TOKEN: (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN) || DEV_TOKEN,
+  RIVET_INTERNAL_READ_TOKEN: (process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN) || DEV_READ_TOKEN,
   RIVET_ADMIN_USER_IDS: people.ORGANIZER_IDS.join(","),
   RIVET_WEB_HOST: "127.0.0.1",
   RIVET_WEB_PORT: String(port),
@@ -73,14 +73,14 @@ Object.assign(process.env, {
 // A fresh database prints one line per migration; keep the console readable.
 const plainLog = console.log;
 console.log = (...args: unknown[]) => {
-  if (typeof args[0] === "string" && args[0] === "[rivet/db]" && /^migrated:/.test(String(args[1]))) return;
+  if (typeof args[0] === "string" && args[0] === "[orry/db]" && /^migrated:/.test(String(args[1]))) return;
   plainLog(...args);
 };
 
 if (!keepDb) for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(dbPath + suffix, { force: true });
 
 const seed = require("../lib/devBridgeSeed");
-process.env.RIVET_PROGRAMS_JSON = JSON.stringify([seed.programConfig()]);
+process.env.ORRY_PROGRAMS_JSON = JSON.stringify([seed.programConfig()]);
 const startedAt = Date.now();
 const db = require("../lib/db");
 db.open(dbPath);

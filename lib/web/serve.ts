@@ -233,7 +233,7 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rivet Dashboard Login</title>
+  <title>Orry Dashboard Login</title>
   <link rel="stylesheet" href="/style.css">
   <style>
     body {
@@ -353,7 +353,7 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 </head>
 <body>
   <div class="login-card">
-    <div class="login-logo">🧚 RIVET</div>
+    <div class="login-logo">🧚 ORRY</div>
     <div class="login-sub">Control Center & Live Analytics</div>
 
     ${error ? `<div class="login-error">${error}</div>` : ""}
@@ -381,11 +381,11 @@ function renderLoginPage({ error, slackUrl }: { error?: string; slackUrl?: strin
 }
 
 const PASSCODE_UNCONFIGURED =
-  "Passcode login is disabled: this server has no RIVET_DASHBOARD_PASSCODE set. Set it in the environment and restart Rivet.";
+  "Passcode login is disabled: this server has no ORRY_DASHBOARD_PASSCODE set. Set it in the environment and restart Orry.";
 
 // Null (never a guessable default) when the operator has not chosen a passcode.
 function dashboardPasscode(): string | null {
-  const configured = (process.env.RIVET_DASHBOARD_PASSCODE || "").trim();
+  const configured = ((process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE) || "").trim();
   return configured ? configured : null;
 }
 
@@ -402,7 +402,7 @@ async function handleAuth(req: Request): Promise<Response | null> {
     if (req.method === "POST") {
       const expected = dashboardPasscode();
       if (!expected) {
-        log.error("web", "RIVET_DASHBOARD_PASSCODE is not set — refusing passcode login");
+        log.error("web", "ORRY_DASHBOARD_PASSCODE is not set — refusing passcode login");
         return htmlResponse(renderLoginPage({ error: PASSCODE_UNCONFIGURED, slackUrl: auth.loginUrl("/") }), {}, 503);
       }
       try {
@@ -1166,20 +1166,23 @@ async function handleRequest(req: Request): Promise<Response> {
 const DEFAULT_WEB_HOST = "0.0.0.0";
 const DEFAULT_WEB_PORT = 4100;
 
-// RIVET_WEB_PORT wins over PORT so a co-located process that sets PORT for
+// ORRY_WEB_PORT wins over PORT so a co-located process that sets PORT for
 // itself cannot move Core's bridge. PORT stays as a fallback for Railway and
-// Docker, which inject it. RIVET_WEB_HOST defaults to 0.0.0.0 for the same
-// hosts; an explicitly empty value is refused because Bun would bind every
-// interface (dual-stack) instead of the one the operator meant.
+// Docker, which inject it. ORRY_WEB_HOST (RIVET_WEB_HOST still works) defaults
+// to 0.0.0.0 for the same hosts; an explicitly empty value is refused because
+// Bun would bind every interface (dual-stack) instead of the one the operator
+// meant.
 function resolveWebBind(env: Record<string, string | undefined> = process.env): {
   host: string | null;
   port: number;
   error: string | null;
 } {
-  const port = validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
-  if (env.RIVET_WEB_HOST === undefined) return { host: DEFAULT_WEB_HOST, port, error: null };
-  const host = env.RIVET_WEB_HOST.trim();
-  if (!host) return { host: null, port, error: "RIVET_WEB_HOST is set but empty" };
+  const port =
+    validPort(env.ORRY_WEB_PORT) || validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
+  const rawHost = env.ORRY_WEB_HOST ?? env.RIVET_WEB_HOST;
+  if (rawHost === undefined) return { host: DEFAULT_WEB_HOST, port, error: null };
+  const host = rawHost.trim();
+  if (!host) return { host: null, port, error: "ORRY_WEB_HOST is set but empty" };
   return { host, port, error: null };
 }
 

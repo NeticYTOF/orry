@@ -195,7 +195,7 @@ const STOP_WORDS = new Set([
   "yours",
   "yourself",
   "yourselves",
-  "rivet",
+  "orry",
   "please",
   "pls",
   "thx",

@@ -1,11 +1,11 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 // scripts/dev-bridge.ts puts the invented organizer on the admin list; do the same here.
-process.env.RIVET_ADMIN_USER_IDS = require("./devBridgePeople").ORGANIZER_IDS.join(",");
+process.env.ORRY_ADMIN_USER_IDS = require("./devBridgePeople").ORGANIZER_IDS.join(",");
 
 const { test, before } = require("node:test");
 const assert = require("node:assert/strict");
 const seedModule = require("./devBridgeSeed");
-process.env.RIVET_PROGRAMS_JSON = JSON.stringify([seedModule.programConfig()]);
+process.env.ORRY_PROGRAMS_JSON = JSON.stringify([seedModule.programConfig()]);
 const db = require("./db");
 const dash = require("./web/dashboardApi");
 

@@ -1,4 +1,4 @@
-# Orry the ore Maulwürf — Rivet handoff
+# Orry the ore Maulwürf — handoff
 
 Everything another agent needs to pick this repo up cold. For rules and
 architecture, read `AGENTS.md` first; this file is state, not policy.
@@ -6,7 +6,7 @@ architecture, read `AGENTS.md` first; this file is state, not policy.
 ## Where things stand
 
 Orry the ore Maulwürf is the Slack help-channel bot (Bun + TS, Socket Mode)
-serving **Loadout**, a Hack Club YSWS. Rivet Core answers
+serving **Loadout**, a Hack Club YSWS. Orry Core answers
 from a program documentation corpus, escalates what it can't answer to human
 helpers, and learns from resolutions.
 
@@ -37,11 +37,11 @@ update the display name to Orry the ore Maulwürf.
   `SLACK_BOT_TOKEN` (`xoxb-`, Hack Club workspace, Slack profile still named
   `rivet` until its admin applies the new name),
   `SLACK_APP_TOKEN` (`xapp-`, `connections:write`), `SLACK_CLIENT_ID` /
-  `SLACK_CLIENT_SECRET` (dashboard OpenID only), `RIVET_DASHBOARD_PASSCODE`,
-  `RIVET_ANSWER_API_KEY` / `RIVET_ANSWER_BASE_URL` / `RIVET_MODEL` (route the
+  `SLACK_CLIENT_SECRET` (dashboard OpenID only), `ORRY_DASHBOARD_PASSCODE`,
+  `ORRY_ANSWER_API_KEY` / `ORRY_ANSWER_BASE_URL` / `ORRY_MODEL` (route the
   hardwired 9Router help/ping tiers through HCAI), `INTENT_CLASSIFIER_*`
   (base URL, key, `openai/gpt-4.1-nano`; `INTENT_TIMEOUT_MS=45000`),
-  `RIVET_REPORT_CHANNEL` (weekly report target), `VEY_ENABLED=0`
+  `ORRY_REPORT_CHANNEL` (weekly report target), `VEY_ENABLED=0`
   (sidecar stopped; see below).
 - `config/` — **gitignored** live deployment: `programs.json` with the real
   channel ids (`C0C5XUDMRH9` #loadout, `C0C6XBLM0M7` #loadout-help,
@@ -88,7 +88,7 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 - Hardening: dashboard passcode fail-closed, dev bypass needs
   `NODE_ENV=development`, `Secure` cookies off loopback.
 - Reliability: `timeoutFetch` deadline race, 120s per-file test timeout,
-  failure-cached `conversations.list`, `RIVET_SKIP_DOTENV` for tests.
+  failure-cached `conversations.list`, `ORRY_SKIP_DOTENV` for tests.
 - `--ask --program <id>` (was shared-corpus-only), `--doctor` with role
   validation, `slack-bootstrap.mjs`, smoke check [4/4], CI covers wizard
   via `run-tests.mjs --wizard` (never bare `bun test`).

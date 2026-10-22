@@ -11,15 +11,15 @@ test("workspaceOf prefers event team, then body, then configured", () => {
 });
 
 test("explicitWorkspaceOf never treats the configured fallback as event identity", () => {
-  const saved = process.env.RIVET_WORKSPACE_ID;
+  const saved = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
   try {
-    process.env.RIVET_WORKSPACE_ID = "T_CONFIGURED";
+    process.env.ORRY_WORKSPACE_ID = "T_CONFIGURED";
     assert.equal(workspace.explicitWorkspaceOf({}), null);
     assert.equal(workspace.explicitWorkspaceOf({}, { team_id: "T_ENVELOPE" }), "T_ENVELOPE");
     assert.equal(workspace.explicitWorkspaceOf({ team: "T_EVENT" }), "T_EVENT");
   } finally {
-    if (saved === undefined) delete process.env.RIVET_WORKSPACE_ID;
-    else process.env.RIVET_WORKSPACE_ID = saved;
+    if (saved === undefined) delete process.env.ORRY_WORKSPACE_ID;
+    else process.env.ORRY_WORKSPACE_ID = saved;
   }
 });
 
@@ -38,17 +38,17 @@ test("channelKey scopes by workspace with a stable default", () => {
 });
 
 test("configuredWorkspaceId trims and nulls when unset", () => {
-  const saved = process.env.RIVET_WORKSPACE_ID;
+  const saved = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
   try {
-    process.env.RIVET_WORKSPACE_ID = "  T9  ";
+    process.env.ORRY_WORKSPACE_ID = "  T9  ";
     assert.equal(workspace.configuredWorkspaceId(), "T9");
-    delete process.env.RIVET_WORKSPACE_ID;
+    delete process.env.ORRY_WORKSPACE_ID;
     assert.equal(workspace.configuredWorkspaceId(), null);
-    process.env.RIVET_WORKSPACE_ID = "   ";
+    process.env.ORRY_WORKSPACE_ID = "   ";
     assert.equal(workspace.configuredWorkspaceId(), null);
   } finally {
-    if (saved === undefined) delete process.env.RIVET_WORKSPACE_ID;
-    else process.env.RIVET_WORKSPACE_ID = saved;
+    if (saved === undefined) delete process.env.ORRY_WORKSPACE_ID;
+    else process.env.ORRY_WORKSPACE_ID = saved;
   }
 });
 export {};

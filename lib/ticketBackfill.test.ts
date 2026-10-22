@@ -1,6 +1,6 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 process.env.JEV_ENABLED = "false";
-process.env.RIVET_RESOLUTION_PIPELINE = "false";
+process.env.ORRY_RESOLUTION_PIPELINE = "false";
 
 const { test, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
@@ -80,7 +80,7 @@ test("history import creates, enriches, resolves, closes, queues, and stays sile
       text: "checkmark answer",
       reactions: [{ name: "white_check_mark", users: ["U-TWO"] }],
     },
-    { ts: ts(NOW - 6 * DAY), user: "U-THREE", text: "Rivet answered" },
+    { ts: ts(NOW - 6 * DAY), user: "U-THREE", text: "Orry answered" },
     { ts: ts(NOW - 10 * DAY), user: "U-FOUR", text: "no answer" },
     { ts: ts(NOW - 5 * DAY), user: "U-FIVE", text: "already tracked" },
   ];
@@ -299,8 +299,8 @@ test("backfill resolution skips the resolution pipeline", async () => {
 
 test("history import internal route starts work and rejects missing auth", async () => {
   const program = setup();
-  const savedToken = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = "backfill-route-token";
+  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = "backfill-route-token";
   const api = require("./web/api");
   const serve = require("./web/serve");
   api.setSlackClient({
@@ -326,8 +326,8 @@ test("history import internal route starts work and rejects missing auth", async
     assert.equal(denied.status, 401);
   } finally {
     backfill.stop();
-    if (savedToken === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = savedToken;
+    if (savedToken === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = savedToken;
   }
 });
 

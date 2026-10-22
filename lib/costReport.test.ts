@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 const costReport = require("./costReport");
 const db = require("./db");
 db.open(":memory:");

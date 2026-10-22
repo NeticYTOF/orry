@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //
-// Migrate a rivet engine deployment to a new Railway account/project.
+// Migrate an orry engine deployment to a new Railway account/project.
 //
 // Three modes:
 //
@@ -208,7 +208,7 @@ async function main() {
     return;
   }
 
-  console.error("rivet railway migration script");
+  console.error("orry railway migration script");
   console.error("");
   console.error("modes:");
   console.error("  --dump-expected       print a JSON skeleton of all env vars the engine reads");

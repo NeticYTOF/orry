@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS thread_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_thread_messages_thread ON thread_messages(thread_ts, id);
 
--- Marks a thread as one rivet has spoken in, so thread replies can be gated
+-- Marks a thread as one orry has spoken in, so thread replies can be gated
 -- without an intent call. Also carries the "seeded real Slack history" flag.
 CREATE TABLE IF NOT EXISTS threads (
   thread_ts   TEXT PRIMARY KEY,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 -- Questions that got no grounded answer. This is the docs to-do list, and the
 -- anchor for auto-capture: message_ts lets a later human reply in the same
--- thread be matched back to the question rivet missed.
+-- thread be matched back to the question orry missed.
 CREATE TABLE IF NOT EXISTS doc_gaps (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   question   TEXT NOT NULL,
@@ -81,9 +81,9 @@ CREATE TABLE IF NOT EXISTS doc_gaps (
 -- database created before that column existed, this block runs before the
 -- migration adds it, and indexing a missing column aborts the whole schema.
 
--- Answers rivet was taught, or captured from a helper replying to a question
+-- Answers orry was taught, or captured from a helper replying to a question
 -- it missed. Approved rows are appended to the corpus, so this is the one
--- table whose contents change what rivet says.
+-- table whose contents change what orry says.
 CREATE TABLE IF NOT EXISTS learned_facts (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   question   TEXT NOT NULL,

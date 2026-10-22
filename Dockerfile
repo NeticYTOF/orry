@@ -1,4 +1,4 @@
-# Rivet runs on Bun (it uses bun:sqlite and runs TypeScript directly), so the
+# Orry runs on Bun (it uses bun:sqlite and runs TypeScript directly), so the
 # runtime is pinned here rather than left to Railway's builder detection.
 FROM oven/bun:1.3.13
 

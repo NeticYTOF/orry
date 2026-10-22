@@ -25,7 +25,7 @@ interface TopicRow {
 }
 interface RecentMessage {
   text: string;
-  speaker: "rivet" | "human";
+  speaker: "orry" | "human";
   userId: string | null;
 }
 
@@ -53,7 +53,7 @@ function addToThread(
   rows.push({ role, content, user_id: userId, channel, workspace_id: workspaceId });
   if (rows.length > MAX_CONTEXT_MESSAGES * 3) rows.splice(0, rows.length - MAX_CONTEXT_MESSAGES * 3);
   transientThreads.set(threadTs, rows);
-  db.touchThread(threadTs, channel, { rivetSpoke: role === "assistant" });
+  db.touchThread(threadTs, channel, { orrySpoke: role === "assistant" });
 }
 
 function contextTokens(text: string): Set<string> {
@@ -155,7 +155,7 @@ function getThreadMessages(threadTs: string, limit = 8) {
     .slice(-limit)
     .map((message) => ({
       text: message.content,
-      speaker: message.role === "assistant" ? "rivet" : "human",
+      speaker: message.role === "assistant" ? "orry" : "human",
       userId: message.user_id,
       channel: message.channel,
       workspaceId: message.workspace_id,
@@ -215,14 +215,18 @@ function seedFromSlack(
   return seeding;
 }
 
-function threadCrowd(messages: SlackMessage[], userId: string, botUserId: string) {
-  let rivetIn = false;
+const CROWD_RECENT_SECONDS = 10 * 60;
+
+// A different human only counts as "talking" if they replied in the last 10 minutes before the current question.
+function threadCrowd(messages: SlackMessage[], userId: string, botUserId: string, nowSeconds?: number) {
+  let orryIn = false;
   let othersPresent = false;
+  const now = nowSeconds ?? Math.max(0, ...messages.map((m) => Number(m.ts) || 0));
   for (const m of messages) {
-    if (roleForMessage(m, botUserId) === "assistant") rivetIn = true;
-    else if (m.user && m.user !== userId) othersPresent = true;
+    if (roleForMessage(m, botUserId) === "assistant") orryIn = true;
+    else if (m.user && m.user !== userId && now - (Number(m.ts) || 0) <= CROWD_RECENT_SECONDS) othersPresent = true;
   }
-  return { rivetIn, othersPresent };
+  return { orryIn, othersPresent };
 }
 
 const CROWD_CHECK_LIMIT = 200;
@@ -246,14 +250,14 @@ async function fetchThreadCrowd(
   },
 ) {
   const fallback = {
-    rivetIn: false,
+    orryIn: false,
     othersPresent: Boolean(parentUserId && parentUserId !== userId && parentUserId !== botUserId),
   };
   if (!client?.conversations?.replies || !threadTs || !messageTs) return fallback;
   try {
     const res = await client.conversations.replies({ channel, ts: threadTs, limit: CROWD_CHECK_LIMIT });
     const before = (res.messages || []).filter((m) => Number(m.ts) < Number(messageTs));
-    return threadCrowd(before, userId, botUserId);
+    return threadCrowd(before, userId, botUserId, Number(messageTs));
   } catch (error: unknown) {
     log.debug("context", `thread crowd check failed: ${error instanceof Error ? error.message : String(error)}`);
     return fallback;
@@ -279,7 +283,7 @@ async function recentChannelMessages(
       .reverse()
       .map((message) => ({
         text: (message.text || "").trim(),
-        speaker: (roleForMessage(message, botUserId) === "assistant" ? "rivet" : "human") as "rivet" | "human",
+        speaker: (roleForMessage(message, botUserId) === "assistant" ? "orry" : "human") as "orry" | "human",
         userId: message.user || null,
       }))
       .filter((message) => message.text);

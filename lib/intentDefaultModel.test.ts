@@ -1,5 +1,5 @@
-process.env.RIVET_SKIP_DOTENV = "1";
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_SKIP_DOTENV = "1";
+process.env.ORRY_DB_PATH = ":memory:";
 process.env.OPENCODE_API_KEY = "zen-test-key";
 delete process.env.HCAI_API_KEY;
 delete process.env.HCAI_API_KEY_2;
@@ -21,9 +21,9 @@ test("unprompted intent classification uses the tested fast default with low rea
     return {
       text: JSON.stringify({
         verdict: "HELP_NEEDED",
-        addressedToRivet: false,
+        addressedToOrry: false,
         directedAtHuman: false,
-        recentRivetParticipation: false,
+        recentOrryParticipation: false,
         programRelevance: "relevant",
       }),
     };

@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -336,8 +336,8 @@ test("bulk macro send is bounded, scoped, audited, and available over its intern
   });
   assert.match(tooMany.error, /at most 50/);
   const routeToken = "macro-bulk-token";
-  const previousToken = process.env.RIVET_INTERNAL_TOKEN;
-  process.env.RIVET_INTERNAL_TOKEN = routeToken;
+  const previousToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  process.env.ORRY_INTERNAL_TOKEN = routeToken;
   try {
     const serve = require("./web/serve");
     const response = await serve.handleRequest(
@@ -363,8 +363,8 @@ test("bulk macro send is bounded, scoped, audited, and available over its intern
     assert.equal(selectorResponse.status, 200);
     assert.deepEqual((await selectorResponse.json()).ticketIds.slice().sort(), waiting.slice().sort());
   } finally {
-    if (previousToken === undefined) delete process.env.RIVET_INTERNAL_TOKEN;
-    else process.env.RIVET_INTERNAL_TOKEN = previousToken;
+    if (previousToken === undefined) delete process.env.ORRY_INTERNAL_TOKEN;
+    else process.env.ORRY_INTERNAL_TOKEN = previousToken;
     api.setSlackClient(null);
   }
   assert.equal(posted.length, 2);

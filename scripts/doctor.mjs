@@ -1,4 +1,4 @@
-// Rivet preflight: every check the bot makes at boot, run before it is wired
+// Orry preflight: every check the bot makes at boot, run before it is wired
 // to Slack, so a setup mistake shows up as one checklist instead of a Slack
 // timeout twenty minutes in.
 //
@@ -126,22 +126,22 @@ export function checkSlackTokenFormats(env) {
  * precedence and the same tolerance as lib/programs.ts.
  */
 export function loadConfiguredPrograms({ env, readFile }) {
-  const raw = String(env.RIVET_PROGRAMS_JSON || "").trim();
+  const raw = String(env.ORRY_PROGRAMS_JSON || "").trim();
   if (raw) {
     let parsed;
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
-      return { origin: "RIVET_PROGRAMS_JSON", programs: null, error: `not valid JSON (${describeError(err)}) — falling back to config/programs.json` };
+      return { origin: "ORRY_PROGRAMS_JSON", programs: null, error: `not valid JSON (${describeError(err)}) — falling back to config/programs.json` };
     }
     const list = programListFrom(parsed);
     if (!list) {
-      return { origin: "RIVET_PROGRAMS_JSON", programs: null, error: "must be an array or { programs: [...] } — falling back to config/programs.json" };
+      return { origin: "ORRY_PROGRAMS_JSON", programs: null, error: "must be an array or { programs: [...] } — falling back to config/programs.json" };
     }
     if (list.length === 0) {
-      return { origin: "RIVET_PROGRAMS_JSON", programs: null, error: "is an empty array — treated as no program configured" };
+      return { origin: "ORRY_PROGRAMS_JSON", programs: null, error: "is an empty array — treated as no program configured" };
     }
-    return { origin: "RIVET_PROGRAMS_JSON", programs: list, error: null };
+    return { origin: "ORRY_PROGRAMS_JSON", programs: list, error: null };
   }
 
   const text = readFile(path.join(APP_ROOT, PROGRAMS_FILE_REL));
@@ -160,16 +160,16 @@ export function loadConfiguredPrograms({ env, readFile }) {
 }
 
 export function checkProgramConfig(loaded) {
-  if (loaded.error) return result(FAIL, "program config", `RIVET_PROGRAMS_JSON ${loaded.error}`);
+  if (loaded.error) return result(FAIL, "program config", `ORRY_PROGRAMS_JSON ${loaded.error}`);
   if (!loaded.programs) {
-    return result(WARN, "program config", "no program configured — Rivet answers generically until one is set");
+    return result(WARN, "program config", "no program configured — Orry answers generically until one is set");
   }
   return result(PASS, "program config", `${loaded.programs.length} program(s) from ${loaded.origin}`);
 }
 
 /**
  * A program with no claimed channels is inert: lib/channelPolicy.resolve()
- * falls back to the shared program with role `none`, so Rivet answers
+ * falls back to the shared program with role `none`, so Orry answers
  * nothing anywhere. That is the correct default for safety, and a silent
  * dead end for someone who wired everything else up and waits for a reply.
  */
@@ -219,7 +219,7 @@ export function checkClaimedChannels(loaded) {
   const ids = idle
     .map((p) => (typeof p.id === "string" && p.id.trim() ? p.id : "(unnamed program)"))
     .join(", ");
-  return result(WARN, "claimed channels", `${ids} claims no channels — Rivet will answer nothing anywhere. Set "channels": ["C..."] or "helpChannel": "C...".`);
+  return result(WARN, "claimed channels", `${ids} claims no channels — Orry will answer nothing anywhere. Set "channels": ["C..."] or "helpChannel": "C...".`);
 }
 
 export function checkFaqChannelOwnership(loaded, env = process.env) {
@@ -305,16 +305,16 @@ export function checkCorpusFiles(loaded, { fileExists }) {
 }
 
 export function checkDashboardPasscode(env) {
-  const raw = env.RIVET_DASHBOARD_PASSCODE;
+  const raw = env.ORRY_DASHBOARD_PASSCODE;
   if (raw === undefined || !String(raw).trim()) {
     return result(
       WARN,
       "dashboard passcode",
-      "RIVET_DASHBOARD_PASSCODE is unset, so passcode login is disabled and the console is reachable only through Slack OAuth — set one if you want a way in",
+      "ORRY_DASHBOARD_PASSCODE is unset, so passcode login is disabled and the console is reachable only through Slack OAuth — set one if you want a way in",
     );
   }
   if (String(raw) === DEFAULT_DASHBOARD_PASSCODE) {
-    return result(WARN, "dashboard passcode", "RIVET_DASHBOARD_PASSCODE is the guessable built-in default — anyone who reaches the web port gets in as admin");
+    return result(WARN, "dashboard passcode", "ORRY_DASHBOARD_PASSCODE is the guessable built-in default — anyone who reaches the web port gets in as admin");
   }
   return result(PASS, "dashboard passcode", "set to a custom value");
 }
@@ -383,8 +383,8 @@ export function render(report) {
   if (report.warnings > 0) parts.push(`${report.warnings} warning${report.warnings > 1 ? "s" : ""}`);
   parts.push(`${report.failures} failure${report.failures > 1 ? "s" : ""}`);
 
-  const verdict = report.failures > 0 ? "Rivet will not start as configured" : "Rivet's configuration is loadable";
-  return ["Rivet doctor — preflight", ...lines, "", `${verdict}: ${parts.join(", ")}`].join("\n");
+  const verdict = report.failures > 0 ? "Orry will not start as configured" : "Orry's configuration is loadable";
+  return ["Orry doctor — preflight", ...lines, "", `${verdict}: ${parts.join(", ")}`].join("\n");
 }
 
 /**

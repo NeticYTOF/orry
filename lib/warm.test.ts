@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -57,8 +57,8 @@ test("warmOne refuses to cache an answer the docs did not cover", async () => {
 
 test("warmOne bypasses the old answer and refreshes in the original program scope", async () => {
   cache.clearCache();
-  const savedPrograms = process.env.RIVET_PROGRAMS_JSON;
-  process.env.RIVET_PROGRAMS_JSON = JSON.stringify([{ id: "acme", name: "Acme", sources: [] }]);
+  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "acme", name: "Acme", sources: [] }]);
   programs.invalidate();
   const original = lookup.answerOrChat;
   let options: { skipCache?: boolean; program?: { id?: string } } | null = null;
@@ -75,8 +75,8 @@ test("warmOne bypasses the old answer and refreshes in the original program scop
     assert.equal(cache.get(question, "acme").answer, "new");
   } finally {
     lookup.answerOrChat = original;
-    if (savedPrograms === undefined) delete process.env.RIVET_PROGRAMS_JSON;
-    else process.env.RIVET_PROGRAMS_JSON = savedPrograms;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
     programs.invalidate();
   }
 });

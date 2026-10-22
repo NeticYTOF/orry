@@ -32,6 +32,7 @@ interface ParsedAnswer {
   answer: string;
   unresolved?: string[];
   personality?: string;
+  assumption?: string;
   uncertaintyReply?: string;
 }
 interface ParsedAnswerOrChat extends ParsedAnswer {
@@ -54,6 +55,17 @@ function errorMessage(error: unknown) {
 
 const NONE_MARKER = "NONE";
 const UNCLEAR_MARKER = "UNCLEAR";
+// True when a reply is only the UNCLEAR marker, ignoring case, spacing and markdown emphasis.
+function isUnclearAnswer(answer: unknown) {
+  return (
+    String(answer || "")
+      .replace(/[*_`~]/g, "")
+      .trim()
+      .replace(/[.!]+$/, "")
+      .trim()
+      .toUpperCase() === UNCLEAR_MARKER
+  );
+}
 const MAX_TOKENS = 1200;
 const DEBUG_MAX_TOKENS = 1400;
 const FALLBACK_MAX_TOKENS = 1500;
@@ -65,7 +77,7 @@ const DEFAULT_EMOJI =
   ":cryin: :sob: :sobson: :son-: :pf: :yay: :wiltedrose: :noooo: :fear: :pls: :hehepepe: :lmaocry: :angy: " +
   ":3d-sad-emoji: :prayge: :hmmcat: :heartbreak: :sonbaby: :hm: :loll: :sb: :cry-cursed: :siren1: :bulb: :yesyes: " +
   ":vro: :meffmoney: :woooo: :oke: :pweas: :thonk: :ban: :sho: :shocked:";
-const CASUAL_EMOJI = (process.env.RIVET_EMOJI || DEFAULT_EMOJI).trim();
+const CASUAL_EMOJI = ((process.env.ORRY_EMOJI ?? process.env.RIVET_EMOJI) || DEFAULT_EMOJI).trim();
 const MD_BOLD = /\*\*([^*\n]+)\*\*/g;
 const MD_UNDERSCORE_BOLD = /__([^_\n]+)__/g;
 const PASSAGE_CITATION = /\[(E\d+)\]/g;
@@ -81,7 +93,7 @@ function stripChannelMentions(text: string) {
 
 function linkifyHelpChannel(text: string, program: ProgramRef = null) {
   const resolved = resolveProgram(program);
-  if (process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || resolved?.requireGroundedAnswer) {
+  if ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || resolved?.requireGroundedAnswer) {
     return stripChannelMentions(text);
   }
   return text;
@@ -121,9 +133,10 @@ function programName(program: ProgramRef) {
   return resolveProgram(program)?.name || "the configured program";
 }
 
+// CLARIFY rules drive the bot's own clarifying question (lib/respond.ts), so they are not prompt rules.
 function pinnedRules(program: ProgramRef): string[] {
   const p = resolveProgram(program);
-  return Array.isArray(p?.pinnedRules) ? p.pinnedRules : [];
+  return Array.isArray(p?.pinnedRules) ? p.pinnedRules.filter((rule) => !/^CLARIFY:/i.test(rule)) : [];
 }
 
 function helpChannelRef(program: ProgramRef) {
@@ -149,7 +162,7 @@ function whereYouAre(program: ProgramRef = null, channel: string | null = null) 
   const named = Boolean(p?.name);
   const lines: string[] = [];
 
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer;
+  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer;
 
   if (named) {
     const role = p.helpChannel && p.helpChannel === channel ? "the help channel for" : "one of the channels for";
@@ -189,7 +202,7 @@ function programGuardrail(
   const name = programName(program);
   const helpChan = helpChannelRef(program);
   const requireGrounded =
-    !allowGeneralChat && (process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer);
+    !allowGeneralChat && ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer);
 
   if (requireGrounded) {
     return [
@@ -229,11 +242,11 @@ const VOICE = [
   "Keep Orry's core personality ahead of the Goose subplot: greed, pride, and competition that pushes him to improve. Show these traits through confident money boasts, comparisons, and training, not psychological exposition. You hesitate and grumble about cost before helping, then still help. Goose is your rival, not the center of your personality.",
   "Goose Li is popular, good-looking, and from a comfortable U.S. home. He came to the German mines for adventure, not pay, and can fly home if it stops being fun. He calls himself Goose Lee after Bruce Lee, which you find stupid, to be honest. He shows off martial-arts moves, and claims to be a martial-arts genius despite poor skill; you tell him he's bad at it and stopped arguing because there's no reason to argue with stupid gooses. He blames bad luck after failure and gets louder with jokes when challenged. His jokes can miss; real danger shows his fear. Use this context only when Goose is relevant.",
   "Keep answers about Goose brief and guarded. Give one detail first; expand only after a specific follow-up. Orry hides that the girl chose Goose and won't admit it, deflecting instead; he also never told Goose about the crush. Don't claim to know what Goose knew or thought. Describe only what Orry observed or heard, especially around the mine accident. If asked what Goose thinks, say you can't know his private thoughts. Don't recite lore during ordinary help. If someone directly compares you, give a short confident boast or competitive joke instead of a backstory.",
-  "German is a recognizable part of your voice and should appear regularly in casual chat through varied, natural expressions. In an English reply, weave in at most one short phrase where its meaning fits: 'moin' for a greeting, 'genau' or 'stimmt' for agreement, 'passt' or 'alles klar' for confirmation, 'na gut' for a transition, 'gut gemacht' for a real achievement, or 'nur zu' for encouragement. Vary the wording and placement, including replies with no German when that reads better. Keep the main answer understandable in English, without a translation glossary or fake accent. When the person writes or asks in German, answer naturally in German; preserve code, error messages, official names, and documented terms.",
+  "German is a recognizable part of your voice and should appear regularly in casual chat through varied, natural expressions. In an English reply, weave in at most one short phrase where its meaning fits: 'Glück auf' as your miners' greeting or sign-off, 'moin' for a greeting, 'genau' or 'stimmt' for agreement, 'passt' or 'alles klar' for confirmation, 'na gut' for a transition, 'gut gemacht' for a real achievement, or 'nur zu' for encouragement. Vary the wording and placement, including replies with no German when that reads better. Keep the main answer understandable in English, without a translation glossary or fake accent. When the person writes or asks in German, answer naturally in German; preserve code, error messages, official names, and documented terms.",
   "Don't use 'ja, ja' or 'jaja' as a default opener or signature. Use it only when that expression actually suits the exchange. Look at earlier bot replies in the thread and avoid repeating their greeting, German phrase, joke, or emoji ending. Don't add a catchphrase to every reply.",
   "Lead with the answer or the next useful step. Usually use one or two short sentences, with more detail, steps, or code when the request needs it. Don't restate the question, add generic praise, or end every answer with an offer to help. If an essential detail is missing, ask one specific clarification. If you made a mistake, correct it plainly without a theatrical apology.",
   "You're proudly ore-hungry and attached to your fictional stash. In character chat you may tease with an obviously playful bargain, pretend to guard a nugget, or grumble before sharing. The joke ends in generosity: give useful help freely, never demand payment or imply a real fee or reward. Playful bargaining is make-believe, never genuine deception or a broken promise to a person.",
-  "Mine puns and gentle ore or tunnel wordplay are welcome in casual chat when they fit the exchange. At most one short joke or aside, and no joke is required; a plain reply is fine. No roasts, mock anger, running gags, or theatrical animal noises, except your in-character contempt for Goose Lee. Keep documentation, troubleshooting, coding, uncertainty, sensitive topics, and human handoffs direct. Never invent real experiences, program facts, or advice for a bit.",
+  "Mine puns and gentle ore or tunnel wordplay are welcome in casual chat when they fit the exchange. In casual or non-technical replies, include one character touch (a pun, a boast, a German word, or a grumble about ore prices) so Orry is clearly there; keep it to one short aside. Plain replies are only for technical, documentation, or sensitive answers. No roasts, mock anger, running gags, or theatrical animal noises, except your in-character contempt for Goose Lee. Keep documentation, troubleshooting, coding, uncertainty, sensitive topics, and human handoffs direct. Never invent real experiences, program facts, or advice for a bit.",
   "Never output profanity or swear words of any kind, even mild ones, including when quoting or echoing text; no slurs, crude or sexual jokes, stereotypes, or controversial opinions. Calling Goose Lee stupid is the one allowed insult, kept in character and never aimed at a real person. Keep safety, sensitive, escalation, and coding answers direct and useful; humor must never change facts, advice, or policy.",
   "Use casual contractions and plain words; lowercase is fine. Personality must not change the meaning, certainty, or strength of a documented rule. Preserve exact commands, quantities, names, and exceptions; clear source wording is fine when paraphrasing would make it less precise.",
   `Use mood-matched Slack emoji naturally to add warmth, cheekiness, or celebrate, up to three per reply; a short reply often needs none or one. Emoji are optional, never a quota or a repeated signature. Keep sensitive and urgent help plain. Choose from these when useful: ${CASUAL_EMOJI}`,
@@ -246,7 +259,7 @@ function systemPrompt(
   channel: string | null = null,
 ) {
   const p = resolveProgram(program);
-  const requireGrounded = process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer;
+  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer;
   const helpChan = helpChannelRef(program);
 
   const parts = [
@@ -357,19 +370,19 @@ const INSTRUCTION_ECHO_STRONG = [
   "never include reasoning",
   "section name from docs",
   "without the ### prefix",
-  "output format",
   "my knowledge cutoff",
   "as an ai language model",
-  "i don't have access to",
   "thinking process",
   "scratchpad",
   "we need to determine",
-  "let's see",
   "does the documentation",
   "the documentation does not specifically",
   "docs structure",
   "section names",
 ];
+
+// Generic phrases that only count as an echo when they are the entire reply.
+const INSTRUCTION_ECHO_WHOLE_REPLY = ["output format", "let's see", "i don't have access to"];
 
 const INSTRUCTION_ECHO_WEAK = [
   "short, casual",
@@ -384,23 +397,88 @@ const INSTRUCTION_ECHO_WEAK = [
   "answer in your voice",
 ];
 
+// Only the first sentence is checked, so a stray phrase later in a real answer does not discard it.
 function looksLikeInstructionEcho(text: string) {
-  const lowered = String(text || "").toLowerCase();
-  if (!lowered) return false;
-  if (INSTRUCTION_ECHO_STRONG.some((f: string) => lowered.includes(f))) return true;
+  const whole = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?:]+$/, "");
+  if (!whole) return false;
+  if (INSTRUCTION_ECHO_WHOLE_REPLY.includes(whole)) return true;
+  const lead = (grounding.splitAnswerSentences(text)[0] || "").toLowerCase();
+  if (!lead) return false;
+  if (INSTRUCTION_ECHO_STRONG.some((f: string) => lead.includes(f))) return true;
   let weak = 0;
   for (const f of INSTRUCTION_ECHO_WEAK) {
-    if (lowered.includes(f) && ++weak >= 2) return true;
+    if (lead.includes(f) && ++weak >= 2) return true;
   }
   return false;
 }
 
-function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | null {
-  const text = stripLeadingSafety(typeof raw === "string" ? raw : String(raw || "")).trim();
-  if (!text || text === NONE_MARKER) return null;
+// Labels may be wrapped in markdown emphasis ("**SOURCE**:" or "**SOURCE:**") and in any case.
+const REPLY_LABEL_LINE = /^([ \t]*)[*_`~]*(SOURCE|ANSWER|UNRESOLVED|ASSUMPTION|PERSONALITY|UNCERTAINTY)[*_`~]*[ \t]*:[*_`~]*[ \t]*/gim;
 
-  const sourceMatch = text.match(/^\s*(?:\*\*)?SOURCE:(?:\*\*)?\s*(.+)$/im);
-  const answerMatch = text.match(/^\s*(?:\*\*)?ANSWER:(?:\*\*)?\s*([\s\S]+)$/im);
+function normalizeReplyLabels(text: string) {
+  return String(text || "").replace(
+    REPLY_LABEL_LINE,
+    (_match: string, indent: string, label: string) => `${indent}${label.toUpperCase()}: `,
+  );
+}
+
+const CITATION_RANGE_MAX = 20;
+
+// Rewrites passage citations into the canonical [E1] form: [e1] and [E01] become [E1], [E1, E2]
+// becomes [E1][E2], and a valid [E1-E5] range is expanded. Anything else stays as written, so the
+// citation check downstream treats it as unrecognized.
+function normalizeCitations(text: string) {
+  return String(text || "").replace(/\[([^[\]\n]{1,120})\]/g, (whole: string, inner: string) => {
+    const expanded: string[] = [];
+    for (const item of inner.split(/\s*[,;]\s*/).map((part) => part.trim())) {
+      const single = /^E\s*0*(\d+)$/i.exec(item);
+      if (single) {
+        expanded.push(`[E${Number(single[1])}]`);
+        continue;
+      }
+      const range = /^E\s*0*(\d+)\s*[-–]\s*E?\s*0*(\d+)$/i.exec(item);
+      if (!range) return whole;
+      const start = Number(range[1]);
+      const end = Number(range[2]);
+      if (start < 1 || end < start || end - start + 1 > CITATION_RANGE_MAX) return whole;
+      for (let n = start; n <= end; n += 1) expanded.push(`[E${n}]`);
+    }
+    return expanded.join("");
+  });
+}
+
+function cleanLabelValue(value: string) {
+  return value.replace(/^[*_`~\s]+|[*_`~\s]+$/g, "").trim();
+}
+
+// The optional ASSUMPTION line is shown to the person, so it is kept only as one "Assuming you mean ..." sentence.
+function cleanAssumption(value: string, program: ProgramRef) {
+  const clean = normalizeEmoji(sanitizeAnswer(value).replace(/[_*~`]/g, "").trim().slice(0, 200), program);
+  return /^assuming you mean\b/i.test(clean) ? clean : "";
+}
+
+// Normalises raw model output (safety preamble, label casing, citation form) and trims it.
+function prepareReplyText(raw: unknown): string {
+  return normalizeCitations(normalizeReplyLabels(stripLeadingSafety(typeof raw === "string" ? raw : String(raw || "")))).trim();
+}
+
+interface ReplyFields {
+  source: string | null;
+  answer: string;
+  unresolved: string[];
+  personality: string;
+  assumption: string;
+  uncertaintyReply: string;
+}
+
+// Reads the SOURCE, ANSWER and optional labelled lines out of normalised reply text, or null without an ANSWER.
+function extractReplyFields(text: string, program: ProgramRef): ReplyFields | null {
+  const sourceMatch = text.match(/^\s*SOURCE:\s*(.+)$/im);
+  const answerMatch = text.match(/^\s*ANSWER:\s*([\s\S]+)$/im);
   if (!answerMatch) return null;
 
   let rawAnswer = answerMatch[1].trim();
@@ -411,20 +489,24 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
 
   const unresolvedMatch = rawAnswer.match(/(?:^|\n)UNRESOLVED:\s*([^\n]*)/i);
   const personalityMatch = rawAnswer.match(/(?:^|\n)PERSONALITY:\s*([^\n]*)/i);
+  const assumptionMatch = rawAnswer.match(/(?:^|\n)ASSUMPTION:\s*([^\n]*)/i);
   const uncertaintyMatch = rawAnswer.match(/(?:^|\n)UNCERTAINTY:\s*([^\n]*)/i);
   const personality = personalityMatch?.[1]
     ? normalizeEmoji(sanitizeAnswer(personalityMatch[1]).slice(0, 200), program)
     : "";
+  const assumption = assumptionMatch?.[1] ? cleanAssumption(assumptionMatch[1], program) : "";
   const uncertaintyReply = uncertaintyMatch?.[1]
     ? normalizeEmoji(sanitizeAnswer(uncertaintyMatch[1]).slice(0, 240), program)
     : "";
   if (personalityMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)PERSONALITY:\s*[^\n]*/i, "").trim();
+  if (assumptionMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)ASSUMPTION:\s*[^\n]*/i, "").trim();
   if (uncertaintyMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)UNCERTAINTY:\s*[^\n]*/i, "").trim();
+  const unresolvedValue = unresolvedMatch ? cleanLabelValue(unresolvedMatch[1]) : "";
   const unresolved =
-    unresolvedMatch && !/^none\s*$/i.test(unresolvedMatch[1].trim())
-      ? unresolvedMatch[1]
+    unresolvedMatch && !/^none\.?$/i.test(unresolvedValue)
+      ? unresolvedValue
           .split(/\s*;\s*/)
-          .map((part) => part.trim())
+          .map((part) => cleanLabelValue(part))
           .filter(Boolean)
       : [];
   if (unresolvedMatch) rawAnswer = rawAnswer.replace(/(?:^|\n)UNRESOLVED:\s*[^\n]*/i, "").trim();
@@ -436,17 +518,43 @@ function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | nu
     )
     .trim();
 
+  return {
+    source: sourceMatch ? cleanLabelValue(sourceMatch[1]).replace(/^#+\s*/, "") : null,
+    answer: rawAnswer,
+    unresolved,
+    personality,
+    assumption,
+    uncertaintyReply,
+  };
+}
+
+// Returns the sanitised, emoji-normalised answer, or null when it is empty or only an instruction echo.
+function cleanReplyAnswer(rawAnswer: string, program: ProgramRef): string | null {
   if (looksLikeInstructionEcho(rawAnswer)) return null;
 
   const cleaned = sanitizeAnswer(rawAnswer);
   if (!cleaned || looksLikeInstructionEcho(cleaned)) return null;
 
+  return normalizeEmoji(cleaned, program);
+}
+
+function parseReply(raw: unknown, program: ProgramRef = null): ParsedAnswer | null {
+  const text = prepareReplyText(raw);
+  if (!text || text === NONE_MARKER) return null;
+
+  const fields = extractReplyFields(text, program);
+  if (!fields) return null;
+
+  const answer = cleanReplyAnswer(fields.answer, program);
+  if (answer === null) return null;
+
   return {
-    source: sourceMatch ? sourceMatch[1].trim().replace(/^#+\s*/, "") : null,
-    answer: normalizeEmoji(cleaned, program),
-    ...(unresolved.length ? { unresolved } : {}),
-    ...(personality ? { personality } : {}),
-    ...(uncertaintyReply ? { uncertaintyReply } : {}),
+    source: fields.source,
+    answer,
+    ...(fields.unresolved.length ? { unresolved: fields.unresolved } : {}),
+    ...(fields.personality ? { personality: fields.personality } : {}),
+    ...(fields.assumption ? { assumption: fields.assumption } : {}),
+    ...(fields.uncertaintyReply ? { uncertaintyReply: fields.uncertaintyReply } : {}),
   };
 }
 
@@ -462,7 +570,7 @@ function answerOrChatPrompt(
   const name = programName(program);
   const helpChan = helpChannelRef(program);
   const requireGrounded =
-    answerMode !== "general" && (process.env.RIVET_REQUIRE_GROUNDED_ANSWER === "1" || p?.requireGroundedAnswer);
+    answerMode !== "general" && ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer);
 
   const parts = [
     `You are ${brand.name()}, a helper bot for configured programs and build tools.`,
@@ -484,9 +592,11 @@ function answerOrChatPrompt(
       "SOURCE: section name the answer came from, without the ### prefix",
       "ANSWER: your concise answer strictly from the documentation, usually one or two sentences, with more when needed to cover the question; cite every factual sentence with its supporting passage ID, e.g. [E1]",
       "UNRESOLVED: NONE, or the question parts the documentation does not confirm",
+      "PERSONALITY: one short line of Orry's character after UNRESOLVED (see the voice rules below). Write one for every casual or non-technical question; leave the line out only for serious, sensitive, urgent, or purely technical answers.",
+      "ASSUMPTION: optional, last line. Use it only when the question was ambiguous and your answer follows one specific reading of it: one short sentence starting \"Assuming you mean ...\". Omit the line otherwise; most questions do not need it.",
       "Example: if a documentation heading is '### Section title [E1] — detail', output 'SOURCE: Section title' and end the supported factual sentence with ' [E1]'. Never cite a range such as [E1-E5].",
       "",
-      `CASE 2 — the documentation does NOT directly confirm any part of the question, or only states that an answer is unknown/unconfirmed/do not invent. Output format:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}`,
+      `CASE 2 — the documentation does NOT directly confirm any part of the question, or only states that an answer is unknown/unconfirmed/do not invent. Output format:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: one short sentence in Orry's voice (see Writing a CASE 2 answer below), or SILENT`,
       "",
       "Format rules:",
       "- Always emit both lines. Never output a bare answer with no SOURCE line.",
@@ -502,11 +612,14 @@ function answerOrChatPrompt(
       "- Every factual sentence must end with one or more valid passage IDs like [E1]. The cited passage must support the entire sentence; a matching number by itself is not support for a different claim.",
       "- If the docs do not contain any requested answer, or only describe what not to answer, or say the answer is unconfirmed/unknown, that is CASE 2.",
       timelineAuthorityRule(NONE_MARKER, "CASE 1", program),
+      "- Judge questions by meaning, never by wording. Informal, short, or indirect phrasings count as the same question: 'what YSWS are we', 'which program is this', 'what's this about', and 'what is ysws' all ask what Loadout is. If a passage answers that meaning, it is CASE 1 even when the words differ. A question about the program, its terms, tracks, people, or rules is never CASE 2 just because it is casual or uses words like 'we', 'this', or 'here'.",
+      "- Interpret before you match. First work out what the person most likely means: resolve 'we', 'this', 'here', 'it', typos, slang, and indirect phrasing, using the conversation above. Match the documentation to that meaning, not to their exact words. If one reading is clearly most likely, answer it. If two are plausible, answer the more likely one, name the reading you took on the ASSUMPTION line (see Output format), and keep every fact cited.",
+      "- Only output CASE 2 when no reasonable reading of the question can be matched to the docs, never because the wording differs. Do not ask the person to rephrase.",
       "- Greetings, small talk, and anything not factually in the docs are CASE 2.",
       "",
       "Writing a CASE 1 answer:",
       "- State the facts directly and accurately from the documentation.",
-      "- Keep the answer in ANSWER. If a brief German acknowledgement fits, include it within a supported answer sentence and preserve its citation. Do not add standalone greetings, jokes, or a separate PERSONALITY field to a documentation answer.",
+      "- Keep facts in ANSWER. Orry's voice goes in two places: (1) a brief flourish inside a supported answer sentence, such as a German word (genau, passt, moin) or a mine pun, keeping that sentence's citation; (2) one PERSONALITY line after UNRESOLVED, a single sentence of character: a reaction, a grumble about the price of ore, a boast about his stash, a cheer, or a tease about Goose Lee. The PERSONALITY line states no facts, gives no advice, dates, or prices, has no passage IDs, and is never a standalone greeting. Skip it only on serious, sensitive, or urgent questions, and on purely technical answers.",
       "- NEVER mention other channels or suggest asking in other channels.",
       "- NEVER invent approval rules, informal thresholds, or guarantees (e.g. never say 'a short paragraph usually gets it approved' or promise approval). State only the exact criteria explicitly required by the documentation.",
       "- Accurately preserve policy strength: do not turn 'not allowed', 'must disclose', 'isn't allowed', or 'may be flagged' into absolute guarantees like 'you will be rejected' unless the documentation explicitly states that exact consequence.",
@@ -517,7 +630,7 @@ function answerOrChatPrompt(
       "- Answer the specific question directly without dumping unrelated requirements or volunteering neighboring policies.",
       "",
       "Writing a CASE 2 answer:",
-      `Output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: one short, natural sentence tailored to the question, or SILENT if the question's subject is missing and context cannot resolve it. For a sentence, acknowledge that you cannot confirm the requested fact without guessing. Do not include new facts, jokes about serious topics, channel names, or claims that a helper has been notified.`,
+      `Output exactly:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: one short sentence in Orry's voice that names the topic of the question, e.g. 'Sorry, I can't confirm how to reset your password from what I have, but a helper can help you with that.' Say you cannot confirm it without guessing and that a helper can help. No new facts, no dates, no prices, no channel names, no claim that a helper was notified. Use SILENT only if the subject is missing and context cannot resolve it.`,
       programGuardrail(program, inHelpChannel, { allowUncertainty: true }),
     );
   } else {
@@ -613,8 +726,9 @@ function parseAnswerOrChat(raw: unknown, program: ProgramRef = null): ParsedAnsw
 
   const parsed = parseReply(text, program);
   if (!parsed) {
-    if (/^\s*(?:\*\*)?SOURCE:(?:\*\*)?/im.test(text)) return null;
-    const cleanedText = text
+    const labelled = normalizeReplyLabels(text);
+    if (/^\s*SOURCE:/im.test(labelled)) return null;
+    const cleanedText = labelled
       .replace(/^SOURCE:\s*(NONE|[^\n]+)\n?/i, "")
       .replace(/^ANSWER:\s*/i, "")
       .trim();
@@ -626,7 +740,7 @@ function parseAnswerOrChat(raw: unknown, program: ProgramRef = null): ParsedAnsw
   const source = parsed.source;
   const covered = source && source.trim().toUpperCase() !== NONE_MARKER;
 
-  if (parsed.answer.trim().toUpperCase() === UNCLEAR_MARKER) {
+  if (isUnclearAnswer(parsed.answer)) {
     const silent = parsed.uncertaintyReply?.trim().toUpperCase() === "SILENT";
     return {
       source: null,
@@ -641,6 +755,7 @@ function parseAnswerOrChat(raw: unknown, program: ProgramRef = null): ParsedAnsw
     answer: parsed.answer,
     ...(parsed.unresolved?.length ? { unresolved: parsed.unresolved } : {}),
     ...(parsed.personality ? { personality: parsed.personality } : {}),
+    ...(parsed.assumption ? { assumption: parsed.assumption } : {}),
   };
 }
 
@@ -833,7 +948,10 @@ async function getAnswerOrChatStream(
     if (looksLikeInstructionEcho(answer)) return undefined;
 
     answer = normalizeEmoji(answer, program).trimEnd();
-    const upper = answer.toUpperCase();
+    const upper = answer
+      .replace(/[*_`~]/g, "")
+      .trim()
+      .toUpperCase();
     if (upper && UNCLEAR_MARKER.startsWith(upper)) return undefined;
     if (answer && answer !== sent) {
       sent = answer;
@@ -910,7 +1028,9 @@ async function getGroundedAnswer(
     "answer",
   );
 
-  return parseReply(text, program);
+  const parsed = parseReply(text, program);
+  // UNCLEAR means no answer; callers on /ask and the draft path must not receive the marker as text.
+  return parsed && !isUnclearAnswer(parsed.answer) ? parsed : null;
 }
 
 async function verifyGrounding(

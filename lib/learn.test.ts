@@ -1,4 +1,4 @@
-process.env.RIVET_DB_PATH = ":memory:";
+process.env.ORRY_DB_PATH = ":memory:";
 
 interface FactRow {
   id: number;
@@ -148,12 +148,12 @@ test("captureFromReply is disabled and returns null for thread replies", async (
 });
 
 test("captureFromReply drops a reply the judge says is not an answer", async () => {
-  db.recordGap("rivet whats my slack id", "U1", "C1", "judge-thread-1");
+  db.recordGap("orry whats my slack id", "U1", "C1", "judge-thread-1");
 
   judgeVerdict = "NO";
   const id = await learn.captureFromReply({
     threadTs: "judge-thread-1",
-    replyText: "rivet say my name, and then tell me what colours are in latte",
+    replyText: "orry say my name, and then tell me what colours are in latte",
     authorId: "U2",
     channel: "C1",
     replyTs: "judge-r1",
@@ -162,7 +162,7 @@ test("captureFromReply drops a reply the judge says is not an answer", async () 
 
   assert.equal(id, null);
   assert.equal(
-    learn.pending(200).some((r: FactRow) => r.question === "rivet whats my slack id"),
+    learn.pending(200).some((r: FactRow) => r.question === "orry whats my slack id"),
     false,
   );
 });
