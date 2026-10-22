@@ -95,9 +95,10 @@ test("uncertainty for personal lore does not point people to Loadout docs or hel
   assert.doesNotMatch(text, /Loadout docs|helper|organizer/i);
 });
 
-test("a declined Loadout fact still points to a human when general chat lacks a source", () => {
+test("uncertainty fallback identifies the documentation that was searched", () => {
   const text = respond.uncertaintyText({ id: "loadout", name: "Loadout" }, { general: true, programFact: true });
   assert.match(text, /helper or organizer can confirm/i);
+  assert.doesNotMatch(text, /Loadout docs|program docs|documentation/i);
 });
 
 test("uncertainty wording drops an unsupported numeric claim from the model", () => {
@@ -106,6 +107,20 @@ test("uncertainty wording drops an unsupported numeric claim from the model", ()
     { result: { source: null, answer: "", uncertaintyReply: "The grant is $1,000, but I won't guess." } },
   );
   assert.doesNotMatch(text, /1,000/);
+  assert.match(text, /couldn't verify that from the Loadout docs/i);
+});
+
+test("uncertainty wording replaces an unsupported model source claim with the searched docs", () => {
+  const text = respond.uncertaintyText(
+    { id: "loadout", name: "Loadout" },
+    {
+      result: {
+        source: null,
+        answer: "",
+        uncertaintyReply: "I couldn't verify that from the Loadout docs, so I won't guess.",
+      },
+    },
+  );
   assert.match(text, /couldn't verify that from the Loadout docs/i);
 });
 
@@ -941,7 +956,7 @@ test("an unclear verdict still answers someone who addressed rivet directly", as
     });
 
     assert.equal(replied, true);
-    assert.match(client.calls.posts.concat(client.calls.updates).join(" "), /couldn't verify/);
+    assert.match(client.calls.posts.concat(client.calls.updates).join(" "), /couldn't verify that from the .* docs/);
   } finally {
     restoreAnswers();
     restoreCache();
@@ -1214,7 +1229,7 @@ test("an ungrounded answer in help hands off with uncertainty even when RIVET_RE
       assert.equal(replied, true);
       const said = client.posts.map((p: SlackPost) => p.text || "").join(" ");
       assert.doesNotMatch(said, /grant amounts/);
-      assert.match(said, /couldn't verify/);
+      assert.match(said, /couldn't verify that from the .* docs/);
       assert.ok(db.getTicketByThreadTs("t-help-ungrounded"));
     } finally {
       restoreAnswers();
@@ -1315,7 +1330,7 @@ test("a meta source or channel redirect stays unposted in a DM, with uncertainty
     assert.equal(replied, true);
     const said = [...client.calls.posts, ...client.calls.updates].join(" ");
     assert.doesNotMatch(said, /help-channel/);
-    assert.match(said, /couldn't verify/);
+    assert.match(said, /couldn't verify that from the .* docs/);
   } finally {
     restoreAnswers();
     restoreCache();
@@ -1380,7 +1395,7 @@ test("a classifier outage in a help channel preserves the support path (ticket +
     const ticket = db.getTicketByThreadTs("t-outage-1");
     assert.ok(ticket, "the outage must not swallow the support request");
     assert.equal(ticket.status, "waiting_for_helper");
-    assert.ok(client.calls.posts.some((t: string) => /couldn't verify|can't confirm/i.test(t)));
+    assert.ok(client.calls.posts.some((t: string) => /couldn't verify/i.test(t)));
     assert.ok(client.calls.posts.some((t: string) => /helper/i.test(t)));
   } finally {
     config.slack.helpChannel = savedHelp;

@@ -82,6 +82,48 @@ test("unsupported source types fail instead of using a special-case fetcher", as
   );
 });
 
+test("a dynamic docs crawl fails when any linked page is unavailable", async () => {
+  const sourceGuard = require("./sourceGuard");
+  const originalFetch = sourceGuard.fetchSourceUrl;
+  sourceGuard.fetchSourceUrl = async (url: string) => {
+    if (url === "https://example.invalid/docs") {
+      return { data: '<main><a href="/docs/known">Known</a><a href="/docs/missing">Missing</a></main>' };
+    }
+    if (url === "https://example.invalid/docs/known") return { data: "<main>known content</main>" };
+    throw new Error("upstream unavailable");
+  };
+
+  try {
+    await assert.rejects(
+      () => knowledge.fetchSourceText({ name: "Docs", type: "url", url: "https://example.invalid/docs" }, true),
+      /failed to fetch 1 page\(s\) while crawling/,
+    );
+  } finally {
+    sourceGuard.fetchSourceUrl = originalFetch;
+  }
+});
+
+test("a dynamic docs crawl follows every in-scope link until the corpus is complete", async () => {
+  const sourceGuard = require("./sourceGuard");
+  const originalFetch = sourceGuard.fetchSourceUrl;
+  sourceGuard.fetchSourceUrl = async (url: string) => {
+    const last = url.split("/").pop() || "docs";
+    const page = last === "docs" ? 0 : Number(last);
+    const next = page < 5 ? `<a href="/docs/${page + 1}">next</a>` : "";
+    return { data: `<main>page-${page} ${next}</main>` };
+  };
+
+  try {
+    const text = await knowledge.fetchSourceText(
+      { name: "Docs", type: "url", url: "https://example.invalid/docs" },
+      true,
+    );
+    for (let page = 0; page <= 5; page++) assert.match(text, new RegExp(`page-${page}`));
+  } finally {
+    sourceGuard.fetchSourceUrl = originalFetch;
+  }
+});
+
 test("source cache keys isolate URLs and inline content", () => {
   assert.equal(
     knowledge.sourceCacheKey({ name: "Docs", url: "https://example.invalid/a" }),

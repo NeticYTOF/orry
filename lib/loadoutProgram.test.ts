@@ -9,6 +9,8 @@ interface LoadoutSource {
   name: string;
   type?: string;
   url?: string;
+  paths?: string[];
+  dynamic?: boolean;
 }
 
 interface LoadoutProgram {
@@ -34,11 +36,19 @@ test("every LOADOUT source points at a file that exists", () => {
   expect(missing).toEqual([]);
 });
 
-test("every LOADOUT source is a named markdown file inside the repo", () => {
+test("LOADOUT combines local corpus files with the live program docs", () => {
   for (const source of loadout().sources) {
     expect(source.name).toBeTruthy();
-    expect(source.type).toBe("markdown");
-    expect(source.url!.startsWith("file://loadout/corpus/")).toBe(true);
+    if (source.type === "markdown") {
+      expect(source.url!.startsWith("file://loadout/corpus/")).toBe(true);
+      continue;
+    }
+    expect(source).toMatchObject({
+      type: "url",
+      url: "https://loadout.dino.icu/",
+      paths: ["/docs"],
+      dynamic: true,
+    });
   }
 });
 

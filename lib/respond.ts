@@ -567,7 +567,7 @@ function uncertaintyText(
     /\b(?:can't|cannot|couldn't|don't know|do not know|not sure|unsure|won't guess|will not guess|can't confirm|cannot confirm|couldn't verify)\b/i.test(
       candidate,
     ) &&
-    !/\d|https?:\/\/|<#[A-Z0-9]+|\b(?:the docs|documentation|sources?|channels?|helpers?|organizers?|officially|you are eligible|you will receive|the grant is|the deadline is|the amount is)\b/i.test(
+    !/\d|https?:\/\/|<#[A-Z0-9]+|\b(?:docs?|documentation|sources?|channels?|helpers?|organizers?|officially|you are eligible|you will receive|the grant is|the deadline is|the amount is)\b/i.test(
       candidate,
     )
       ? candidate

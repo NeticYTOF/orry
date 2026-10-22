@@ -612,7 +612,7 @@ test("addressed: exact payout gets transparent uncertainty, never an amount", as
   expect(
     await send({ channel: "C_ACME_MAIN", text: "what is my exact payout amount right now?", addressed: true }),
   ).toBe(true);
-  expect(postedText()).toMatch(/couldn't verify/i);
+  expect(postedText()).toMatch(/couldn't verify that from the Acme docs/i);
   expect(postedText()).not.toMatch(/\$\s*\d|\d+\s*(?:usd|dollars)/i);
   expect(handOffs).toHaveLength(0);
 });
@@ -811,7 +811,7 @@ test("organizer channel: never volunteers, answers when addressed, files no tick
   expect(await send({ channel: "C_ACME_ORG", text: "how do i get my personal grant code?", addressed: true })).toBe(
     true,
   );
-  expect(postedText()).toMatch(/couldn't verify/i);
+  expect(postedText()).toMatch(/couldn't verify that from the Acme docs/i);
   expect(ticketCalls).toHaveLength(0);
   expect(handOffs).toHaveLength(0);
 });
