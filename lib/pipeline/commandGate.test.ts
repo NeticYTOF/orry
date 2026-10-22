@@ -33,7 +33,7 @@ const client = {
 };
 
 beforeAll(() => {
-  savedEnv = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  savedEnv = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   db.open(":memory:");
   savedRespond = respond.respond;
   savedSum = sumThread.summarizeThreadForHelper;

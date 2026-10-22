@@ -70,7 +70,7 @@ const TNT_BLOB = JSON.stringify([
 test("two tenants: same question resolves to different programs and knowledge", async () => {
   seedPrograms();
 
-  const savedBlob = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedBlob = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const axios = require("axios");
   const realGet = axios.get;
   process.env.ORRY_PROGRAMS_JSON = TNT_BLOB;

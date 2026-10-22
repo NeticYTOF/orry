@@ -1,7 +1,7 @@
 import db = require("./db");
 
 const WINDOW_MS = 60 * 1000;
-const MAX_PER_WINDOW = Number((process.env.ORRY_RATE_LIMIT_MAX ?? process.env.RIVET_RATE_LIMIT_MAX)) || 8;
+const MAX_PER_WINDOW = Number(process.env.ORRY_RATE_LIMIT_MAX ?? process.env.RIVET_RATE_LIMIT_MAX) || 8;
 
 interface RateLimitIdentity {
   userId?: string | null;

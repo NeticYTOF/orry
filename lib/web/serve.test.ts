@@ -10,7 +10,7 @@ before(() => {
 });
 
 test("handleRequest dispatches /internal/v1/* to the API handler, not the static 404 fallback", async () => {
-  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const savedToken = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "test-serve-token";
   try {
     const serve = require("./serve");
@@ -28,7 +28,7 @@ test("handleRequest dispatches /internal/v1/* to the API handler, not the static
 });
 
 test("handleRequest still gates /internal/v1/* with the wrong token — dispatch isn't the same as bypassing auth", async () => {
-  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const savedToken = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "test-serve-token";
   try {
     const serve = require("./serve");
@@ -57,7 +57,7 @@ function withToken(tok: string) {
 }
 
 test("absent ORRY_INTERNAL_TOKEN → 404 (not 401/403); bad bearer → 401", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   const serve = require("./serve");
   try {
     delete process.env.ORRY_INTERNAL_TOKEN;
@@ -114,7 +114,7 @@ test("dashboard gates — pulse/stream/ask/health need session; writes need admi
     (await serve.handleRequest(new Request("http://localhost/api/queue", { headers: adminHeaders }))).status,
     200,
   );
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "char-serve-token-2";
   try {
     const sessOnly = await serve.handleRequest(
@@ -146,7 +146,7 @@ test("a request aborted before SSE stream setup never leaves a subscriber", asyn
 });
 
 test("internal error→status mapping per route family (pinned current values)", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "char-map-token";
   const serve = require("./serve");
   const api = require("./api");
@@ -230,7 +230,7 @@ test("internal error→status mapping per route family (pinned current values)",
 });
 
 test("internal responses never leak token/secret fields", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "char-leak-token";
   const serve = require("./serve");
   try {
@@ -249,7 +249,7 @@ test("internal responses never leak token/secret fields", async () => {
 });
 
 test("PUT /internal/v1/programs/:id maps a channel conflict to 409 naming the channel", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "dash-serve-token";
   const serve = require("./serve");
   const api = require("./api");
@@ -284,7 +284,7 @@ test("PUT /internal/v1/programs/:id maps a channel conflict to 409 naming the ch
 });
 
 test("POST /internal/v1/programs/:id/test-question proxies the probe; unknown program is 404", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "dash-serve-token-2";
   const serve = require("./serve");
   const api = require("./api");
@@ -355,7 +355,7 @@ test("POST /internal/v1/programs/:id/test-question proxies the probe; unknown pr
 });
 
 test("regression: DELETE /internal/v1/macros/:id reads its JSON body (actorId survives)", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "char-del-token";
   const serve = require("./serve");
   const api = require("./api");
@@ -399,7 +399,7 @@ test("regression: DELETE /internal/v1/macros/:id reads its JSON body (actorId su
 });
 
 test("POST /internal/v1/programs/:id/incidents/manual creates only for a program helper", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "manual-incident-token";
   const serve = require("./serve");
   const api = require("./api");
@@ -449,7 +449,10 @@ test("POST /internal/v1/programs/:id/incidents/manual creates only for a program
 test("read-only token: GET routes and users/info only; writes are 403; the full token still writes", async () => {
   const serve = require("./serve");
   const api = require("./api");
-  const saved = { full: (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN), read: (process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN) };
+  const saved = {
+    full: process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN,
+    read: process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN,
+  };
   try {
     process.env.ORRY_INTERNAL_TOKEN = "full-token-for-writes";
     process.env.ORRY_INTERNAL_READ_TOKEN = "read-token-for-gets";
@@ -549,7 +552,7 @@ test("web start: a port already in use returns null instead of throwing into the
 
 test("no RIVET_DASHBOARD_PASSCODE → passcode login refuses instead of accepting a guessable default", async () => {
   const serve = require("./serve");
-  const saved = (process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE);
+  const saved = process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE;
   try {
     delete process.env.ORRY_DASHBOARD_PASSCODE;
     const res = await serve.handleRequest(
@@ -573,7 +576,7 @@ test("no RIVET_DASHBOARD_PASSCODE → passcode login refuses instead of acceptin
 
 test("a configured ORRY_DASHBOARD_PASSCODE still signs in — and the cookie is Secure off-loopback", async () => {
   const serve = require("./serve");
-  const saved = (process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE);
+  const saved = process.env.ORRY_DASHBOARD_PASSCODE ?? process.env.RIVET_DASHBOARD_PASSCODE;
   try {
     process.env.ORRY_DASHBOARD_PASSCODE = "correct-horse";
     const good = await serve.handleRequest(
@@ -640,7 +643,7 @@ test("dev-testing auto-signin needs NODE_ENV=development, not just the sentinel 
 });
 
 test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400 without a userId", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "access-route-token";
   const serve = require("./serve");
   const api = require("./api");
@@ -668,7 +671,7 @@ test("GET /internal/v1/programs/:id/access is 404 for an unknown program and 400
 });
 
 test("GET /internal/v1/programs/:id/audit filters by action, action prefix, since/until and pages with offset", async () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "audit-route-token";
   const serve = require("./serve");
   const db = require("../db");

@@ -290,11 +290,15 @@ async function handleImage({ event, client, imageFile, program = null }: ImageAr
       context.getThreadContext(threadTs),
       config.slack.botToken,
       docs,
-      Boolean(program?.requireGroundedAnswer || (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1"),
+      Boolean(
+        program?.requireGroundedAnswer ||
+        (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1",
+      ),
     );
 
     const requiresGrounding = Boolean(
-      program?.requireGroundedAnswer || (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1",
+      program?.requireGroundedAnswer ||
+      (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1",
     );
     const groundedReply = reply && requiresGrounding ? vision.groundedImageReply(reply, question, docs) : reply;
     if (reply && requiresGrounding && !groundedReply) {
@@ -503,9 +507,7 @@ async function handOffQuietly({
 function refusalTextFor(question: string, helper: unknown, prog: Program): string {
   const refusal = require("./refusalReply");
   const reason = refusal.refusalReason(question);
-  return helper
-    ? refusal.pingedRefusalText(reason, { program: prog })
-    : refusal.refusalText(reason, { program: prog });
+  return helper ? refusal.pingedRefusalText(reason, { program: prog }) : refusal.refusalText(reason, { program: prog });
 }
 
 // Sends the refusal in-thread, logs it without the sensitive text, and records it as a fallback.

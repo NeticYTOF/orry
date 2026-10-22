@@ -1280,7 +1280,7 @@ test("help channel stays quiet when gate returns OFF_TOPIC in thread", async () 
 
 test("an ungrounded answer in help hands off with uncertainty even when ORRY_REQUIRE_GROUNDED_ANSWER is set", async () => {
   const originalIntent = intent.classifyIntent;
-  const origEnv = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
+  const origEnv = process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
 
   const restoreAnswers = stubAnswers(async () => ({
     source: null,
@@ -1397,9 +1397,17 @@ test("isGroundedAnswer judges a cited answer by its citations and channel links,
   );
   assert.equal(isGroundedAnswer(cited("Ask in <#C_HELP> for that [E1].", "Program FAQ"), live), true);
 
-  assert.equal(isGroundedAnswer(cited("Ask in <#C_OTHER> for that [E1]."), live), false, "other channels are never linked");
   assert.equal(
-    isGroundedAnswer(cited("Ask in <#C_HELP> for that [E1]."), { id: "live", helpChannel: "C_HELP", requireGroundedAnswer: true }),
+    isGroundedAnswer(cited("Ask in <#C_OTHER> for that [E1]."), live),
+    false,
+    "other channels are never linked",
+  );
+  assert.equal(
+    isGroundedAnswer(cited("Ask in <#C_HELP> for that [E1]."), {
+      id: "live",
+      helpChannel: "C_HELP",
+      requireGroundedAnswer: true,
+    }),
     false,
     "grounded-only programs carry no channel links",
   );
@@ -1408,7 +1416,11 @@ test("isGroundedAnswer judges a cited answer by its citations and channel links,
   assert.equal(isGroundedAnswer(cited("**UNCLEAR**"), live), false);
   assert.equal(isGroundedAnswer(cited("NONE"), live), false);
   assert.equal(isGroundedAnswer({ ...cited("Fact [E1]."), source: "NONE" }, live), false);
-  assert.equal(isGroundedAnswer({ source: "Program FAQ", answer: "There is no official deadline." }, live), false, "uncited");
+  assert.equal(
+    isGroundedAnswer({ source: "Program FAQ", answer: "There is no official deadline." }, live),
+    false,
+    "uncited",
+  );
 });
 
 test("stripChannelMentions removes Slack channel tags and links", () => {
@@ -1421,7 +1433,7 @@ test("stripChannelMentions removes Slack channel tags and links", () => {
 test("a meta source or channel redirect stays unposted in a DM, with uncertainty instead", async () => {
   const client = fakeClient();
   const originalIntent = intent.classifyIntent;
-  const origEnv = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
+  const origEnv = process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
 
   const restoreAnswers = stubAnswers(async () => ({
     source: "Questions the bot should NOT invent answers for",
@@ -1457,7 +1469,7 @@ test("a meta source or channel redirect stays unposted in a DM, with uncertainty
 test("sensitive-category questions escalate without any model call", async () => {
   const programs = require("./programs");
   const db = require("./db");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "sens", name: "Sens", helpChannel: "C-SENS", channels: ["C-SENS"], sensitiveCategories: ["reimbursement"] },
   ]);
@@ -1519,7 +1531,7 @@ test("a classifier outage in a help channel preserves the support path (ticket +
 test("shadow mode evaluates but sends nothing publicly", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "shdw", name: "Shadow", helpChannel: "C-SHDW", channels: ["C-SHDW"], shadowMode: true },
   ]);
@@ -1719,7 +1731,7 @@ test("prevent public reasoning and instruction leak in respond()", async () => {
 
 test("the mute acknowledgement is branded with the resolved program's support identity", async () => {
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     {
       id: "branded-prog",
@@ -1765,7 +1777,7 @@ function withHelpProgram(
   fn: (programId: string, channel: string) => Promise<unknown>,
 ) {
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const id = overrides.id || "ticket-prog";
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id, name: id, helpChannel: `C-${id}`, channels: [`C-${id}`], ...overrides },
@@ -2300,7 +2312,7 @@ test("chatter addressed in a help channel gets a conversational reply but opens 
 test("an off-topic question in a program scoped to itself stays silent and creates no ticket", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "scoped", name: "Scoped", scope: "program", channels: ["C-scoped"] },
   ]);
@@ -2333,7 +2345,7 @@ test("an off-topic question in a program scoped to itself stays silent and creat
 test("two tenants asking the identical question in their own help channels get separate, tenant-scoped tickets", async () => {
   const db = require("./db");
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "tenant-a", name: "TenantA", helpChannel: "C-tenant-a", channels: ["C-tenant-a"] },
     { id: "tenant-b", name: "TenantB", helpChannel: "C-tenant-b", channels: ["C-tenant-b"] },
@@ -2752,7 +2764,7 @@ test("accepted support with model outage gets a helper handoff acknowledgement",
 test("HELP_ONLY suppresses hand-back clarification questions outside help", async () => {
   const originalIntent = intent.classifyIntent;
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "charhand", name: "charhand", channels: ["C-charhand"] }]);
   programs.invalidate();
   const restoreAnswers = stubAnswers(async () => ({ source: null, answer: "sorry, what do you mean?" }));

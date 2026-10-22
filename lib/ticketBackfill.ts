@@ -114,7 +114,8 @@ const getImportProgress = db.getHistoryImportProgress as (programId: string, cha
 
 const RULES_VERSION = 3;
 
-const MIN_INTERVAL_MS = Number((process.env.ORRY_HISTORY_IMPORT_SPACING_MS ?? process.env.RIVET_HISTORY_IMPORT_SPACING_MS)) || 1200;
+const MIN_INTERVAL_MS =
+  Number(process.env.ORRY_HISTORY_IMPORT_SPACING_MS ?? process.env.RIVET_HISTORY_IMPORT_SPACING_MS) || 1200;
 const BACKOFF_INTERVAL_MS = 3000;
 const QUIET_CLOSE_MS = 7 * 24 * 60 * 60 * 1000;
 const STARTUP_DELAY_MS = 60 * 1000;

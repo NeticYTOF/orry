@@ -4,9 +4,12 @@ const refusal = require("./refusalReply");
 
 const CODE_NO_NAME =
   "Sorry, I can't help with code here, but a helper or organizer can point you in the right direction. That's deeper than my tunnels.";
-const DECISION_NO_NAME = "That's a call for a person, not a mine-mole. A helper or organizer will get back to you soon.";
-const ACCOUNT_NO_NAME = "Leider, I can't look into your account from here. A helper or organizer can sort it out with you.";
-const DEFAULT_NO_NAME = "I'm not the right one for that one, wrong tunnel and all. A helper or organizer can take a look.";
+const DECISION_NO_NAME =
+  "That's a call for a person, not a mine-mole. A helper or organizer will get back to you soon.";
+const ACCOUNT_NO_NAME =
+  "Leider, I can't look into your account from here. A helper or organizer can sort it out with you.";
+const DEFAULT_NO_NAME =
+  "I'm not the right one for that one, wrong tunnel and all. A helper or organizer can take a look.";
 
 test("each reason gets its own plain copy when no program name is given", () => {
   assert.equal(refusal.refusalText("code"), CODE_NO_NAME);
@@ -93,10 +96,7 @@ test("every reply stays under 220 characters and has no phone-number-like digits
   const programs = [null, { name: "Loadout" }];
   for (const program of programs) {
     for (const reason of ["code", "decision", "account", "default"]) {
-      for (const text of [
-        refusal.refusalText(reason, { program }),
-        refusal.pingedRefusalText(reason, { program }),
-      ]) {
+      for (const text of [refusal.refusalText(reason, { program }), refusal.pingedRefusalText(reason, { program })]) {
         assert.ok(text.length < 220, `${reason} length ${text.length}`);
         assert.doesNotMatch(text, /\+?\d[\d\s().-]{6,}\d/, reason);
       }

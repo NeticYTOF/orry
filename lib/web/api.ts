@@ -836,8 +836,8 @@ function readTokenAllows(req: Request): boolean {
 }
 
 function internalAuth(req: Request): ApiResponse {
-  const token = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
-  const readToken = (process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN);
+  const token = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
+  const readToken = process.env.ORRY_INTERNAL_READ_TOKEN ?? process.env.RIVET_INTERNAL_READ_TOKEN;
   if (!token && !readToken) return { ok: false, status: 404, body: { error: "internal api disabled" } };
   const header = req.headers.get("authorization") || "";
   const presented = header.startsWith("Bearer ") ? header.slice(7) : "";

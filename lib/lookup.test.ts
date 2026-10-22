@@ -1034,11 +1034,7 @@ test("a verifier that throws or times out accepts sentences whose citations reso
     assert.equal(nulled.answer, "Bolts are spendable.");
 
     assert.equal(
-      await lookup.applyPassageCitations(
-        { source: "Shop rules", answer: "Bolts are spendable [E9]." },
-        passages,
-        prog,
-      ),
+      await lookup.applyPassageCitations({ source: "Shop rules", answer: "Bolts are spendable [E9]." }, passages, prog),
       null,
       "a citation that matches no passage is never accepted",
     );
@@ -1074,10 +1070,7 @@ test("a number that appears only in the user's question never grounds an answer 
       false,
       "40% is not in the cited passage, whatever the question says",
     );
-    assert.equal(
-      lookup.exactClaimAllowed(cited("The cap is 30%."), prog, "is 40% allowed?", "The cap is 30%."),
-      true,
-    );
+    assert.equal(lookup.exactClaimAllowed(cited("The cap is 30%."), prog, "is 40% allowed?", "The cap is 30%."), true);
   } finally {
     knowledge.sourceEligibility = original;
   }

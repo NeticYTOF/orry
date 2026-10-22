@@ -258,7 +258,8 @@ const ACCOUNT_ACTION_RES =
   /\b(?:approve|unlock|unban|restore|reinstate|recover|reset|grant|fix|change|review|look\s+into|transfer|bypass|override|waive)\b/i;
 const ACCOUNT_CHECK_RES = /\bcheck\b/i;
 // "can a human look at my account": any request routed to a person about the account.
-const ACCOUNT_PERSON_ASK_RES = /\b(?:can|could|would|will)\s+(?:a|an|the|some)?\s*(?:human|person|helper|organizer|someone|somebody)\b/i;
+const ACCOUNT_PERSON_ASK_RES =
+  /\b(?:can|could|would|will)\s+(?:a|an|the|some)?\s*(?:human|person|helper|organizer|someone|somebody)\b/i;
 const ACCOUNT_PROBLEM_RES =
   /\b(?:locked|suspended|banned|blocked|frozen|disabled|stuck|flagged|closed|deleted|wrong|missing|broken)\b/i;
 const LOCKED_OUT_RES = /\blocked\s+out\b/i;

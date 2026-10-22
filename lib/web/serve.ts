@@ -1177,8 +1177,7 @@ function resolveWebBind(env: Record<string, string | undefined> = process.env): 
   port: number;
   error: string | null;
 } {
-  const port =
-    validPort(env.ORRY_WEB_PORT) || validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
+  const port = validPort(env.ORRY_WEB_PORT) || validPort(env.RIVET_WEB_PORT) || validPort(env.PORT) || DEFAULT_WEB_PORT;
   const rawHost = env.ORRY_WEB_HOST ?? env.RIVET_WEB_HOST;
   if (rawHost === undefined) return { host: DEFAULT_WEB_HOST, port, error: null };
   const host = rawHost.trim();

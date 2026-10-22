@@ -379,12 +379,7 @@ const FIXTURES = [
     "reply",
     "help_channel_ask",
   ],
-  [
-    "tricky: unnamed bot still matches orry",
-    { text: "orrybot what is this", help: true },
-    "reply",
-    "help_channel_ask",
-  ],
+  ["tricky: unnamed bot still matches orry", { text: "orrybot what is this", help: true }, "reply", "help_channel_ask"],
   [
     "tricky: long social no question",
     { text: "just wanted to say this community is amazing and i love being here every day", help: true },
@@ -635,10 +630,10 @@ test("short HELP_ONLY inputs pin current verdict", () => {
     ((r: any) => [r.decision, r.reason])(run({ text: "what", thread: { orrySpoke: true }, help: true })),
     ["reply", "help_thread_followup"],
   );
-  assert.deepEqual(
-    ((r: any) => [r.decision, r.reason])(run({ text: "ok", thread: { orrySpoke: true }, help: true })),
-    ["silent", "acknowledged"],
-  );
+  assert.deepEqual(((r: any) => [r.decision, r.reason])(run({ text: "ok", thread: { orrySpoke: true }, help: true })), [
+    "silent",
+    "acknowledged",
+  ]);
 });
 
 test("continue/resume in muted thread pin current reactivation", () => {

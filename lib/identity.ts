@@ -182,8 +182,8 @@ function programIdentity(program: IdentityProgram): string {
 
 // Picks the corpus identity section: an env override, the default, or the program's own answers.
 function corpusSection(program: IdentityProgram | null = null) {
-  if ((process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE)) {
-    return (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE);
+  if (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE) {
+    return process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE;
   }
   if (!program || !program.name) {
     return defaultIdentity();

@@ -32,7 +32,7 @@ test("macro selector routes require actorId and authorize the program helper", a
 
   const serve = require("./web/serve");
   const token = "review-auth-token";
-  const previousToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const previousToken = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = token;
   try {
     const headers = { Authorization: `Bearer ${token}` };

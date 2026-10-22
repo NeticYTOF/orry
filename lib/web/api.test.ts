@@ -319,7 +319,7 @@ function charAnon() {
 }
 
 test("internalAuth matrix — absent token→404, bad bearer→401, good→ok", () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   try {
     delete process.env.ORRY_INTERNAL_TOKEN;
     const disabled = api.internalAuth(charAnon());

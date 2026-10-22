@@ -97,11 +97,11 @@ Casing: `Loadout`, `Hack Club`, `YSWS` — never `LOADOUT`/`Cores`/`yswe`.
 
 ## Open threads (not started)
 
-1. **VPS deploy blocked on SSH.** Host alive (22ms ping), port 22 drops
-   packets from here, 443/2222 fail. Proven sandboxed: raw TCP to GitHub
-   also times out while HTTPS works — this runtime is HTTPS-proxy-only, so
-   SSH can never work from here. User must SSH from a real terminal.
-   Deploy then = clone + `config/programs.json` + provider `.env` values.
+1. **VPS is reachable over SSH.** Connect as `kernel-warehouse@hackclub.app`.
+   The Git checkout is `/opt/orry/app` on `main`; secrets are in
+   `/opt/orry/.env`. `orry.service` and `orry-site.service` were active on
+   2026-10-22. Check their status and working tree before deploying; preserve
+   `/opt/orry/.env`, `/opt/orry/site.env`, and `/var/lib/orry/` runtime data.
 2. **VEY evaluated, rejected as classifier.** Structured lane tie-breaks
    alphabetically on ungrounded input (`compose.py`: `min(top, key=text)`).
    It's a fact-selector, not a labeler. `lib/veyDecision.ts` +

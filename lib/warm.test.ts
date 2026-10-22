@@ -57,7 +57,7 @@ test("warmOne refuses to cache an answer the docs did not cover", async () => {
 
 test("warmOne bypasses the old answer and refreshes in the original program scope", async () => {
   cache.clearCache();
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "acme", name: "Acme", sources: [] }]);
   programs.invalidate();
   const original = lookup.answerOrChat;

@@ -45,7 +45,7 @@ const BLOB = JSON.stringify([
 ]);
 
 async function withCorpus(fn: () => unknown) {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const axios = require("axios");
   const realGet = axios.get;
   process.env.ORRY_PROGRAMS_JSON = BLOB;

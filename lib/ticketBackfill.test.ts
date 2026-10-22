@@ -299,7 +299,7 @@ test("backfill resolution skips the resolution pipeline", async () => {
 
 test("history import internal route starts work and rejects missing auth", async () => {
   const program = setup();
-  const savedToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const savedToken = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "backfill-route-token";
   const api = require("./web/api");
   const serve = require("./web/serve");

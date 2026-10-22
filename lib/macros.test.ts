@@ -336,7 +336,7 @@ test("bulk macro send is bounded, scoped, audited, and available over its intern
   });
   assert.match(tooMany.error, /at most 50/);
   const routeToken = "macro-bulk-token";
-  const previousToken = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const previousToken = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = routeToken;
   try {
     const serve = require("./web/serve");

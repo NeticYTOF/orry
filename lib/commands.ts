@@ -242,7 +242,8 @@ async function askCommand({ command, ack, respond: sendEphemeral }: CommandArgs)
   const askPolicy = require("./channelPolicy").resolve(command.channel_id, command.team_id || null);
   const askProgram = askPolicy.role === "none" ? null : askPolicy.program;
   const requireGrounded =
-    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || Boolean(askProgram?.requireGroundedAnswer);
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    Boolean(askProgram?.requireGroundedAnswer);
   try {
     const result = askProgram
       ? await lookupAnswer(question, "", askProgram, command.channel_id as string, { skipCache: requireGrounded })

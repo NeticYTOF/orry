@@ -79,7 +79,7 @@ test("expired sessions and sessions without userId are rejected", () => {
   const crypto = require("crypto");
   const good = auth.signSession("U-exp", "Exp", "user");
   assert.ok(auth.verifySession(good));
-  const saved = (process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET);
+  const saved = process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET;
   try {
     process.env.ORRY_SESSION_SECRET = "char-secret-a";
     const a = auth.signSession("U-x", "X", "user");
@@ -137,7 +137,7 @@ test("dev-testing only unlocks the passcode-free admin session under NODE_ENV=de
 
 test("loginUrl needs Slack env; handleLogout clears the session cookie", () => {
   const cSaved = process.env.SLACK_CLIENT_ID;
-  const wSaved = (process.env.ORRY_WEB_URL ?? process.env.RIVET_WEB_URL);
+  const wSaved = process.env.ORRY_WEB_URL ?? process.env.RIVET_WEB_URL;
   try {
     delete process.env.SLACK_CLIENT_ID;
     delete process.env.ORRY_WEB_URL;

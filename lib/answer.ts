@@ -93,7 +93,10 @@ function stripChannelMentions(text: string) {
 
 function linkifyHelpChannel(text: string, program: ProgramRef = null) {
   const resolved = resolveProgram(program);
-  if ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || resolved?.requireGroundedAnswer) {
+  if (
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    resolved?.requireGroundedAnswer
+  ) {
     return stripChannelMentions(text);
   }
   return text;
@@ -162,7 +165,9 @@ function whereYouAre(program: ProgramRef = null, channel: string | null = null) 
   const named = Boolean(p?.name);
   const lines: string[] = [];
 
-  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer;
+  const requireGrounded =
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    p?.requireGroundedAnswer;
 
   if (named) {
     const role = p.helpChannel && p.helpChannel === channel ? "the help channel for" : "one of the channels for";
@@ -202,7 +207,9 @@ function programGuardrail(
   const name = programName(program);
   const helpChan = helpChannelRef(program);
   const requireGrounded =
-    !allowGeneralChat && ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer);
+    !allowGeneralChat &&
+    ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+      p?.requireGroundedAnswer);
 
   if (requireGrounded) {
     return [
@@ -259,7 +266,9 @@ function systemPrompt(
   channel: string | null = null,
 ) {
   const p = resolveProgram(program);
-  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer;
+  const requireGrounded =
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    p?.requireGroundedAnswer;
   const helpChan = helpChannelRef(program);
 
   const parts = [
@@ -417,7 +426,8 @@ function looksLikeInstructionEcho(text: string) {
 }
 
 // Labels may be wrapped in markdown emphasis ("**SOURCE**:" or "**SOURCE:**") and in any case.
-const REPLY_LABEL_LINE = /^([ \t]*)[*_`~]*(SOURCE|ANSWER|UNRESOLVED|ASSUMPTION|PERSONALITY|UNCERTAINTY)[*_`~]*[ \t]*:[*_`~]*[ \t]*/gim;
+const REPLY_LABEL_LINE =
+  /^([ \t]*)[*_`~]*(SOURCE|ANSWER|UNRESOLVED|ASSUMPTION|PERSONALITY|UNCERTAINTY)[*_`~]*[ \t]*:[*_`~]*[ \t]*/gim;
 
 function normalizeReplyLabels(text: string) {
   return String(text || "").replace(
@@ -457,13 +467,21 @@ function cleanLabelValue(value: string) {
 
 // The optional ASSUMPTION line is shown to the person, so it is kept only as one "Assuming you mean ..." sentence.
 function cleanAssumption(value: string, program: ProgramRef) {
-  const clean = normalizeEmoji(sanitizeAnswer(value).replace(/[_*~`]/g, "").trim().slice(0, 200), program);
+  const clean = normalizeEmoji(
+    sanitizeAnswer(value)
+      .replace(/[_*~`]/g, "")
+      .trim()
+      .slice(0, 200),
+    program,
+  );
   return /^assuming you mean\b/i.test(clean) ? clean : "";
 }
 
 // Normalises raw model output (safety preamble, label casing, citation form) and trims it.
 function prepareReplyText(raw: unknown): string {
-  return normalizeCitations(normalizeReplyLabels(stripLeadingSafety(typeof raw === "string" ? raw : String(raw || "")))).trim();
+  return normalizeCitations(
+    normalizeReplyLabels(stripLeadingSafety(typeof raw === "string" ? raw : String(raw || ""))),
+  ).trim();
 }
 
 interface ReplyFields {
@@ -570,7 +588,9 @@ function answerOrChatPrompt(
   const name = programName(program);
   const helpChan = helpChannelRef(program);
   const requireGrounded =
-    answerMode !== "general" && ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || p?.requireGroundedAnswer);
+    answerMode !== "general" &&
+    ((process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+      p?.requireGroundedAnswer);
 
   const parts = [
     `You are ${brand.name()}, a helper bot for configured programs and build tools.`,
@@ -593,7 +613,7 @@ function answerOrChatPrompt(
       "ANSWER: your concise answer strictly from the documentation, usually one or two sentences, with more when needed to cover the question; cite every factual sentence with its supporting passage ID, e.g. [E1]",
       "UNRESOLVED: NONE, or the question parts the documentation does not confirm",
       "PERSONALITY: one short line of Orry's character after UNRESOLVED (see the voice rules below). Write one for every casual or non-technical question; leave the line out only for serious, sensitive, urgent, or purely technical answers.",
-      "ASSUMPTION: optional, last line. Use it only when the question was ambiguous and your answer follows one specific reading of it: one short sentence starting \"Assuming you mean ...\". Omit the line otherwise; most questions do not need it.",
+      'ASSUMPTION: optional, last line. Use it only when the question was ambiguous and your answer follows one specific reading of it: one short sentence starting "Assuming you mean ...". Omit the line otherwise; most questions do not need it.',
       "Example: if a documentation heading is '### Section title [E1] — detail', output 'SOURCE: Section title' and end the supported factual sentence with ' [E1]'. Never cite a range such as [E1-E5].",
       "",
       `CASE 2 — the documentation does NOT directly confirm any part of the question, or only states that an answer is unknown/unconfirmed/do not invent. Output format:\nSOURCE: ${NONE_MARKER}\nANSWER: ${UNCLEAR_MARKER}\nUNCERTAINTY: one short sentence in Orry's voice (see Writing a CASE 2 answer below), or SILENT`,

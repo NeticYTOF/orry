@@ -333,7 +333,7 @@ test("/orry ask uses the resolved program in an allowed general fallback", async
   const originalLookup = respond.lookupAnswer;
   const originalChat = chat.getChatReply;
   const originalResolve = channelPolicy.resolve;
-  const savedGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
+  const savedGrounded = process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
   const sent: any[] = [];
   let fallbackContext = "";
   delete process.env.ORRY_REQUIRE_GROUNDED_ANSWER;
@@ -393,7 +393,7 @@ test("/orry ask skips cache and blocks general chat when grounded lookup has no 
   const originalLookup = respond.lookupAnswer;
   const originalChat = chat.getChatReply;
   const originalResolve = channelPolicy.resolve;
-  const savedGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER);
+  const savedGrounded = process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER;
   const sent: any[] = [];
   const lookupOptions: any[] = [];
   let generalChatCalls = 0;

@@ -272,7 +272,7 @@ test("GET /internal/v1/programs/:id/outbound is program-scoped and never returns
   // Legacy/corrupt content must not be exposed by the API.
   db.handle().query("UPDATE outbound_messages SET text = 'leaked dm' WHERE channel = 'D-OR'").run();
 
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   process.env.ORRY_INTERNAL_TOKEN = "outbound-route-token";
   try {
     const serve = require("./web/serve");

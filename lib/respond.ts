@@ -159,7 +159,10 @@ function programClarifiers(program: ProgramLike | null): ProgramClarifier[] {
   const clarifiers: ProgramClarifier[] = [];
   for (const rule of rules) {
     if (typeof rule !== "string" || !CLARIFY_RULE_PREFIX.test(rule)) continue;
-    const parts = rule.replace(CLARIFY_RULE_PREFIX, "").split(" | ").map((part) => part.trim());
+    const parts = rule
+      .replace(CLARIFY_RULE_PREFIX, "")
+      .split(" | ")
+      .map((part) => part.trim());
     if (parts.length !== 3 || !parts[0] || !parts[2]) continue;
     try {
       clarifiers.push({
@@ -268,7 +271,16 @@ function isGroundedAnswer(result: AnswerResult | null, program: ProgramLike | nu
   // Meta documents describing the bot's own rules are never a source of a user-facing answer.
   if (/\b(?:not invent|behavior rule|faq rule)\b/i.test(source)) return false;
   const ans = result.answer.trim();
-  if (!ans || ["UNCLEAR", "NONE"].includes(ans.replace(/[*_`~]/g, "").trim().toUpperCase())) return false;
+  if (
+    !ans ||
+    ["UNCLEAR", "NONE"].includes(
+      ans
+        .replace(/[*_`~]/g, "")
+        .trim()
+        .toUpperCase(),
+    )
+  )
+    return false;
   if (hasDisallowedChannelMention(ans, program)) return false;
   return true;
 }
@@ -320,7 +332,9 @@ async function replyFromCache({
   startedAt,
   program = null,
 }: CacheReplyArgs) {
-  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || program?.requireGroundedAnswer;
+  const requireGrounded =
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    program?.requireGroundedAnswer;
   if (requireGrounded) {
     if (!isGroundedAnswer(result, program)) return false;
     result.answer = stripChannelMentions(result.answer);
@@ -364,13 +378,7 @@ function isMuteRequest(text: string) {
     .replace(/[.,!?:;_-]+/g, " ")
     .trim();
 
-  const names = [
-    ...new Set([
-      brand.slug(),
-      brand.name().toLowerCase(),
-      brand.DEFAULT_SLUG,
-    ]),
-  ]
+  const names = [...new Set([brand.slug(), brand.name().toLowerCase(), brand.DEFAULT_SLUG])]
     .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
   const shush = "stfu|shut\\s*up|quiet|shutup|silence|mute|stop";
@@ -651,7 +659,10 @@ function questionTopic(question: unknown): string | null {
   if (what) text = `what ${what[2]} ${what[1]}`;
   const when = text.match(/^when is (.+)$/);
   if (when) text = `when ${when[1]} is`;
-  text = text.replace(/\bmy\b/g, "your").replace(/\s+/g, " ").trim();
+  text = text
+    .replace(/\bmy\b/g, "your")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) return null;
   const words = text.split(" ");
   if (words.length > 12) return null;
@@ -668,8 +679,10 @@ function fallbackTopic(question: string) {
 
 const FALLBACK_WITH_TOPIC: Array<(topic: string) => string> = [
   (topic) => `Sorry, I can't confirm ${topic} from what I have, but a helper can help you with that.`,
-  (topic) => `Moin! Leider, I can't confirm ${topic} from what I've mined so far, but a helper can help you with that. Glück auf!`,
-  (topic) => `Oof, that one's deeper than my tunnels, so I can't confirm ${topic}. A helper can dig it out with you, though. Glück auf!`,
+  (topic) =>
+    `Moin! Leider, I can't confirm ${topic} from what I've mined so far, but a helper can help you with that. Glück auf!`,
+  (topic) =>
+    `Oof, that one's deeper than my tunnels, so I can't confirm ${topic}. A helper can dig it out with you, though. Glück auf!`,
   (topic) => `Sorry, I can't confirm ${topic} from the tunnels I've searched, but a helper can help you with that.`,
 ];
 const FALLBACK_NO_TOPIC = [
@@ -1035,7 +1048,9 @@ async function respond({
       : null;
 
   const tickets = require("./tickets");
-  const requireGrounded = (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" || prog?.requireGroundedAnswer;
+  const requireGrounded =
+    (process.env.ORRY_REQUIRE_GROUNDED_ANSWER ?? process.env.RIVET_REQUIRE_GROUNDED_ANSWER) === "1" ||
+    prog?.requireGroundedAnswer;
   const isRootMessage = !messageTs || messageTs === threadTs;
   const supportTicketReady =
     plan.support && isRootMessage && !programs.isShadow(prog)

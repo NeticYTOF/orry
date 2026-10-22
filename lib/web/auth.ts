@@ -53,7 +53,8 @@ interface SlackUserInfoResponse {
 let ephemeralSecret: string | null = null;
 
 function sessionSecret() {
-  if ((process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET)) return (process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET);
+  if (process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET)
+    return process.env.ORRY_SESSION_SECRET ?? process.env.RIVET_SESSION_SECRET;
   if (!ephemeralSecret) ephemeralSecret = crypto.randomBytes(32).toString("hex");
   return ephemeralSecret;
 }
@@ -136,7 +137,7 @@ function loginUrl(redirect: string): string | null {
   const state = crypto.randomBytes(16).toString("hex");
   sessions.set(state, { redirect: redirect || "/", created: Date.now() });
 
-  const webUrl = (process.env.ORRY_WEB_URL ?? process.env.RIVET_WEB_URL);
+  const webUrl = process.env.ORRY_WEB_URL ?? process.env.RIVET_WEB_URL;
   if (!process.env.SLACK_CLIENT_ID || !webUrl) return null;
   const params = new URLSearchParams({
     client_id: process.env.SLACK_CLIENT_ID,

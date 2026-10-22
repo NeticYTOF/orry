@@ -243,11 +243,7 @@ test("threadCrowd: another human counts only if they replied within the last 10 
   const orry = { user: BOT, ts: "100" };
   const other = { user: "UOTHER", ts: "100" };
   assert.equal(context.threadCrowd([other, orry], "UME", BOT, 100 + 600).othersPresent, true, "exactly 10 minutes");
-  assert.equal(
-    context.threadCrowd([other, orry], "UME", BOT, 100 + 601).othersPresent,
-    false,
-    "older than 10 minutes",
-  );
+  assert.equal(context.threadCrowd([other, orry], "UME", BOT, 100 + 601).othersPresent, false, "older than 10 minutes");
 });
 
 test("fetchThreadCrowd falls back to the thread starter when Slack fails", async () => {

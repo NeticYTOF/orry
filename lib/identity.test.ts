@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const identity = require("./identity");
 
 function withBrand(name: string | undefined, slug: string | undefined, fn: () => void) {
-  const oldName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
-  const oldSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  const oldName = process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME;
+  const oldSlug = process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG;
   if (name === undefined) delete process.env.ORRY_BOT_NAME;
   else process.env.ORRY_BOT_NAME = name;
   if (slug === undefined) delete process.env.ORRY_BOT_SLUG;
@@ -84,10 +84,13 @@ test("Loadout identity names Orry as the bot Netic built", () => {
 });
 
 test("identity override replaces generated text", () => {
-  const saved = (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE);
+  const saved = process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE;
   process.env.ORRY_IDENTITY_OVERRIDE = "Q: Who are you?\nA: A test bot.";
   try {
-    assert.equal(identity.corpusSection({ id: "acme", name: "Acme" }), (process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE));
+    assert.equal(
+      identity.corpusSection({ id: "acme", name: "Acme" }),
+      process.env.ORRY_IDENTITY_OVERRIDE ?? process.env.RIVET_IDENTITY_OVERRIDE,
+    );
   } finally {
     if (saved === undefined) delete process.env.ORRY_IDENTITY_OVERRIDE;
     else process.env.ORRY_IDENTITY_OVERRIDE = saved;

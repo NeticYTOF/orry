@@ -8,7 +8,7 @@ const programs = require("./programs");
 db.open(":memory:");
 
 function withEnvPrograms(value: string | undefined, fn: () => void) {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   if (value === undefined) delete process.env.ORRY_PROGRAMS_JSON;
   else process.env.ORRY_PROGRAMS_JSON = value;
   programs.invalidate();

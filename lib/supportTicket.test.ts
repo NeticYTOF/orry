@@ -95,7 +95,7 @@ const realIntent = intent.classifyIntent;
 before(() => {
   db.close();
   db.open(":memory:");
-  savedBlob = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  savedBlob = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
 });
 
 beforeEach(() => {

@@ -26,8 +26,8 @@ test("mentionsOrryByName matches the name and its suffixes", () => {
 });
 
 test("mentionsOrryByName recognizes Orry anywhere in a message", () => {
-  const savedName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
-  const savedSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  const savedName = process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME;
+  const savedSlug = process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG;
   process.env.ORRY_BOT_NAME = "Orry the ore Maulwürf";
   process.env.ORRY_BOT_SLUG = "orry";
   try {
@@ -49,8 +49,8 @@ test("mentionsOrryByName ignores unrelated text", () => {
 });
 
 test("mentionsOrryByName follows the configured bot identity", () => {
-  const savedName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
-  const savedSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  const savedName = process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME;
+  const savedSlug = process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG;
   process.env.ORRY_BOT_NAME = "Live Helper";
   process.env.ORRY_BOT_SLUG = "live-helper";
   try {
@@ -107,7 +107,7 @@ test("shouldConsiderThreadReply allows a thread orry already replied in", () => 
 });
 
 test("shouldConsiderThreadReply skips unaddressed thread when ORRY_THREAD_REQUIRE_MENTION is set", () => {
-  const origEnv = (process.env.ORRY_THREAD_REQUIRE_MENTION ?? process.env.RIVET_THREAD_REQUIRE_MENTION);
+  const origEnv = process.env.ORRY_THREAD_REQUIRE_MENTION ?? process.env.RIVET_THREAD_REQUIRE_MENTION;
   try {
     process.env.ORRY_THREAD_REQUIRE_MENTION = "1";
     context.addToThread("thread-spoken-req", "assistant", "here you go", null, "C1");
@@ -125,7 +125,7 @@ test("shouldConsiderThreadReply skips unaddressed thread when ORRY_THREAD_REQUIR
 });
 
 test("mentionsOrryByName supports ORRY_BOT_ALIASES", () => {
-  const origAliases = (process.env.ORRY_BOT_ALIASES ?? process.env.RIVET_BOT_ALIASES);
+  const origAliases = process.env.ORRY_BOT_ALIASES ?? process.env.RIVET_BOT_ALIASES;
   try {
     process.env.ORRY_BOT_ALIASES = "seb,seba,sebastian";
     assert.equal(handlers.mentionsOrryByName("hey seb check this"), true);
@@ -1056,7 +1056,7 @@ test("onAppMention routes to respond ALWAYS addressed (mention path parity)", as
   const calls: any[] = [];
   respond.respond = async (args: any) => void calls.push(args);
   const programs = require("./programs");
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "charmen", name: "CharMen", helpChannel: "C-CHARMEN", channels: ["C-CHARMEN"] },
   ]);
@@ -1080,7 +1080,7 @@ test("onAppMention routes to respond ALWAYS addressed (mention path parity)", as
 
 test("an unclaimed direct mention keeps the safely resolved Loadout program context", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const configured = {
     id: "loadout",
     name: "Loadout",
@@ -1111,7 +1111,7 @@ test("an unclaimed direct mention keeps the safely resolved Loadout program cont
 
 test("an unclaimed mention cannot borrow a Loadout config owned by another workspace", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const calls: any[] = [];
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", workspaceId: "T_OWNER", requireGroundedAnswer: true },
@@ -1136,8 +1136,8 @@ test("an unclaimed mention cannot borrow a Loadout config owned by another works
 
 test("an unclaimed mention without workspace identity cannot borrow a workspace-owned Loadout config", async () => {
   const savedRespond = respond.respond;
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
-  const savedWorkspace = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
+  const savedWorkspace = process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID;
   const calls: any[] = [];
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", workspaceId: "T_OWNER", requireGroundedAnswer: true },
@@ -1168,7 +1168,7 @@ test("a direct ping in a message event uses the mention route and dedupes app_me
   const savedHelp = config.slack.helpChannel;
   const savedFaq = config.slack.faqChannels;
   const savedAuto = config.slack.autoReplyChannel;
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const calls: any[] = [];
   const event = {
     ts: "993.2",

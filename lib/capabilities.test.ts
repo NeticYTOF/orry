@@ -18,7 +18,7 @@ test("capability help exposes public commands and hides helper commands", () => 
 });
 
 test("capability help exposes helper commands for an admin and follows the slug", () => {
-  const previousSlug = (process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG);
+  const previousSlug = process.env.ORRY_BOT_SLUG ?? process.env.RIVET_BOT_SLUG;
   process.env.ORRY_BOT_SLUG = "sol";
   config.slack.adminUserIds = ["U-admin"];
 

@@ -364,7 +364,7 @@ test("grounded answer and escalation are mutually exclusive (grounded -> no esca
   };
   db.saveProgram(prog);
   db.claimProgramChannel({ programId: prog.id, channelId: prog.helpChannel, kind: "help" });
-  const savedProgramsJson = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedProgramsJson = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([prog]);
   programs.invalidate();
 

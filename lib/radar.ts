@@ -665,7 +665,9 @@ function evaluateProgram(programId: string): { error: string } | { signals: Arra
 }
 
 function startRadarLoop(
-  intervalMin = Number((process.env.ORRY_RADAR_CHECK_MIN ?? process.env.RIVET_RADAR_CHECK_MIN) || RADAR_LOOP_DEFAULT_MIN),
+  intervalMin = Number(
+    (process.env.ORRY_RADAR_CHECK_MIN ?? process.env.RIVET_RADAR_CHECK_MIN) || RADAR_LOOP_DEFAULT_MIN,
+  ),
 ): ReturnType<typeof setInterval> | null {
   if (!intervalMin || intervalMin <= 0) return null;
   const log = require("./log");

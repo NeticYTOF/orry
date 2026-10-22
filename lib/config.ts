@@ -191,9 +191,11 @@ function ambientUncertainReplyFrom(raw: string | undefined): string {
 
 const faqChannels = parseChannels(process.env.SLACK_FAQ_CHANNELS);
 
-const stagingOnlyChannels = parseChannels((process.env.ORRY_STAGING_ONLY_CHANNELS ?? process.env.RIVET_STAGING_ONLY_CHANNELS));
+const stagingOnlyChannels = parseChannels(
+  process.env.ORRY_STAGING_ONLY_CHANNELS ?? process.env.RIVET_STAGING_ONLY_CHANNELS,
+);
 
-const adminUserIds = parseChannels((process.env.ORRY_ADMIN_USER_IDS ?? process.env.RIVET_ADMIN_USER_IDS));
+const adminUserIds = parseChannels(process.env.ORRY_ADMIN_USER_IDS ?? process.env.RIVET_ADMIN_USER_IDS);
 
 const intentBaseUrl = normalizeBaseUrl(
   process.env.INTENT_CLASSIFIER_BASE_URL,
@@ -295,15 +297,30 @@ const DEFAULT_PRIMARY_MODEL = "kr/claude-sonnet-4.5";
 const DEFAULT_FALLBACK_MODEL = "ag/gemini-3.6-flash-low";
 
 const nineRouterSecondaryFallbackTier = {
-  apiKey: () => (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
+  apiKey: () =>
+    (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) ||
+    process.env.INTENT_CLASSIFIER_API_KEY ||
+    process.env.VISION_API_KEY,
+  baseUrl: normalizeBaseUrl(
+    process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL,
+    NINE_ROUTER_BASE_URL,
+  ),
   model: (process.env.ORRY_FALLBACK_MODEL ?? process.env.RIVET_FALLBACK_MODEL) || DEFAULT_FALLBACK_MODEL,
-  fallback: standbyFallback(normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL), DEFAULT_MODEL),
+  fallback: standbyFallback(
+    normalizeBaseUrl(process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL, NINE_ROUTER_BASE_URL),
+    DEFAULT_MODEL,
+  ),
 };
 
 const nineRouterAnswerTier = {
-  apiKey: () => (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) || process.env.INTENT_CLASSIFIER_API_KEY || process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl((process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
+  apiKey: () =>
+    (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) ||
+    process.env.INTENT_CLASSIFIER_API_KEY ||
+    process.env.VISION_API_KEY,
+  baseUrl: normalizeBaseUrl(
+    process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL,
+    NINE_ROUTER_BASE_URL,
+  ),
   model: (process.env.ORRY_MODEL ?? process.env.RIVET_MODEL) || DEFAULT_PRIMARY_MODEL,
   fallback: process.env.OPENROUTER_API_KEY
     ? {
@@ -330,8 +347,15 @@ const nineRouterPingTier = {
     (process.env.ORRY_ANSWER_API_KEY ?? process.env.RIVET_ANSWER_API_KEY) ||
     process.env.INTENT_CLASSIFIER_API_KEY ||
     process.env.VISION_API_KEY,
-  baseUrl: normalizeBaseUrl((process.env.ORRY_PING_BASE_URL ?? process.env.RIVET_PING_BASE_URL) || (process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL), NINE_ROUTER_BASE_URL),
-  model: (process.env.ORRY_PING_MODEL ?? process.env.RIVET_PING_MODEL) || (process.env.ORRY_MODEL ?? process.env.RIVET_MODEL) || DEFAULT_PRIMARY_MODEL,
+  baseUrl: normalizeBaseUrl(
+    (process.env.ORRY_PING_BASE_URL ?? process.env.RIVET_PING_BASE_URL) ||
+      (process.env.ORRY_ANSWER_BASE_URL ?? process.env.RIVET_ANSWER_BASE_URL),
+    NINE_ROUTER_BASE_URL,
+  ),
+  model:
+    (process.env.ORRY_PING_MODEL ?? process.env.RIVET_PING_MODEL) ||
+    (process.env.ORRY_MODEL ?? process.env.RIVET_MODEL) ||
+    DEFAULT_PRIMARY_MODEL,
   fallback: openRouterAnswerTier,
 };
 
@@ -398,22 +422,35 @@ const config = {
   reportChannel: (process.env.ORRY_REPORT_CHANNEL ?? process.env.RIVET_REPORT_CHANNEL) || null,
 
   refreshIntervalMin: positiveNumber(process.env.REFRESH_INTERVAL_MIN, DEFAULT_REFRESH_INTERVAL_MIN),
-  debug: (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "1" || (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "true",
+  debug:
+    (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "1" ||
+    (process.env.ORRY_DEBUG ?? process.env.RIVET_DEBUG) === "true",
 
   web: {
-    baseUrl: (process.env.ORRY_WEB_BASE_URL ?? process.env.RIVET_WEB_BASE_URL) || `http://localhost:${(process.env.ORRY_WEB_PORT ?? process.env.RIVET_WEB_PORT) || 4100}`,
+    baseUrl:
+      (process.env.ORRY_WEB_BASE_URL ?? process.env.RIVET_WEB_BASE_URL) ||
+      `http://localhost:${(process.env.ORRY_WEB_PORT ?? process.env.RIVET_WEB_PORT) || 4100}`,
   },
 
-  escalateReaction: ((process.env.ORRY_ESCALATE_REACTION ?? process.env.RIVET_ESCALATE_REACTION) || "").replace(/:/g, "").trim() || null,
+  escalateReaction:
+    ((process.env.ORRY_ESCALATE_REACTION ?? process.env.RIVET_ESCALATE_REACTION) || "").replace(/:/g, "").trim() ||
+    null,
 
   ticketOpenReaction:
     (process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) === ""
       ? null
-      : ((process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) || "ticket").replace(/:/g, "").trim() || null,
+      : ((process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) || "ticket")
+          .replace(/:/g, "")
+          .trim() || null,
   ticketResolvedReaction:
     (process.env.ORRY_TICKET_REACTION ?? process.env.RIVET_TICKET_REACTION) === ""
       ? null
-      : ((process.env.ORRY_TICKET_RESOLVED_REACTION ?? process.env.RIVET_TICKET_RESOLVED_REACTION) || "white_check_mark").replace(/:/g, "").trim() || null,
+      : (
+          (process.env.ORRY_TICKET_RESOLVED_REACTION ?? process.env.RIVET_TICKET_RESOLVED_REACTION) ||
+          "white_check_mark"
+        )
+          .replace(/:/g, "")
+          .trim() || null,
 
   feedbackReactions: feedbackReactionsFrom(process.env.ORRY_FEEDBACK_REACTIONS ?? process.env.RIVET_FEEDBACK_REACTIONS),
 

@@ -37,14 +37,15 @@ function collectTests(dir, suffixes = [".test.js", ".test.ts"]) {
   return out.sort();
 }
 
-// Hermetic child env: strip every credential-shaped variable plus the Jev and
-// database overrides, so a local .env can never turn unit tests into live
-// integration tests. The bunfig preload still pins ORRY_DB_PATH=:memory: and
-// JEV_ENABLED=false inside each child.
+// Hermetic child env: strip provider credentials and all deploy-time Orry
+// settings so a configured workstation cannot change unit-test behavior. The
+// bunfig preload still pins ORRY_DB_PATH=:memory: and JEV_ENABLED=false.
 function hermeticEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
     if (
+      key.startsWith("ORRY_") ||
+      key.startsWith("RIVET_") ||
       key.endsWith("_API_KEY") ||
       key.endsWith("_TOKEN") ||
       key.startsWith("SLACK_") ||

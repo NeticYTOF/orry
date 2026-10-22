@@ -172,7 +172,7 @@ test("a changed program source clears only that program's cached answers", async
     sharedSources: false,
     sources: [{ name: "Inline docs", type: "text", content }],
   });
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const question = "how many sample devices?";
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([source("There is 1 sample device.")]);
   programs.invalidate();
@@ -198,7 +198,7 @@ test("a changed shared source clears cached answers for every program that inher
   const originalFetch = sourceGuard.fetchSourceUrl;
   const source = { name: "Shared refresh", type: "gdoc", url: "https://example.invalid/shared" };
   const sourceKey = knowledge.sourceCacheKey(source);
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const question = "what does the shared guide say?";
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "shared", sources: [source] },
@@ -233,7 +233,7 @@ test("a changed shared source clears cached answers for every program that inher
 test("source removal clears cached answers even when only the persisted source cache remains", async () => {
   const oldSource = { name: "Removed Docs", type: "url", url: "https://example.invalid/removed" };
   const currentSource = { name: "Current Docs", type: "text", content: "Current source text." };
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const oldKey = knowledge.sourceCacheKey(oldSource);
   const currentKey = knowledge.sourceCacheKey(currentSource);
   db.saveSourceText(oldKey, "Removed source text.");
@@ -262,7 +262,7 @@ test("source removal clears cached answers even when only the persisted source c
 
 test("refresh preserves a legacy bare-name source cache alias while that source is active", async () => {
   const source = { name: "Legacy Docs", type: "url", url: "https://example.invalid/legacy" };
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const sourceGuard = require("./sourceGuard");
   const originalFetch = sourceGuard.fetchSourceUrl;
   db.saveSourceText(source.name, "Last-known-good legacy source.");
@@ -293,7 +293,7 @@ test("a restored dynamic source is not exact-claim fresh before this boot refres
 });
 
 test("lazy disk restoration of dynamic context does not make it exact-claim fresh", () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const source = { name: "Lazy dynamic", type: "url", url: "https://example.invalid/lazy", dynamic: true };
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "lazy-prog", name: "Lazy", sources: [source] }]);
   programs.invalidate();
@@ -320,7 +320,7 @@ test("refreshSource reports failures while retaining last-good source text", asy
 });
 
 test("refreshCorpus keeps answer cache when every source body is unchanged", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "unchanged", name: "Unchanged", sources: [{ name: "Stable body", type: "text", content: "same text" }] },
   ]);
@@ -339,7 +339,7 @@ test("refreshCorpus keeps answer cache when every source body is unchanged", asy
 });
 
 test("operator sources load from configured programs", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     {
       id: "demo",
@@ -364,7 +364,7 @@ test("operator sources load from configured programs", async () => {
 });
 
 test("program source corpora remain isolated", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "acme", name: "Acme", sources: [{ name: "Acme docs", type: "text", content: "acme-only" }] },
     { id: "beta", name: "Beta", sources: [{ name: "Beta docs", type: "text", content: "beta-only" }] },
@@ -387,7 +387,7 @@ test("program source corpora remain isolated", async () => {
 });
 
 test("program source passages survive a large generated section under a tight evidence budget", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     {
       id: "gadget",
@@ -423,8 +423,8 @@ test("program source passages survive a large generated section under a tight ev
 });
 
 test("personal questions retrieve the matching parts of Orry's full canon", () => {
-  const savedPrograms = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
-  const savedBotName = (process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME);
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
+  const savedBotName = process.env.ORRY_BOT_NAME ?? process.env.RIVET_BOT_NAME;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "loadout", name: "Loadout", supportName: "Orry the ore Maulwürf", sharedSources: false, sources: [] },
   ]);
@@ -449,7 +449,7 @@ test("personal questions retrieve the matching parts of Orry's full canon", () =
 });
 
 test("refreshSource invalidates cached source sections", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   process.env.ORRY_PROGRAMS_JSON = JSON.stringify([
     { id: "cache-demo", name: "Cache Demo", sources: [{ name: "Docs", type: "text", content: "version-one token" }] },
   ]);
@@ -474,7 +474,7 @@ test("refreshSource invalidates cached source sections", async () => {
 });
 
 test("program invalidation drops cached source-section views", async () => {
-  const saved = (process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON);
+  const saved = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
   const sourceA = { name: "Docs A", type: "text", content: "alpha-source token" };
   const sourceB = { name: "Docs B", type: "text", content: "beta-source token" };
 

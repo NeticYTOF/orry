@@ -23,7 +23,7 @@ function anon() {
 }
 
 test("internal API is disabled without a token and rejects bad bearers", () => {
-  const saved = (process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN);
+  const saved = process.env.ORRY_INTERNAL_TOKEN ?? process.env.RIVET_INTERNAL_TOKEN;
   delete process.env.ORRY_INTERNAL_TOKEN;
   assert.equal(api.internalAuth(anon()).status, 404);
   process.env.ORRY_INTERNAL_TOKEN = saved;

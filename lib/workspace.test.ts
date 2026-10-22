@@ -11,7 +11,7 @@ test("workspaceOf prefers event team, then body, then configured", () => {
 });
 
 test("explicitWorkspaceOf never treats the configured fallback as event identity", () => {
-  const saved = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
+  const saved = process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID;
   try {
     process.env.ORRY_WORKSPACE_ID = "T_CONFIGURED";
     assert.equal(workspace.explicitWorkspaceOf({}), null);
@@ -38,7 +38,7 @@ test("channelKey scopes by workspace with a stable default", () => {
 });
 
 test("configuredWorkspaceId trims and nulls when unset", () => {
-  const saved = (process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID);
+  const saved = process.env.ORRY_WORKSPACE_ID ?? process.env.RIVET_WORKSPACE_ID;
   try {
     process.env.ORRY_WORKSPACE_ID = "  T9  ";
     assert.equal(workspace.configuredWorkspaceId(), "T9");

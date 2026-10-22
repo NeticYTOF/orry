@@ -99,10 +99,13 @@ test("parseReply takes the optional ASSUMPTION line out of the answer", () => {
 });
 
 test("parseReply changes nothing when there is no ASSUMPTION line", () => {
-  assert.deepEqual(answer.parseReply("SOURCE: Example docs\nANSWER: Tracks unlock at level five [E1].\nUNRESOLVED: NONE"), {
-    source: "Example docs",
-    answer: "Tracks unlock at level five [E1].",
-  });
+  assert.deepEqual(
+    answer.parseReply("SOURCE: Example docs\nANSWER: Tracks unlock at level five [E1].\nUNRESOLVED: NONE"),
+    {
+      source: "Example docs",
+      answer: "Tracks unlock at level five [E1].",
+    },
+  );
 });
 
 test("parseAnswerOrChat keeps an ASSUMPTION only when it is an 'Assuming you mean' sentence", () => {
@@ -193,7 +196,10 @@ test("strict grounded answers ask for a voiced uncertainty line and accept 'what
   assert.match(prompt, /ANSWER: UNCLEAR\nUNCERTAINTY: one short sentence in Orry's voice/);
   assert.match(prompt, /Judge questions by meaning, never by wording/);
   assert.match(prompt, /'what YSWS are we'/);
-  assert.match(prompt, /UNRESOLVED: NONE, or the question parts[^\n]*\nPERSONALITY: one short line of Orry's character/);
+  assert.match(
+    prompt,
+    /UNRESOLVED: NONE, or the question parts[^\n]*\nPERSONALITY: one short line of Orry's character/,
+  );
   assert.match(prompt, /one PERSONALITY line after UNRESOLVED/);
   assert.match(prompt, /never a standalone greeting/);
   assert.match(prompt, /Interpret before you match/);
@@ -270,7 +276,9 @@ test("parseReply accepts markdown-wrapped and lowercase labels", () => {
     { source: "Example docs", answer: "Track XP is permanent [E1]." },
   );
   assert.deepEqual(
-    answer.parseReply("**SOURCE**: Example docs\n**ANSWER**: Track XP is permanent [E1].\n**UNRESOLVED**: whether it can be spent"),
+    answer.parseReply(
+      "**SOURCE**: Example docs\n**ANSWER**: Track XP is permanent [E1].\n**UNRESOLVED**: whether it can be spent",
+    ),
     {
       source: "Example docs",
       answer: "Track XP is permanent [E1].",
@@ -315,7 +323,10 @@ test("the instruction-echo filter checks only the first sentence and the generic
   );
   assert.equal(answer.parseReply("SOURCE: Example docs\nANSWER: let's see"), null);
   assert.equal(answer.parseReply("SOURCE: Example docs\nANSWER: Output format"), null);
-  assert.notEqual(answer.parseReply("SOURCE: Example docs\nANSWER: I don't have access to that exact figure [E1]."), null);
+  assert.notEqual(
+    answer.parseReply("SOURCE: Example docs\nANSWER: I don't have access to that exact figure [E1]."),
+    null,
+  );
   assert.equal(
     answer.parseReply("SOURCE: Example docs\nANSWER: Output only the final answer [E1]. Bolts are spendable [E1]."),
     null,
