@@ -217,6 +217,24 @@ function evidencePrompt(passages: Array<{ id: string; source: string; heading?: 
     .join("\n\n");
 }
 
+function canonicalFaqQuestion(question: string, prog: ProgramLike | string | null) {
+  const resolved = typeof prog === "string" ? (programs.get(prog) as ProgramLike) : prog;
+  const programName = resolved?.name?.trim();
+  if (!programName) return question;
+
+  const normalized = question
+    .trim()
+    .replace(/^(?:no\s+)?(?:i\s+)?(?:just\s+)?meant\s+/i, "")
+    .replace(/\bthsi\b/gi, "this")
+    .replace(/[?.!]+$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (/^what\s+(?:is\s+)?(?:this\s+)?(?:ysws|program|project)(?:\s+is)?$/.test(normalized)) {
+    return `What is ${programName}?`;
+  }
+  return question;
+}
+
 function exactFaqAnswer(question: string, passages: Array<{ source: string; text: string }>): AnswerResult | null {
   const ignoredWords = new Set(["a", "an", "the", "this", "that"]);
   const normalize = (value: string) =>
@@ -557,6 +575,7 @@ async function lookupAnswer(
   channel: string | null = null,
   { isPing = false, skipCache = false }: Pick<AnswerOptions, "isPing" | "skipCache"> = {},
 ) {
+  question = canonicalFaqQuestion(question, prog);
   const programId = idOf(prog);
   const hit = cacheHit(question, contextPrompt, cacheScope(prog), skipCache);
   if (hit) return hit;
@@ -595,6 +614,7 @@ async function answerOrChat(
     answerMode = "program",
   }: AnswerOptions = {},
 ) {
+  question = canonicalFaqQuestion(question, prog);
   const programId = idOf(prog);
   const hit = previousQuestion ? null : cacheHit(question, contextPrompt, cacheScope(prog), skipCache);
   if (hit) return hit;
@@ -713,6 +733,7 @@ export = {
   cacheHit,
   dateFallback,
   retrievalQuery,
+  canonicalFaqQuestion,
   lookupAnswer,
   answerOrChat,
   knownAnswer,
