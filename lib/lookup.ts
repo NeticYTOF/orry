@@ -625,7 +625,7 @@ async function answerOrChat(
   const query = previousQuestion
     ? retrievalQuery(question, `User: ${previousQuestion}`, prog)
     : retrievalQuery(question, contextPrompt, prog);
-  const { passages } = knowledge.getEvidenceContext(query, programId);
+  const { passages } = knowledge.getEvidenceContext(query, programId, { semanticFallback: answerMode !== "general" });
   const corpus = evidencePrompt(passages);
   let result = exactFaqAnswer(question, passages);
   if (!result) {

@@ -995,16 +995,22 @@ function getContext(question: string, programId: string | null = null) {
   return selectContextFor(question, programId);
 }
 
-function getEvidenceContext(question: string, programId: string | null = null) {
+function getEvidenceContext(
+  question: string,
+  programId: string | null = null,
+  { semanticFallback = true }: { semanticFallback?: boolean } = {},
+) {
   const sources = sourceSections(programId);
   const generated = generatedSections(programId, question);
   const index = retrieve.buildIndex(retrieve.chunkSections([...generated, ...sources]));
   const programSourceNames = new Set(sources.map(([name]) => name.toLowerCase()));
-  const passages = retrieve.selectEvidence(index, question, retrieve.DEFAULT_BUDGET).map((passage) => ({
-    ...passage,
-    programId,
-    kind: programSourceNames.has(passage.source.toLowerCase()) ? "source" : "generated",
-  }));
+  const passages = retrieve
+    .selectEvidence(index, question, retrieve.DEFAULT_BUDGET, null, semanticFallback)
+    .map((passage) => ({
+      ...passage,
+      programId,
+      kind: programSourceNames.has(passage.source.toLowerCase()) ? "source" : "generated",
+    }));
   return {
     context: passages
       .map(({ id, source, heading, text }) => `### ${source} [${id}]${heading ? ` — ${heading}` : ""}\n${text}`)
