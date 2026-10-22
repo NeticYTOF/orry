@@ -1,6 +1,6 @@
 # Loadout — the program
 
-Loadout is a YSWS where every shipped project builds your stack. Work that expands technical capability for you or for other builders becomes a persistent **Digital Loadout**, and the rewards you buy with it become your **Physical Loadout**.
+Loadout is a YSWS where every shipped project builds your stack. You specialise in one of four tracks (Tools, Systems, Compute, Hardware), level each track up to LV.15, and earn permanent discounts on items in that track. Work that expands technical capability for you or for other builders becomes a persistent **Digital Loadout**, and the rewards you buy with it become your **Physical Loadout**.
 
 **The one-line version:** build your own technical stack. Your projects build your Loadout.
 

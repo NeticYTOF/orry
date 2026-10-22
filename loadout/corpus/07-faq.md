@@ -1,6 +1,6 @@
 # Frequently asked
 
-**What is Loadout?** A technical builder YSWS where shipped projects become a persistent Digital Loadout and rewards build your Physical Loadout. The tagline is "build your own technical stack."
+**What is Loadout?** A technical builder YSWS, a Hack Club You Ship, We Ship program. You specialise in one of four tracks (Tools, Systems, Compute, Hardware), level each track up to LV.15, and earn permanent discounts on items in that track. Shipped projects become a persistent Digital Loadout, and rewards build your Physical Loadout. The tagline is "build your own technical stack."
 
 **Which YSWS is this?** This is Loadout, a Hack Club YSWS ("You Ship, We Ship") for technical builders. You specialise in one of four tracks, level it up, and earn permanent discounts on items related to that track. Shipped projects earn Bolts and Track XP.
 
