@@ -118,7 +118,7 @@ Full verification before any commit: `typecheck` + `format:check` + `test`
 - `lib/identity.ts` — bot self-description corpus. Program-specific facts
   go in per-program branches of `makerLine`, not generic fallbacks.
 - `lib/web/` — Core HTTP: `serve.ts` router, `api.ts` business logic,
-  `auth.ts` (`orry_sid` HMAC cookie, 7d). Bridge auth: static bearer
+  `auth.ts` (`rivet_sid` HMAC cookie, 7d; name kept for existing sessions). Bridge auth: static bearer
   `ORRY_INTERNAL_TOKEN`, constant-time compare, 404 when unset.
 - `lib/veyDecision.ts` + `lib/vey/sidecar.py` — VEY decision client + Python
   sidecar. **Evaluated and rejected as a classifier** (structured lane
