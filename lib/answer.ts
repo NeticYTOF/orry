@@ -715,6 +715,7 @@ async function expandSearchQueries(question: string, program: ProgramRef = null,
       ),
     ].slice(0, 6);
   } catch (error: unknown) {
+    if (llm.isProviderFailure(error)) throw error;
     log.debug("retrieve", `query expansion failed: ${errorMessage(error)}`);
     return [];
   }
@@ -868,6 +869,7 @@ async function retryIfTruncated(
         return retryParsed;
       }
     } catch (error: unknown) {
+      if (llm.isProviderFailure(error)) throw error;
       log.debug("answer", `fallback retry failed: ${errorMessage(error)}`);
     }
   }
@@ -949,6 +951,7 @@ async function verifyGrounding(
     );
     return grounding.parseGroundingVerdict(text);
   } catch (error: unknown) {
+    if (llm.isProviderFailure(error)) throw error;
     log.debug("answer", `grounding verification failed: ${errorMessage(error)}`);
     return null;
   }

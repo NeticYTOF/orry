@@ -359,6 +359,12 @@ function describeError(err: LlmError) {
   return err.response?.status || err.cause?.code || err.code || "network";
 }
 
+function isProviderFailure(error: unknown) {
+  return Boolean(
+    error && typeof error === "object" && (error as { providerFailure?: unknown }).providerFailure === true,
+  );
+}
+
 async function complete(options: CompletionOptions, scope = "llm") {
   const deadlineAt = options.deadlineAt || Date.now() + (options.timeout || DEFAULT_TIMEOUT_MS);
   const requestId = options.telemetry?.requestId || crypto.randomUUID();
@@ -372,7 +378,10 @@ async function complete(options: CompletionOptions, scope = "llm") {
     return await completeAttempts(primary, scope);
   } catch (error: unknown) {
     const err = toLlmError(error);
-    if (!fallback) throw err;
+    if (!fallback) {
+      Object.assign(err, { providerFailure: true });
+      throw err;
+    }
     log.warn(
       scope,
       `${primary.model || primary.baseUrl} failed (${describeError(err)}) — falling back to ${fallback.model || fallback.baseUrl}`,
@@ -627,7 +636,10 @@ async function completeStream(
     return await streamAttempts(primary, track, scope);
   } catch (error: unknown) {
     const err = toLlmError(error);
-    if (!fallback || streamedAny) throw err;
+    if (!fallback || streamedAny) {
+      Object.assign(err, { providerFailure: true });
+      throw err;
+    }
     log.warn(
       scope,
       `${primary.model || primary.baseUrl} failed (${describeError(err)}) — falling back to ${fallback.model || fallback.baseUrl}`,
@@ -639,6 +651,7 @@ async function completeStream(
 export = {
   complete,
   completeStream,
+  isProviderFailure,
   requestCompletion,
   streamCompletion,
   parseSseChunk,

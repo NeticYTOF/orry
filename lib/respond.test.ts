@@ -1532,6 +1532,28 @@ test("answer generation throwing still leaves an open, usable ticket in the thre
   });
 });
 
+test("provider outage stays silent instead of posting a fallback reply", async () => {
+  const client = richClient();
+  const originalLookup = lookup.answerOrChat;
+  lookup.answerOrChat = async () => {
+    throw Object.assign(new Error("all providers unavailable"), { providerFailure: true });
+  };
+  try {
+    const handled = await respond.respond({
+      client,
+      channel: "C1",
+      threadTs: "t-provider-outage",
+      userId: "U-provider-outage",
+      question: "orry what is this ysws?",
+      mode: respond.ALWAYS,
+    });
+    assert.equal(handled, false);
+    assert.deepEqual(client.posts, []);
+  } finally {
+    lookup.answerOrChat = originalLookup;
+  }
+});
+
 test("prevent public reasoning and instruction leak in respond()", async () => {
   const client = fakeClient();
   const originalIntent = intent.classifyIntent;
