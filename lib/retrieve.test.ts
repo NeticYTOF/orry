@@ -470,10 +470,13 @@ test("referral-code query retrieves 48-hour / 2-day expiration across various ph
   }
 });
 
-test("a query with no shared words still receives FAQ and live-site evidence for semantic matching", () => {
+test("a weak one-word match still receives FAQ and live-site evidence for semantic matching", () => {
   const sections = [
     ["Loadout — FAQ", "## Organization\nJerry is the lead organizer. Netic and Wind are co-organizers."],
-    ["Loadout — live website docs", "## About Loadout\nLoadout is a technical builder YSWS for shipped projects."],
+    [
+      "Loadout — live website docs",
+      "## About Loadout\nRun your shipped project through Loadout to build your technical stack.",
+    ],
     ["Loadout — shop", "## Catalog\nBuy equipment using Bolts from the Loadout shop."],
   ] as Array<[string, string]>;
   const index = retrieve.buildIndex(retrieve.chunkSections(sections));

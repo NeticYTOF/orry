@@ -397,7 +397,8 @@ function selectEvidence(
   semanticFallback = true,
 ) {
   let chunks = selectChunks(index, question, budget, exclude);
-  if (chunks.length === 0 && semanticFallback) {
+  const questionTerms = new Set(questionParts(question).flatMap((part) => tokenize(part)));
+  if (semanticFallback && questionTerms.size > 0 && (chunks.length === 0 || questionTerms.size <= 1)) {
     const dropped = exclude instanceof Set ? exclude : new Set(exclude || []);
     const groups = new Map<string, Chunk[]>();
     for (const { chunk } of index.docs) {
@@ -409,11 +410,11 @@ function selectEvidence(
     const priority = (source: string) =>
       /faq|frequently asked/i.test(source) ? 0 : /website|site|docs/i.test(source) ? 1 : 2;
     const ordered = [...groups].sort((a, b) => priority(a[0]) - priority(b[0]));
-    chunks = [];
-    let used = 0;
+    const selected = new Set(chunks);
+    let used = chunks.reduce((total, chunk) => total + chunk.text.length, 0);
     const add = (chunk: Chunk) => {
-      if (used + chunk.text.length > SEMANTIC_FALLBACK_BUDGET) return false;
-      chunks.push(chunk);
+      if (selected.has(chunk) || used + chunk.text.length > SEMANTIC_FALLBACK_BUDGET) return false;
+      selected.add(chunk);
       used += chunk.text.length;
       return true;
     };
@@ -433,6 +434,7 @@ function selectEvidence(
       }
       if (!found || used >= SEMANTIC_FALLBACK_BUDGET) break;
     }
+    chunks = [...selected];
   }
   return chunks.map((chunk) => ({
     id: passageId(chunk),
