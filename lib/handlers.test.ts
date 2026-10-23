@@ -124,6 +124,38 @@ test("shouldConsiderThreadReply skips unaddressed thread when ORRY_THREAD_REQUIR
   }
 });
 
+test("mention-only mode suppresses unaddressed replies even while a ticket is open", () => {
+  const saved = process.env.ORRY_THREAD_REQUIRE_MENTION;
+  process.env.ORRY_THREAD_REQUIRE_MENTION = "1";
+  db.createTicket({
+    programId: "thread-mention-only",
+    workspaceId: "T-THREAD-MENTION",
+    channel: HELP_CHANNEL,
+    threadTs: "thread-open-mention-only",
+    requesterId: "U-ASKER",
+    question: "help",
+  });
+  try {
+    assert.equal(
+      handlers.shouldConsiderThreadReply(
+        {
+          ts: "thread-open-mention-only.2",
+          thread_ts: "thread-open-mention-only",
+          channel: HELP_CHANNEL,
+          user: "U-ASKER",
+          text: "still need help",
+        },
+        { id: "thread-mention-only" } as any,
+        "T-THREAD-MENTION",
+      ),
+      false,
+    );
+  } finally {
+    if (saved === undefined) delete process.env.ORRY_THREAD_REQUIRE_MENTION;
+    else process.env.ORRY_THREAD_REQUIRE_MENTION = saved;
+  }
+});
+
 test("mentionsOrryByName supports ORRY_BOT_ALIASES", () => {
   const origAliases = process.env.ORRY_BOT_ALIASES ?? process.env.RIVET_BOT_ALIASES;
   try {
@@ -395,17 +427,38 @@ test("isolated app_mention ignores bot and self events", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("help channel routes unaddressed thread follow-up to HELP_ONLY gate", async () => {
+test("onMessage ignores Orry's own message when Slack omits bot markers", async () => {
+  const savedRespond = respond.respond;
+  let calls = 0;
+  respond.respond = async () => {
+    calls += 1;
+  };
+  try {
+    await handlers.onMessage({
+      event: { ts: "self-message", channel: HELP_CHANNEL, user: "U0ORRY", text: "I've asked a helper to take a look." },
+      client: {},
+    });
+  } finally {
+    respond.respond = savedRespond;
+  }
+  assert.equal(calls, 0);
+});
+
+test("help channel ignores unaddressed thread follow-ups when mention-only mode is enabled", async () => {
+  const saved = process.env.ORRY_THREAD_REQUIRE_MENTION;
+  process.env.ORRY_THREAD_REQUIRE_MENTION = "1";
   context.addToThread("200.1", "assistant", "here's the answer", null, HELP_CHANNEL);
-  const calls = await routeHelpMessage({
-    ts: "200.2",
-    thread_ts: "200.1",
-    text: "i tried running that but got permission denied, what should i do?",
-  });
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].mode, respond.HELP_ONLY);
-  assert.equal(calls[0].addressed, false);
-  assert.ok(calls[0].seedClient);
+  try {
+    const calls = await routeHelpMessage({
+      ts: "200.2",
+      thread_ts: "200.1",
+      text: "i tried running that but got permission denied, what should i do?",
+    });
+    assert.equal(calls.length, 0);
+  } finally {
+    if (saved === undefined) delete process.env.ORRY_THREAD_REQUIRE_MENTION;
+    else process.env.ORRY_THREAD_REQUIRE_MENTION = saved;
+  }
 });
 
 test("help channel skips a thread reply that has no content signal", async () => {

@@ -618,9 +618,9 @@ function shouldConsiderThreadReply(
     return mentionsOrryDirectly(event.text);
   }
   if (mentionsOrryByName(event.text) || mentionsOrryDirectly(event.text)) return true;
+  if (threadRequiresMention(prog)) return false;
   const ticket = db.getTicketByThreadTs(event.thread_ts, workspaceId);
   if (ticket && !["resolved", "closed"].includes(ticket.status)) return true;
-  if (threadRequiresMention(prog)) return false;
   return context.hasSpokenInThread(event.thread_ts);
 }
 
@@ -1069,7 +1069,7 @@ async function handleMacroTrigger({
 
 // channel ownership
 async function onMessage({ event, client, body }: HandlerArgs): Promise<void> {
-  if (event.bot_id || event.subtype === "bot_message") return;
+  if (event.bot_id || event.subtype === "bot_message" || event.user === config.slack.botUserId) return;
   if (stagingBlocked(event.channel)) return;
 
   // A participant deleting or editing their message: drop the stored copy.
