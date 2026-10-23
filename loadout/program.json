@@ -15,6 +15,7 @@
   "publicTicketsEnabled": true,
   "learning": "active",
   "requireGroundedAnswer": true,
+  "autoInviteToHelp": true,
   "evidenceBudget": 24000,
   "status": "sandbox",
   "pinnedRules": [

@@ -60,6 +60,7 @@ interface RawProgramConfig {
   pinnedRules?: string[];
   links?: Record<string, string>;
   behavior?: Record<string, unknown> | null;
+  autoInviteToHelp?: boolean;
   status?: string | null;
   [key: string]: unknown;
 }
@@ -161,6 +162,7 @@ function normalizeProgram(p: RawProgramConfig): ProgramRecord {
     sources: Array.isArray(p.sources) ? p.sources : [],
     sharedSources: p.sharedSources === true,
     requireGroundedAnswer: p.requireGroundedAnswer === true,
+    autoInviteToHelp: p.autoInviteToHelp === true,
     evidenceBudget: Number(p.evidenceBudget) > 0 ? Math.floor(Number(p.evidenceBudget)) : null,
     milestones: Array.isArray(p.milestones) ? p.milestones : [],
     pinnedRules: Array.isArray(p.pinnedRules)
@@ -277,6 +279,7 @@ function all(): ProgramRecord[] {
             learning: p.learning || configured.learning || "auto",
             channels: p.channels?.length ? p.channels : configured.channels || [],
             helpChannel: p.helpChannel || configured.helpChannel || null,
+            autoInviteToHelp: p.autoInviteToHelp ?? configured.autoInviteToHelp,
             organizerChannel: p.organizerChannel || configured.organizerChannel || null,
             behavior: p.behavior || configured.behavior || null,
             status: p.status || configured.status || null,

@@ -90,6 +90,7 @@ test("the scopes the bot actually calls are all requested", () => {
   for (const needed of [
     "chat:write",
     "channels:join",
+    "channels:write.invites",
     "channels:history",
     "commands",
     "reactions:write",
@@ -135,6 +136,7 @@ test("reaction events, interactivity and the Ask-a-helper button path are enable
   const m = manifest();
   assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_added"));
   assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_removed"));
+  assert.ok(m.settings.event_subscriptions.bot_events.includes("member_joined_channel"));
   assert.equal(m.settings.interactivity.is_enabled, true);
 });
 

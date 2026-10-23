@@ -53,6 +53,7 @@ export interface Program {
   behavior: Record<string, unknown> | null;
   status: ProgramStatus | null;
   requireGroundedAnswer?: boolean;
+  autoInviteToHelp?: boolean;
   /** Characters of program docs the answer model may see. Set to the corpus size to send all of it. */
   evidenceBudget?: number | null;
   organizer_channel?: string;

@@ -31,6 +31,7 @@ const BOT_SCOPES = [
   "im:write",
   "mpim:history",
   "channels:read",
+  "channels:write.invites",
   "groups:read",
   "files:read",
   // users.info for names (POST /internal/v1/slack/users/info and the

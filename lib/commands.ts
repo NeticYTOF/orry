@@ -56,6 +56,11 @@ interface ActionArgs {
   ack: Ack;
   client: SlackClient;
 }
+interface MemberJoinedArgs {
+  event: { channel?: string; user?: string; team?: string };
+  body?: { team_id?: string };
+  client?: SlackClient;
+}
 interface AppLike {
   command(name: string, handler: unknown): void;
   action(name: string | RegExp, handler: unknown): void;
@@ -614,7 +619,25 @@ function welcomeText() {
   ].join("\n");
 }
 
-async function onMemberJoined(): Promise<void> {}
+async function onMemberJoined({ event, body, client }: MemberJoinedArgs): Promise<void> {
+  const channel = event?.channel;
+  const user = event?.user;
+  if (!channel || !user || !client) return;
+
+  const { program, role } = require("./channelPolicy").resolve(channel, body?.team_id || event.team || null);
+  if (role !== "main" || !program?.autoInviteToHelp || !program.helpChannel || program.channels?.[0] !== channel) {
+    return;
+  }
+
+  try {
+    await client.conversations.invite({ channel: program.helpChannel, users: user });
+  } catch (error: unknown) {
+    const message = errorMessage(error) || "unknown error";
+    if (!message.includes("already_in_channel")) {
+      log.warn("commands", `could not invite a new ${program.name} member to its help channel: ${message}`);
+    }
+  }
+}
 
 const programs = require("./programs") as {
   forChannel: (channelId: string | null | undefined, workspaceId?: string | null) => Program;

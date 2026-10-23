@@ -23,6 +23,7 @@ interface LoadoutProgram {
   sources: LoadoutSource[];
   pinnedRules: string[];
   evidenceBudget?: number;
+  autoInviteToHelp?: boolean;
 }
 
 function loadout(): LoadoutProgram {
@@ -76,6 +77,7 @@ test("Loadout splits ambient and help channels: #loadout is main, #loadout-help 
   expect(program.channels ?? []).toEqual(["C0C5XUDMRH9"]);
   expect(program.helpChannel).toBe("C0C6XBLM0M7");
   expect(program.channels ?? []).not.toContain(program.helpChannel);
+  expect(program.autoInviteToHelp).toBe(true);
 });
 
 test("LOADOUT pins the canonical economy rules that the corpus is graded on", () => {

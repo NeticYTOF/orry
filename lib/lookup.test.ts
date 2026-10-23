@@ -105,6 +105,52 @@ test("exact FAQ answers support bold and heading-style live docs", () => {
   );
 });
 
+test("a matching docs-page link is answered directly from the retrieved public source", async () => {
+  const knowledge = require("./knowledge");
+  const answer = require("./answer");
+  const original = {
+    evidence: knowledge.getEvidenceContext,
+    eligibility: knowledge.sourceEligibility,
+    answer: answer.getAnswerOrChat,
+  };
+  const passage = {
+    id: "loadout-ai-link",
+    programId: "loadout-test",
+    kind: "source",
+    source: "Loadout docs index",
+    text: "NEXTAI & team contributions (/docs/ai-teams)",
+  };
+  knowledge.getEvidenceContext = () => ({ passages: [passage] });
+  knowledge.sourceEligibility = () => ({ exactClaimsAllowed: true, authority: "static" });
+  answer.getAnswerOrChat = async () => {
+    throw new Error("a matching source link should not need a model answer");
+  };
+  try {
+    const result = await lookup.answerOrChat(
+      "Can you link me the Loadout docs page about AI and team contributions?",
+      "",
+      {
+        program: {
+          id: "loadout-test",
+          name: "Loadout",
+          sharedSources: false,
+          sources: [
+            { name: "Loadout docs", type: "website", url: "https://loadout.dino.icu/docs" },
+            { name: "Loadout docs index", type: "slack-message", url: "https://slack.com/archives/C123/p123" },
+          ],
+        },
+        skipCache: true,
+      },
+    );
+    assert.match(result.answer, /<https:\/\/loadout\.dino\.icu\/docs\/ai-teams\|AI & team contributions>/);
+    assert.deepEqual(result.passageCitations, ["loadout-ai-link"]);
+  } finally {
+    knowledge.getEvidenceContext = original.evidence;
+    knowledge.sourceEligibility = original.eligibility;
+    answer.getAnswerOrChat = original.answer;
+  }
+});
+
 test("a correction asking what this YSWS is resolves to the current program FAQ", async () => {
   const knowledge = require("./knowledge");
   const answer = require("./answer");

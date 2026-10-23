@@ -158,6 +158,32 @@ test("programCommand rejects list/add/set/remove for a non-admin, non-helper use
   assert.match(responses[0], /helpers-only/);
 });
 
+test("a new member of the configured main channel is invited to help, but test/help joins are ignored", async () => {
+  const channelPolicy = require("./channelPolicy");
+  const originalResolve = channelPolicy.resolve;
+  channelPolicy.resolve = (channel: string) => ({
+    role: channel === "C-AUTO-HELP" ? "help" : "main",
+    program: {
+      name: "Auto Help Test",
+      channels: ["C-AUTO-MAIN", "C-AUTO-TEST"],
+      helpChannel: "C-AUTO-HELP",
+      autoInviteToHelp: true,
+    },
+  });
+
+  const invites: any[] = [];
+  const client = { conversations: { invite: async (args: any) => void invites.push(args) } };
+  try {
+    await commands.onMemberJoined({ event: { channel: "C-AUTO-MAIN", user: "U-NEW" }, client });
+    await commands.onMemberJoined({ event: { channel: "C-AUTO-TEST", user: "U-TEST" }, client });
+    await commands.onMemberJoined({ event: { channel: "C-AUTO-HELP", user: "U-HELP" }, client });
+
+    assert.deepEqual(invites, [{ channel: "C-AUTO-HELP", users: "U-NEW" }]);
+  } finally {
+    channelPolicy.resolve = originalResolve;
+  }
+});
+
 test("programCommand tickets on|off is reachable by a program's own helper, not just admins, and is channel-scoped", async () => {
   const responses: any[] = [];
   const sendEphemeral = async (msg: any) => responses.push(msg.text);

@@ -402,6 +402,106 @@ function exactFaqAnswer(
   return null;
 }
 
+function exactDocLinkAnswer(
+  question: string,
+  passages: Array<{
+    id: string;
+    source: string;
+    heading?: string;
+    text: string;
+    programId?: string | null;
+    kind?: string;
+  }>,
+  prog: ProgramLike | string | null,
+): AnswerResult | null {
+  if (!/\b(?:link|url)\b/i.test(question) || !/\b(?:docs?|documentation|page)\b/i.test(question)) return null;
+
+  const ignored = new Set([
+    "about",
+    "can",
+    "could",
+    "doc",
+    "docs",
+    "documentation",
+    "for",
+    "give",
+    "link",
+    "loadout",
+    "me",
+    "page",
+    "please",
+    "the",
+    "url",
+    "you",
+  ]);
+  const retrieve = require("./retrieve");
+  const requested = new Set(retrieve.tokenize(question).filter((word: string) => !ignored.has(word)));
+  if (!requested.size) return null;
+
+  const sourceUrls = programSources(prog)
+    .filter((source) => !source.hidden)
+    .flatMap((source) => [source.siteUrl, source.url])
+    .flatMap((url) => {
+      try {
+        return url ? [new URL(url)] : [];
+      } catch (_error: unknown) {
+        return [];
+      }
+    });
+  const allowedHosts = new Set(sourceUrls.map((url) => url.hostname.toLowerCase()));
+  const docsBase = sourceUrls.find((url) => /\/docs\/?$/.test(url.pathname));
+  const matches: Array<{ passage: (typeof passages)[number]; index: number; label: string; url: string }> = [];
+  for (const [index, passage] of passages.entries()) {
+    if (passage.kind === "generated") continue;
+    const links = [
+      ...[...passage.text.matchAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g)].map((match) => ({
+        label: match[1],
+        url: match[2],
+      })),
+      ...[...passage.text.matchAll(/([^()\n]+?)\s+\((\/docs\/[^)\s]+)\)/g)].map((match) => ({
+        label: match[1].replace(/(?:PREVIOUS|NEXT)(?=[A-Z])/g, "").trim(),
+        url: match[2],
+      })),
+    ];
+    if (passage.heading) {
+      const headingUrl = passage.heading.match(/^(.*?)\s*\((https?:\/\/[^\s)]+)\)$/);
+      if (headingUrl) links.push({ label: headingUrl[1], url: headingUrl[2] });
+    }
+    for (const { label, url: sourceUrl } of links) {
+      let url = sourceUrl;
+      if (url.startsWith("/")) {
+        if (!docsBase) continue;
+        url = new URL(url, docsBase).href;
+      }
+      let host = "";
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch (_error: unknown) {
+        continue;
+      }
+      const normalizedLabel = label.replace(/(?:PREVIOUS|NEXT)(?=[A-Z])/g, "").trim();
+      const labelWords = new Set(retrieve.tokenize(normalizedLabel));
+      if (
+        allowedHosts.has(host) &&
+        [...requested].every((word) => labelWords.has(word)) &&
+        !matches.some((match) => match.url === url)
+      ) {
+        matches.push({ passage, index, label: normalizedLabel, url });
+      }
+    }
+  }
+  if (matches.length !== 1) return null;
+
+  const { passage, index, label, url } = matches[0];
+  return {
+    source: passage.source,
+    answer: `Here’s the <${url}|${label}> page. [E${index + 1}]`,
+    direct: true,
+    passageCitations: [passage.id],
+    citationEvidence: [passage],
+  };
+}
+
 function separateExplicitUncertainty(answer: string, question: string) {
   const parts = question.split(/\s+(?:and|also|as well as)\s+/i).map((part) => part.trim());
   if (parts.length < 2) return { answer, unresolved: [] as string[] };
@@ -945,9 +1045,10 @@ async function lookupAnswer(
   const { passages } = await evidenceForQuestion(query, question, programId, prog, channel);
   const corpus = evidencePrompt(passages);
   let result = exactFaqAnswer(question, passages);
+  if (!result) result = exactDocLinkAnswer(question, passages, prog);
   if (!result) result = await answer.getGroundedAnswer(question, corpus, contextPrompt, prog, channel, { isPing });
   if (result) {
-    result = await applyPassageCitations(result, passages, prog, question);
+    if (!result.direct) result = await applyPassageCitations(result, passages, prog, question);
     result = applyGroundingBoundary(result, prog, question, corpus);
   }
   if (result) {
@@ -986,6 +1087,7 @@ async function answerOrChat(
   const { passages } = await evidenceForQuestion(query, question, programId, prog, channel, answerMode !== "general");
   const corpus = evidencePrompt(passages);
   let result = exactFaqAnswer(question, passages);
+  if (!result) result = exactDocLinkAnswer(question, passages, prog);
   if (!result) {
     result =
       onText && passages.length === 0
@@ -1021,7 +1123,7 @@ async function answerOrChat(
       })) || result;
   }
 
-  result = await applyPassageCitations(result, passages, prog, question, previousQuestion);
+  if (!result?.direct) result = await applyPassageCitations(result, passages, prog, question, previousQuestion);
   result = applyGroundingBoundary(result, prog, question, corpus);
   if (!result && answerMode === "general" && isAuthoritativeOnlyTopic(question, null)) {
     result = { source: null, answer: "", unclear: true };
