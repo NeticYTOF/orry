@@ -49,6 +49,7 @@ const BOT_EVENTS = [
   "reaction_removed",
   "app_home_opened",
   "member_joined_channel",
+  "member_left_channel",
 ];
 
 // Suffixes, not full names — must stay in step with lib/commands.js register().

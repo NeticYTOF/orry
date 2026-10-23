@@ -164,6 +164,7 @@ test("a new member of the configured main channel is invited to help, but test/h
   channelPolicy.resolve = (channel: string) => ({
     role: channel === "C-AUTO-HELP" ? "help" : "main",
     program: {
+      id: "auto-help-test",
       name: "Auto Help Test",
       channels: ["C-AUTO-MAIN", "C-AUTO-TEST"],
       helpChannel: "C-AUTO-HELP",
@@ -178,6 +179,9 @@ test("a new member of the configured main channel is invited to help, but test/h
     await commands.onMemberJoined({ event: { channel: "C-AUTO-TEST", user: "U-TEST" }, client });
     await commands.onMemberJoined({ event: { channel: "C-AUTO-HELP", user: "U-HELP" }, client });
 
+    assert.deepEqual(invites, [{ channel: "C-AUTO-HELP", users: "U-NEW" }]);
+    commands.onMemberLeft({ event: { channel: "C-AUTO-HELP", user: "U-NEW" } });
+    await commands.onMemberJoined({ event: { channel: "C-AUTO-MAIN", user: "U-NEW" }, client });
     assert.deepEqual(invites, [{ channel: "C-AUTO-HELP", users: "U-NEW" }]);
   } finally {
     channelPolicy.resolve = originalResolve;
@@ -219,13 +223,16 @@ test("programCommand tickets on|off is reachable by a program's own helper, not 
 
 test("every registered command has its ephemeral replies de-dashed", async () => {
   const registered: Record<string, any> = {};
+  const registeredEvents: Record<string, any> = {};
   const app = {
     command: (name: any, handler: any) => {
       registered[name] = handler;
     },
     action: () => {},
     shortcut: () => {},
-    event: () => {},
+    event: (name: string, handler: any) => {
+      registeredEvents[name] = handler;
+    },
     view: () => {},
   };
   commands.register(app);
@@ -238,6 +245,7 @@ test("every registered command has its ephemeral replies de-dashed", async () =>
 
   assert.equal(sent[0].text, "the price, 11,400 px");
   assert.ok(Object.keys(registered).length > 0, "register() bound no commands");
+  assert.equal(registeredEvents.member_left_channel, commands.onMemberLeft);
 });
 
 test("/orry help returns the actor's filtered runtime command list", async () => {

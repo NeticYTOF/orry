@@ -208,6 +208,13 @@ CREATE TABLE IF NOT EXISTS answered_threads (
   thread_ts   TEXT NOT NULL,
   created_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS help_invite_optouts (
+  program_id TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  left_at    INTEGER NOT NULL,
+  PRIMARY KEY (program_id, user_id)
+);
 `;
 
 const MIGRATIONS = [

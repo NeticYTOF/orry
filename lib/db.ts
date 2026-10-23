@@ -1861,6 +1861,20 @@ function recordAuditEvent({
   return res.changes > 0 ? Number(res.lastInsertRowid) : null;
 }
 
+function optOutOfHelpInvites(programId: string, userId: string) {
+  query("INSERT OR IGNORE INTO help_invite_optouts (program_id, user_id, left_at) VALUES (?, ?, ?)").run(
+    programId,
+    userId,
+    now(),
+  );
+}
+
+function hasHelpInviteOptedOut(programId: string, userId: string): boolean {
+  return Boolean(
+    query("SELECT 1 FROM help_invite_optouts WHERE program_id = ? AND user_id = ?").get(programId, userId),
+  );
+}
+
 // action matches exactly, or as a prefix when it ends in "*" ("ticket.*").
 // since/until bound created_at (since exclusive, until inclusive).
 function listAuditEvents({
@@ -2085,6 +2099,8 @@ export = {
   addTicketNote,
   listTicketNotes,
   recordAuditEvent,
+  optOutOfHelpInvites,
+  hasHelpInviteOptedOut,
   listAuditEvents,
   syncHelper,
   removeHelper,

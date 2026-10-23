@@ -61,6 +61,10 @@ interface MemberJoinedArgs {
   body?: { team_id?: string };
   client?: SlackClient;
 }
+interface MemberLeftArgs {
+  event: { channel?: string; user?: string; team?: string };
+  body?: { team_id?: string };
+}
 interface AppLike {
   command(name: string, handler: unknown): void;
   action(name: string | RegExp, handler: unknown): void;
@@ -628,6 +632,7 @@ async function onMemberJoined({ event, body, client }: MemberJoinedArgs): Promis
   if (role !== "main" || !program?.autoInviteToHelp || !program.helpChannel || program.channels?.[0] !== channel) {
     return;
   }
+  if (db.hasHelpInviteOptedOut(program.id, user)) return;
 
   try {
     await client.conversations.invite({ channel: program.helpChannel, users: user });
@@ -637,6 +642,14 @@ async function onMemberJoined({ event, body, client }: MemberJoinedArgs): Promis
       log.warn("commands", `could not invite a new ${program.name} member to its help channel: ${message}`);
     }
   }
+}
+
+function onMemberLeft({ event, body }: MemberLeftArgs): void {
+  const { channel, user } = event || {};
+  if (!channel || !user) return;
+
+  const { program, role } = require("./channelPolicy").resolve(channel, body?.team_id || event.team || null);
+  if (role === "help" && program?.helpChannel === channel) db.optOutOfHelpInvites(program.id, user);
 }
 
 const programs = require("./programs") as {
@@ -830,6 +843,7 @@ function register(app: AppLike): void {
   app.shortcut(brand.id("teach_thread"), adminOnlyShortcut(teachThreadShortcut));
 
   app.event("member_joined_channel", onMemberJoined);
+  app.event("member_left_channel", onMemberLeft);
 
   home.register(app);
 }
@@ -855,6 +869,7 @@ export = {
   parseId,
   parseForgetInput,
   onMemberJoined,
+  onMemberLeft,
   welcomeText,
   get WELCOME() {
     return welcomeText();

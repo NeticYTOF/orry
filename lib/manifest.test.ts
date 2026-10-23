@@ -137,6 +137,7 @@ test("reaction events, interactivity and the Ask-a-helper button path are enable
   assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_added"));
   assert.ok(m.settings.event_subscriptions.bot_events.includes("reaction_removed"));
   assert.ok(m.settings.event_subscriptions.bot_events.includes("member_joined_channel"));
+  assert.ok(m.settings.event_subscriptions.bot_events.includes("member_left_channel"));
   assert.equal(m.settings.interactivity.is_enabled, true);
 });
 
