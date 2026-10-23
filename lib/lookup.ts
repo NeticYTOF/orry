@@ -515,7 +515,11 @@ function splitAnswer(answerText: string, question: string, aliases: Map<string, 
       .trim()
       .replace(/\s+([.,!?;:])/g, "$1");
     if (!claim) continue;
-    if (grounding.isHedgeSentence(claim) && !hasNumericClaim(claim)) {
+    if (
+      (grounding.isHedgeSentence(claim) ||
+        /(?:can't|cannot|couldn't) confirm(?: this part)?\s*[:,-]?\s*[“"][^”"]+[”"]/i.test(claim)) &&
+      !hasNumericClaim(claim)
+    ) {
       pieces.push({ hedge: true, text: claim });
       continue;
     }
@@ -718,12 +722,13 @@ async function applyPassageCitations(
   if (!verification) return null;
 
   const kept: string[] = [];
+  const hedges: string[] = [];
   const dropped: string[] = [];
   const usedIds = new Set<string>();
   let keptFactual = 0;
   for (const piece of sentences.pieces) {
     if (piece.hedge === true) {
-      kept.push(piece.text);
+      hedges.push(piece.text);
       continue;
     }
     const decision = verification.decisions.get(piece.index);
@@ -768,6 +773,12 @@ async function applyPassageCitations(
   result.source = cited.values().next().value?.source || result.source;
   result.citationEvidence = [...cited.values()];
   result.passageCitations = [...cited.keys()];
+  const keptHedges = hedges.filter((hedge) => {
+    const match = hedge.match(/(?:can't|cannot|couldn't) confirm(?: this part)?\s*[:,-]?\s*[“"]([^”"]+)[”"]/i);
+    const phrase = match?.[1] ? normalizeWords(match[1]) : "";
+    return !phrase || !groundedNorm.includes(phrase);
+  });
+  if (keptHedges.length) result.answer += ` ${keptHedges.join(" ")}`;
   const remainingDisclosed = [...unresolved, ...dropped.map((claim) => `this part: “${claim.replace(/[.!?]+$/, "")}”`)];
   if (remainingDisclosed.length) {
     result.answer += `\n\nI couldn't confirm ${remainingDisclosed.join("; ")} in the docs, so I can't answer those parts.`;

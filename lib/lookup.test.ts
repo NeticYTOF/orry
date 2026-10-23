@@ -1041,8 +1041,9 @@ test("a model does not call a fact unresolved when its grounded answer states th
     const result = await lookup.applyPassageCitations(
       {
         source: "Shop rules",
-        answer: "Bolts are global and spendable [E1]. Track XP is separate and non-spendable [E1].",
-        unresolved: ["this part: “Bolts”"],
+        answer:
+          "Bolts are global and spendable [E1]. Track XP is separate and non-spendable [E1]. " +
+          "I couldn't confirm this part: “Bolts” in the docs, so I can't answer those parts.",
       },
       passages,
       prog,
