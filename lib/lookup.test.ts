@@ -61,12 +61,35 @@ test("canonicalFaqQuestion cleans Orry addressing and routes common Loadout para
     ["Orry, what is the difference between Bolts and Track XP?", "What currency do I earn?"],
     ["Orry, is Research Mode a track or a modifier?", "How many tracks are there?"],
     ["Orry, which org leads this YSWS?", "Who is the org of this YSWS?"],
+    [
+      "Orry, who made Loadout, and who leads the organizing team?",
+      "who made Loadout, and who leads the organizing team?",
+    ],
     ["Orry, can I work with a team?", "Can I work across tracks or with a team?"],
   ];
 
   for (const [question, expected] of cases) {
     assert.equal(lookup.canonicalFaqQuestion(question, { name: "Loadout" }), expected);
   }
+});
+
+test("exact FAQ answers support bold and heading-style live docs", () => {
+  const passages = [
+    {
+      source: "Loadout FAQ",
+      text: "## What currency do I earn?\n\nBolts are global and spendable; Track XP is separate and non-spendable.",
+    },
+  ];
+  assert.deepEqual(lookup.exactFaqAnswer("What currency do I earn?", passages), {
+    source: "Loadout FAQ",
+    answer: "Bolts are global and spendable; Track XP is separate and non-spendable. [E1]",
+  });
+  assert.deepEqual(
+    lookup.exactFaqAnswer("What currency do I earn?", [
+      { source: "Loadout FAQ", heading: "What currency do I earn?", text: "Bolts are spendable." },
+    ]),
+    { source: "Loadout FAQ", answer: "Bolts are spendable. [E1]" },
+  );
 });
 
 test("a correction asking what this YSWS is resolves to the current program FAQ", async () => {

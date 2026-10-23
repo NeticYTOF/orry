@@ -333,7 +333,8 @@ function canonicalFaqQuestion(question: string, prog: ProgramLike | string | nul
     }
     if (
       /\b(?:lead|org|organiz|co-organiz|co-organis)\w*\b/i.test(normalized) &&
-      /\b(?:loadout|ysws)\b/i.test(normalized)
+      /\b(?:loadout|ysws)\b/i.test(normalized) &&
+      !/\b(?:made|built|created)\b/i.test(normalized)
     ) {
       return "Who is the org of this YSWS?";
     }
@@ -351,7 +352,10 @@ function canonicalFaqQuestion(question: string, prog: ProgramLike | string | nul
   return cleaned || question;
 }
 
-function exactFaqAnswer(question: string, passages: Array<{ source: string; text: string }>): AnswerResult | null {
+function exactFaqAnswer(
+  question: string,
+  passages: Array<{ source: string; heading?: string; text: string }>,
+): AnswerResult | null {
   const ignoredWords = new Set(["a", "an", "the", "this", "that"]);
   const normalize = (value: string) =>
     value
@@ -367,10 +371,23 @@ function exactFaqAnswer(question: string, passages: Array<{ source: string; text
 
   for (const [index, passage] of passages.entries()) {
     if (!/faq|frequently asked/i.test(`${passage.source}\n${passage.text.slice(0, 100)}`)) continue;
-    for (const match of passage.text.matchAll(/^\s*\*\*([^*\n]+)\*\*\s+(.+)$/gm)) {
-      if (normalize(match[1]) === expected && match[2].trim()) {
-        return { source: passage.source, answer: `${match[2].trim()} [E${index + 1}]` };
+    if (passage.heading && normalize(passage.heading) === expected && passage.text.trim()) {
+      return { source: passage.source, answer: `${passage.text.trim()} [E${index + 1}]` };
+    }
+    const lines = passage.text.split(/\r?\n/);
+    for (let line = 0; line < lines.length; line += 1) {
+      const boldMatch = lines[line].match(/^\s*\*\*([^*\n]+)\*\*\s*(.*)$/);
+      const markdownMatch = lines[line].match(/^\s*#{1,6}\s+(.+?)\s*#*\s*$/);
+      const heading = boldMatch?.[1] || markdownMatch?.[1];
+      if (!heading || normalize(heading) !== expected) continue;
+      const answer = [boldMatch?.[2], ...lines.slice(line + 1)].map((part) => (part || "").trim());
+      const answerLines: string[] = [];
+      for (const part of answer) {
+        if (!part && answerLines.length) break;
+        if (/^(?:\*\*[^*]+\*\*|#{1,6}\s+)/.test(part)) break;
+        if (part) answerLines.push(part);
       }
+      if (answerLines.length) return { source: passage.source, answer: `${answerLines.join(" ")} [E${index + 1}]` };
     }
   }
   return null;
@@ -1043,4 +1060,5 @@ export = {
   citeTimelineFallback,
   isAuthoritativeOnlyTopic,
   numericClaimsGrounded,
+  exactFaqAnswer,
 };
