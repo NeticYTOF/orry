@@ -687,6 +687,7 @@ function checkEligibility({
   }
 
   if (decision.decision === elig.SILENT) {
+    if (mentionsOrryDirectly(question) || mentionsOrryByName(question)) return "proceed";
     db.recordMetric("silent", null, `eligibility:${decision.reason}`, prog.id);
     return "stop";
   }
@@ -1448,7 +1449,8 @@ async function onAppMention({ event, client, body }: HandlerArgs): Promise<void>
   if (db.wasAnswered(event.ts)) return;
   await ensureTopLevelHelpTicket({ event, client, workspaceId, prog, role: policy.role });
 
-  if (event.thread_ts && (db.isThreadMuted(event.thread_ts) || db.isTakeover(event.thread_ts))) {
+  const directlyAddressed = mentionsOrryDirectly(event.text) || mentionsOrryByName(event.text);
+  if (event.thread_ts && (db.isThreadMuted(event.thread_ts) || db.isTakeover(event.thread_ts)) && !directlyAddressed) {
     const elig = require("./eligibility");
     const verdict = elig.shouldOrryRespond({
       text: event.text,

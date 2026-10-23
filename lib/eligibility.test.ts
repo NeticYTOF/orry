@@ -809,22 +809,16 @@ test("a direct ping from either Slack event is answered once", async () => {
       event: { ts: ts2, channel: "C0HELP", user: "U0ASKER", text: `<@${BOT}> is goated` },
       client: {},
     });
-    assert.equal(
-      metrics.filter((metric: any[]) => metric[2] === "eligibility:greeting").length,
-      1,
-      "praise ping is recorded as silent once, alongside ticket metrics",
-    );
-    assert.equal(responds.length, 0);
+    assert.equal(responds.length, 1, "a direct mention bypasses greeting silence");
     metrics = [];
     gaps = [];
     claims = [];
-    responds = [];
     await handlers.onAppMention({
       event: { ts: ts2, channel: "C0HELP", user: "U0ASKER", text: `<@${BOT}> is goated` },
       client: {},
     });
-    assert.equal(responds.length, 0, "B4: silent ping never answers via mention");
-    assert.equal(metrics.length, 0, "B4: duplicate mention delivery records no additional metrics");
+    assert.equal(responds.length, 1, "duplicate app_mention delivery does not answer twice");
+    assert.equal(metrics.length, 0, "duplicate mention delivery records no additional metrics");
 
     db.muteThread("char-mute-1", "C0HELP");
     try {
@@ -842,12 +836,10 @@ test("a direct ping from either Slack event is answered once", async () => {
         },
         client: {},
       });
-      assert.equal(metrics.length, 1);
-      assert.equal(metrics[0][2], "eligibility:muted");
+      assert.equal(responds.length, 1, "a direct mention overrides muted-thread silence");
       metrics = [];
       gaps = [];
       claims = [];
-      responds = [];
       await handlers.onAppMention({
         event: {
           ts: "char-m1.1",
@@ -859,7 +851,7 @@ test("a direct ping from either Slack event is answered once", async () => {
         client: {},
       });
       assert.equal(metrics.length, 0, "B4: muted silent metrics exactly once");
-      assert.equal(responds.length, 0);
+      assert.equal(responds.length, 1, "duplicate app_mention delivery does not answer twice");
     } finally {
       db.unmuteThread("char-mute-1");
     }

@@ -1206,6 +1206,54 @@ test("a direct ping in a message event uses the mention route and dedupes app_me
   assert.equal(calls[0].question, "how do i submit");
 });
 
+test("direct mentions and Orry name messages bypass silent eligibility in muted threads", async () => {
+  const eligibility = require("./eligibility");
+  const savedEligibility = eligibility.shouldOrryRespond;
+  const programs = require("./programs");
+  const savedHelp = config.slack.helpChannel;
+  const savedFaq = config.slack.faqChannels;
+  const savedAuto = config.slack.autoReplyChannel;
+  const savedPrograms = process.env.ORRY_PROGRAMS_JSON ?? process.env.RIVET_PROGRAMS_JSON;
+  const savedRespond = respond.respond;
+  const channel = "C-ADDRESSED-MUTED";
+  const calls: any[] = [];
+  const events = [
+    { ts: "1293.4", thread_ts: "1293.1", text: "<@U0ORRY> hi" },
+    { ts: "1293.5", thread_ts: "1293.2", text: "Orry, hi" },
+  ];
+
+  config.slack.helpChannel = null;
+  config.slack.faqChannels = [channel];
+  config.slack.autoReplyChannel = channel;
+  process.env.ORRY_PROGRAMS_JSON = JSON.stringify([{ id: "charmen", name: "CharMen", channels: [channel] }]);
+  programs.invalidate();
+  eligibility.shouldOrryRespond = () => ({ decision: eligibility.SILENT, reason: "forced_silence" });
+  respond.respond = async (args: any) => void calls.push(args);
+
+  try {
+    for (const event of events) {
+      db.muteThread(event.thread_ts, channel);
+      await handlers.onMessage({ event: { ...event, channel, user: "U0ASKER" }, client: {} });
+    }
+  } finally {
+    for (const event of events) db.unmuteThread(event.thread_ts);
+    eligibility.shouldOrryRespond = savedEligibility;
+    config.slack.helpChannel = savedHelp;
+    config.slack.faqChannels = savedFaq;
+    config.slack.autoReplyChannel = savedAuto;
+    respond.respond = savedRespond;
+    if (savedPrograms === undefined) delete process.env.ORRY_PROGRAMS_JSON;
+    else process.env.ORRY_PROGRAMS_JSON = savedPrograms;
+    programs.invalidate();
+  }
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    calls.map((call) => call.addressedHow),
+    ["mention", "mention"],
+  );
+});
+
 test("!sum and !teach from a helper still run in a taken-over help thread", async () => {
   const savedTeach = learn.teach;
   const savedSum = sumThread.summarizeThreadForHelper;
