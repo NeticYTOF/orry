@@ -301,19 +301,54 @@ async function evidenceForQuestion(
 function canonicalFaqQuestion(question: string, prog: ProgramLike | string | null) {
   const resolved = typeof prog === "string" ? (programs.get(prog) as ProgramLike) : prog;
   const programName = resolved?.name?.trim();
-  if (!programName) return question;
-
-  const normalized = question
+  const cleaned = withoutBotName(question)
+    .replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalized = cleaned
     .trim()
     .replace(/^(?:no\s+)?(?:i\s+)?(?:just\s+)?meant\s+/i, "")
     .replace(/\bthsi\b/gi, "this")
     .replace(/[?.!]+$/g, "")
     .replace(/\s+/g, " ")
     .toLowerCase();
-  if (/^what\s+(?:is\s+)?(?:this\s+)?(?:ysws|program|project)(?:\s+is)?$/.test(normalized)) {
+  if (programName && /^what\s+(?:is\s+)?(?:this\s+)?(?:ysws|program|project)(?:\s+is)?$/.test(normalized)) {
     return `What is ${programName}?`;
   }
-  return question;
+  if (programName?.toLowerCase() === "loadout") {
+    if (/\b(?:bolts?\s*(?:vs\.?|versus|and)|track\s*xp\s*(?:vs\.?|versus|and))\b/i.test(normalized)) {
+      return "What currency do I earn?";
+    }
+    if (/\bresearch\s+mode\b/i.test(normalized) && /\b(?:track|modifier|fifth)\b/i.test(normalized)) {
+      return "How many tracks are there?";
+    }
+    if (/\b(?:four|which|what|list|name)\b/i.test(normalized) && /\btracks?\b/i.test(normalized)) {
+      return "How many tracks are there?";
+    }
+    if (
+      /\b(?:criteria|judg(?:e|ed|ing)|scor(?:e|ed|ing)|grading)\b/i.test(normalized) &&
+      /\bproject\b/i.test(normalized)
+    ) {
+      return "How do projects earn Bolts?";
+    }
+    if (
+      /\b(?:lead|org|organiz|co-organiz|co-organis)\w*\b/i.test(normalized) &&
+      /\b(?:loadout|ysws)\b/i.test(normalized)
+    ) {
+      return "Who is the org of this YSWS?";
+    }
+    if (/\bteam\b/i.test(normalized) && /\bwork\b/i.test(normalized)) {
+      return "Can I work across tracks or with a team?";
+    }
+    if (/\brequisitions?\b/i.test(normalized)) return "What are Requisitions?";
+    if (/\bcustom\s+orders?\b/i.test(normalized) && /\b(?:tier|level|unlock)\b/i.test(normalized)) {
+      return "What if what I want is not in the shop?";
+    }
+    if (/\b(?:maximum|max|cap)\b/i.test(normalized) && /\btrack\s+(?:level|levels)\b/i.test(normalized)) {
+      return "Are there levels and what do they do?";
+    }
+  }
+  return cleaned || question;
 }
 
 function exactFaqAnswer(question: string, passages: Array<{ source: string; text: string }>): AnswerResult | null {

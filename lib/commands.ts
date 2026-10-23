@@ -251,7 +251,7 @@ async function askCommand({ command, ack, respond: sendEphemeral }: CommandArgs)
     if (result) {
       await sendEphemeral({
         response_type: "ephemeral",
-        text: `${result.answer}${respond.sourceLineFor(result.source, askProgram)}`,
+        text: result.answer,
       });
       db.recordMetric("answer_docs");
       return;

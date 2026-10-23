@@ -342,10 +342,7 @@ async function replyFromCache({
 
   const cacheProgramId = program ? program.id : null;
 
-  const text = reply.withReplySignature(
-    `${assumptionLine(result)}${result.answer}${reply.sourceLineFor(result.source, program)}`,
-    program,
-  );
+  const text = reply.withReplySignature(`${assumptionLine(result)}${result.answer}`, program);
   let postedTs: string | null = null;
   try {
     const slackMessages = require("./slackMessages");
@@ -1365,10 +1362,7 @@ async function respond({
   await supportTicketReady;
 
   if (action === "reply") {
-    const text = reply.withReplySignature(
-      `${assumptionLine(result)}${result.answer}${reply.sourceLineFor(result.source, prog)}`,
-      prog,
-    );
+    const text = reply.withReplySignature(`${assumptionLine(result)}${result.answer}`, prog);
     await waitForSeed();
     await publishReply({
       silencedBefore,

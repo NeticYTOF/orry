@@ -55,6 +55,20 @@ test("retrievalQuery leaves standalone non-follow-up questions intact", () => {
   assert.equal(result, standalone);
 });
 
+test("canonicalFaqQuestion cleans Orry addressing and routes common Loadout paraphrases", () => {
+  const cases = [
+    ["<@U0ORRY> What are the four Loadout tracks?", "How many tracks are there?"],
+    ["Orry, what is the difference between Bolts and Track XP?", "What currency do I earn?"],
+    ["Orry, is Research Mode a track or a modifier?", "How many tracks are there?"],
+    ["Orry, which org leads this YSWS?", "Who is the org of this YSWS?"],
+    ["Orry, can I work with a team?", "Can I work across tracks or with a team?"],
+  ];
+
+  for (const [question, expected] of cases) {
+    assert.equal(lookup.canonicalFaqQuestion(question, { name: "Loadout" }), expected);
+  }
+});
+
 test("a correction asking what this YSWS is resolves to the current program FAQ", async () => {
   const knowledge = require("./knowledge");
   const answer = require("./answer");
