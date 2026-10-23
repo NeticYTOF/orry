@@ -352,6 +352,15 @@ function canonicalFaqQuestion(question: string, prog: ProgramLike | string | nul
   return cleaned || question;
 }
 
+function isFaqAlias(question: string, prog: ProgramLike | string | null) {
+  const cleaned = withoutBotName(question)
+    .replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  return canonicalFaqQuestion(question, prog).toLowerCase() !== cleaned;
+}
+
 function exactFaqAnswer(
   question: string,
   passages: Array<{ source: string; heading?: string; text: string }>,
@@ -1072,6 +1081,7 @@ export = {
   dateFallback,
   retrievalQuery,
   canonicalFaqQuestion,
+  isFaqAlias,
   lookupAnswer,
   answerOrChat,
   knownAnswer,

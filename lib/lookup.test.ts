@@ -79,6 +79,11 @@ test("canonicalFaqQuestion cleans Orry addressing and routes common Loadout para
   for (const [question, expected] of cases) {
     assert.equal(lookup.canonicalFaqQuestion(question, { name: "Loadout" }), expected);
   }
+  assert.equal(
+    lookup.isFaqAlias("Orry, what is the difference between Bolts and Track XP?", { name: "Loadout" }),
+    true,
+  );
+  assert.equal(lookup.isFaqAlias("Orry, what is your favorite color?", { name: "Loadout" }), false);
 });
 
 test("exact FAQ answers support bold and heading-style live docs", () => {

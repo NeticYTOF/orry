@@ -2,6 +2,7 @@ const jevDecision = require("../jevDecision");
 const veyDecision = require("../veyDecision");
 const intent = require("../intent");
 const log = require("../log");
+const lookup = require("../lookup");
 import type { ChannelRole } from "../types";
 
 interface RecentMessage {
@@ -146,6 +147,9 @@ async function classify({
 }: ClassifyOptions) {
   if (addressed && isIdentityOrSmalltalk(message)) {
     return { engage: true, intent: "addressed_smalltalk", error: null, source: "heuristic" };
+  }
+  if (lookup.isFaqAlias(message, program)) {
+    return { engage: true, intent: "support_question", error: null, source: "faq" };
   }
   if (isProgramPeopleQuestion(message)) {
     return { engage: true, intent: "support_question", error: null, source: "heuristic" };

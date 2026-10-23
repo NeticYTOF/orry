@@ -26,6 +26,7 @@ const jevDecision = require("../jevDecision");
 const veyDecision = require("../veyDecision");
 const intent = require("../intent");
 const lookup = require("../lookup");
+const engagement = require("./engagement");
 const tickets = require("../tickets");
 const context = require("../context");
 const link = require("../link");
@@ -114,6 +115,16 @@ let jevMode: string;
 let veyMode: string;
 let legacyMode: string;
 let legacyCalls: number;
+
+test("recognized Loadout FAQ paraphrases are classified as program questions", async () => {
+  const result = await engagement.classify({
+    message: "Orry, what is the difference between Bolts and Track XP?",
+    program: { id: "loadout", name: "Loadout" },
+    role: "main",
+    addressed: true,
+  });
+  expect(result).toEqual({ engage: true, intent: "support_question", error: null, source: "faq" });
+});
 
 function client() {
   return {
