@@ -92,6 +92,14 @@
       "type": "url",
       "url": "https://loadout.dino.icu/docs",
       "dynamic": true
+    },
+    {
+      "name": "Loadout — public docs index",
+      "type": "slack-message",
+      "url": "https://hackclub.slack.com/archives/C0C92STM56C/p1791618201742439",
+      "channel": "C0C92STM56C",
+      "messageTs": "1791618201.742439",
+      "dynamic": true
     }
   ],
   "channels": [

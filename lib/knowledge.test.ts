@@ -38,6 +38,13 @@ test("preserveLinks does not duplicate a URL used as its own label", () => {
   );
 });
 
+test("Slack docs index links become retrievable Markdown links", () => {
+  assert.equal(
+    knowledge.formatSlackDocText("Start here <https://loadout.dino.icu/docs/start|What is Loadout?>"),
+    "Start here [What is Loadout?](https://loadout.dino.icu/docs/start)",
+  );
+});
+
 test("filename helpers create stable titles and slugs", () => {
   assert.equal(knowledge.docTitleFromFilename("01-get_started.md"), "Get Started");
   assert.equal(knowledge.docSlugFromFilename("01-get_started.md"), "get-started");

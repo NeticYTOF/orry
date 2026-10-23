@@ -20,6 +20,8 @@ interface SourceRecord extends Partial<ProgramSource> {
   name: string;
   type?: string;
   url?: string;
+  channel?: string;
+  messageTs?: string;
   content?: unknown;
   siteUrl?: string;
   hidden?: boolean;
@@ -496,6 +498,28 @@ function inlineText(source: SourceRecord) {
   }
 }
 
+function formatSlackDocText(text: string) {
+  return String(text || "")
+    .replace(/<(https?:\/\/[^>|]+)(?:\|([^>]+))?>/g, (_match, url, label) => `[${label || url}](${url})`)
+    .trim();
+}
+
+async function fetchSlackMessage(source: SourceRecord) {
+  if (!source.channel || !source.messageTs)
+    throw new Error(`source "${source.name}" needs a channel and message timestamp`);
+  const { WebClient } = require("@slack/web-api");
+  const { config } = require("./config");
+  const response = await new WebClient(config.slack.botToken).conversations.replies({
+    channel: source.channel,
+    ts: source.messageTs,
+    limit: 1,
+  });
+  const message = response.messages?.find((item: { ts?: string }) => item.ts === source.messageTs);
+  if (!message?.text?.trim()) throw new Error(`message ${source.messageTs} is unavailable in ${source.channel}`);
+  if (source.url) recordLink(source.name, source.url);
+  return formatSlackDocText(message.text);
+}
+
 function localFileText(source: SourceRecord) {
   const url = source.url || "";
   const raw = fs.readFileSync(resolveLocalPath(url), "utf8");
@@ -718,6 +742,7 @@ async function fetchSourceText(source: SourceRecord, force = false) {
     recordLink(source.name, source.url);
     return typeof res.data === "string" ? res.data.trim() : String(res.data);
   }
+  if (source.type === "slack-message") return fetchSlackMessage(source);
   if (source.type === "github-dir") return fetchGithubDir(source);
   if (source.type === "url") return fetchUrlSource(source, force);
   throw new Error(`unknown source type: ${source.type}`);
@@ -1275,6 +1300,7 @@ function startAutoRefresh(intervalMin: number) {
 export = {
   loadSources,
   textFromJsonFaq,
+  formatSlackDocText,
   stripHtml,
   preserveLinks,
   resolveLocalPath,

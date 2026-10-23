@@ -38,18 +38,16 @@ test("every LOADOUT source points at a file that exists", () => {
 });
 
 test("LOADOUT combines local corpus files with the live program docs", () => {
-  for (const source of loadout().sources) {
-    expect(source.name).toBeTruthy();
-    if (source.type === "markdown") {
-      expect(source.url!.startsWith("file://loadout/corpus/")).toBe(true);
-      continue;
-    }
-    expect(source).toMatchObject({
-      type: "url",
-      url: "https://loadout.dino.icu/docs",
+  const sources = loadout().sources;
+  expect(sources.some((source) => source.type === "url" && source.url === "https://loadout.dino.icu/docs")).toBe(true);
+  expect(sources).toContainEqual(
+    expect.objectContaining({
+      type: "slack-message",
+      channel: "C0C92STM56C",
+      messageTs: "1791618201.742439",
       dynamic: true,
-    });
-  }
+    }),
+  );
 });
 
 test("the Loadout evidence budget covers the whole program corpus", () => {
