@@ -870,7 +870,7 @@ async function respond({
   program: programOverride = undefined,
   programSettings = null,
 }: RespondOptions) {
-  const trimmed = (question || "").trim();
+  const trimmed = (question || "").replace(/\s+\*?sent using\*?\s*<@[A-Z0-9]+(?:\|[^>]+)?>[^\n]*/gi, "").trim();
   if (!trimmed) return false;
 
   const explicitDm = isDm === true || surface === "dm";

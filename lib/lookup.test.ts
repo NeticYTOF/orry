@@ -55,6 +55,14 @@ test("retrievalQuery leaves standalone non-follow-up questions intact", () => {
   assert.equal(result, standalone);
 });
 
+test("retrievalQuery does not append the original question when it aliases the same FAQ", () => {
+  const question = "What is the difference between Bolts and Track XP?";
+  const context = `User: ${question}\n*Sent using* <@U9|ChatGPT>`;
+  const query = lookup.retrievalQuery("What currency do I earn?", context, { id: "loadout", name: "Loadout" });
+  assert.match(query, /What currency do I earn\?/);
+  assert.doesNotMatch(query, /difference|Bolts|Track XP|Sent using/i);
+});
+
 test("canonicalFaqQuestion cleans Orry addressing and routes common Loadout paraphrases", () => {
   const cases = [
     ["<@U0ORRY> What are the four Loadout tracks?", "How many tracks are there?"],

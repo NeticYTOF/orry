@@ -875,7 +875,7 @@ function retrievalQuery(question: string, contextPrompt = "", prog: ProgramLike 
     const userMatches = [...contextPrompt.matchAll(/User:\s*([^\n]+)/gi)];
     if (userMatches.length > 0) {
       const lastUserQ = userMatches[userMatches.length - 1][1].trim();
-      if (lastUserQ && lastUserQ.toLowerCase() !== (question || "").trim().toLowerCase()) {
+      if (lastUserQ && canonicalFaqQuestion(lastUserQ, prog).toLowerCase() !== (question || "").trim().toLowerCase()) {
         q = `${q} ${lastUserQ}`;
       }
     }

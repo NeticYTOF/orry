@@ -680,6 +680,27 @@ test("respond passes the latest question into context selection", async () => {
   assert.match(seen, /how do i submit this project/);
 });
 
+test("respond strips Slack connector attribution from the question before context and retrieval", async () => {
+  let seenQuestion = "";
+  const restoreAnswers = stubAnswers(async (question: unknown) => {
+    seenQuestion = String(question);
+    return { source: "Acme Docs", answer: "got it" };
+  });
+  try {
+    await respond.respond({
+      client: fakeClient(),
+      channel: "C-latest",
+      threadTs: "t-connector-attribution",
+      userId: "U-latest",
+      question: "What is the difference between Bolts and Track XP?\n*Sent using* <@U9|ChatGPT>",
+      mode: respond.ALWAYS,
+    });
+  } finally {
+    restoreAnswers();
+  }
+  assert.equal(seenQuestion, "What is the difference between Bolts and Track XP?");
+});
+
 test("HELP_ONLY consumes structured intent and preserves Orry follow-up context", async () => {
   const client = fakeClient();
   const originalContextIntent = intent.classifyIntentContext;
