@@ -1047,7 +1047,8 @@ test("a model does not call a fact unresolved when its grounded answer states th
       {
         source: "Shop rules",
         answer: "Bolts are global and spendable [E1]. Track XP is separate and non-spendable [E1].",
-        personality: "I couldn't confirm this part: “Bolts” in the docs, so I can't answer those parts.",
+        personality:
+          "I couldn't confirm this part: “Glück auf to the crew” in the docs, so I can't answer those parts.",
       },
       passages,
       prog,

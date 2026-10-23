@@ -792,7 +792,12 @@ async function applyPassageCitations(
   if (remainingDisclosed.length) {
     result.answer += `\n\nI couldn't confirm ${remainingDisclosed.join("; ")} in the docs, so I can't answer those parts.`;
   }
-  if (result.personality) result.answer += `\n\n${result.personality}`;
+  if (
+    result.personality &&
+    !/\b(?:i|we)\s+(?:can't|cannot|couldn't)\s+(?:confirm|verify|answer|tell|determine)\b/i.test(result.personality)
+  ) {
+    result.answer += `\n\n${result.personality}`;
+  }
   result.answer = result.answer
     .replace(/I couldn't confirm this part:\s*[“"]([^”"]+)[”"][^.\n]*\./gi, (line, part) =>
       groundedNorm.includes(normalizeWords(part)) ? "" : line,

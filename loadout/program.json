@@ -90,10 +90,7 @@
     {
       "name": "Loadout — live website docs",
       "type": "url",
-      "url": "https://loadout.dino.icu/",
-      "paths": [
-        "/docs"
-      ],
+      "url": "https://loadout.dino.icu/docs",
       "dynamic": true
     }
   ],

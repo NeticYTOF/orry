@@ -46,8 +46,7 @@ test("LOADOUT combines local corpus files with the live program docs", () => {
     }
     expect(source).toMatchObject({
       type: "url",
-      url: "https://loadout.dino.icu/",
-      paths: ["/docs"],
+      url: "https://loadout.dino.icu/docs",
       dynamic: true,
     });
   }
