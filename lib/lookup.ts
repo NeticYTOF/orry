@@ -753,13 +753,24 @@ async function applyPassageCitations(
   const cited = new Map([...usedIds].map((id) => [id, scope.eligible.get(id)!]));
   const groundedText = kept.join(" ").trim();
   if (!groundedText) return null;
+  const normalizeWords = (value: string) =>
+    value
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.join(" ") || "";
+  const groundedNorm = normalizeWords(groundedText);
+  const unresolved = (result.unresolved || []).filter((part) => {
+    const phrase = normalizeWords(part.replace(/^this part:\s*/i, "").replace(/[“”\"]/g, ""));
+    return !phrase || !groundedNorm.includes(phrase);
+  });
   result.groundedAnswer = groundedText;
   result.answer = groundedText;
   result.source = cited.values().next().value?.source || result.source;
   result.citationEvidence = [...cited.values()];
   result.passageCitations = [...cited.keys()];
-  if (disclosed.length) {
-    result.answer += `\n\nI couldn't confirm ${disclosed.join("; ")} in the docs, so I can't answer those parts.`;
+  const remainingDisclosed = [...unresolved, ...dropped.map((claim) => `this part: “${claim.replace(/[.!?]+$/, "")}”`)];
+  if (remainingDisclosed.length) {
+    result.answer += `\n\nI couldn't confirm ${remainingDisclosed.join("; ")} in the docs, so I can't answer those parts.`;
   }
   if (result.personality) result.answer += `\n\n${result.personality}`;
   return result;

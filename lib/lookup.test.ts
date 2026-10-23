@@ -1026,6 +1026,34 @@ test("one unsupported sentence out of three keeps the other two with an UNRESOLV
   }
 });
 
+test("a model does not call a fact unresolved when its grounded answer states that exact part", async () => {
+  const answer = require("./answer");
+  const originalVerify = answer.verifyGrounding;
+  const { passages, prog, restore } = sentenceGroundingFixture("bolt-2a", "shop-partial");
+  answer.verifyGrounding = async (claims: Array<{ claim: string; evidenceIds: string[] }>) => ({
+    ok: true,
+    verdict: "supported",
+    coverage: true,
+    errors: [],
+    claims: claims.map((claim) => ({ ...claim, supported: true, evidenceIds: ["bolt-2a"] })),
+  });
+  try {
+    const result = await lookup.applyPassageCitations(
+      {
+        source: "Shop rules",
+        answer: "Bolts are global and spendable [E1]. Track XP is separate and non-spendable [E1].",
+        unresolved: ["this part: “Bolts”"],
+      },
+      passages,
+      prog,
+    );
+    assert.equal(result.answer, "Bolts are global and spendable. Track XP is separate and non-spendable.");
+  } finally {
+    restore();
+    answer.verifyGrounding = originalVerify;
+  }
+});
+
 test("when no factual sentence is supported the whole answer still falls back", async () => {
   const answer = require("./answer");
   const originalVerify = answer.verifyGrounding;
