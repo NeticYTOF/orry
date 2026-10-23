@@ -45,6 +45,8 @@ test("findRelatedThread finds past thread and ignores current active thread", as
     channel: "C_HELP",
     threadTs: "1788100100.111111",
   });
+  const persisted = db.handle().query("SELECT COUNT(*) AS count FROM answered_threads").get();
+  assert.equal(persisted.count, 0, "related-thread questions must stay in memory");
 
   const simple = await relatedThreads.findRelatedThread("where is the dashboard", {
     currentThreadTs: "1788200000.222222",

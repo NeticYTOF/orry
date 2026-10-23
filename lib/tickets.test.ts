@@ -2622,5 +2622,61 @@ test("ticketless program with helper pings on pages the category's best helper, 
   assert.equal(posted.length, 1);
   assert.match(posted[0].text, /<@U-TLP-SHOP>/);
 });
+
+test("a failed helper ping releases the thread guard so a later attempt can notify", async () => {
+  const prog = {
+    id: "ticketless-ping-retry",
+    name: "Ticketless",
+    posture: "passive",
+    ticketsEnabled: false,
+    helperPing: true,
+    helpChannel: "C-TLP-RETRY",
+    channels: ["C-TLP-RETRY"],
+    categories: { byChannel: {}, byKeyword: [], fallback: "general_support" },
+  };
+  db.syncHelper({ programId: prog.id, userId: "U-TLP-RETRY", source: "manual" });
+  const posted = [];
+  let fail = true;
+  const client = {
+    chat: {
+      postMessage: async (message) => {
+        posted.push(message);
+        if (fail) {
+          fail = false;
+          throw { code: "channel_not_found" };
+        }
+        return { ok: true, ts: "tlp-retry" };
+      },
+    },
+  };
+
+  await assert.rejects(
+    tickets.handOffToHelper({
+      client,
+      program: prog,
+      channel: "C-TLP-RETRY",
+      threadTs: "tlp-retry.1",
+      question: "can someone help me?",
+      requesterId: "U-TLP-ASKER",
+      role: "help",
+    }),
+  );
+  const thread = db.handle().query("SELECT helper_pinged FROM threads WHERE thread_ts = ?").get("tlp-retry.1");
+  assert.equal(thread.helper_pinged, 0);
+
+  assert.equal(
+    await tickets.handOffToHelper({
+      client,
+      program: prog,
+      channel: "C-TLP-RETRY",
+      threadTs: "tlp-retry.1",
+      question: "can someone help me?",
+      requesterId: "U-TLP-ASKER",
+      role: "help",
+    }),
+    "U-TLP-RETRY",
+  );
+  assert.equal(posted.length, 2);
+});
 export {};
 import type { TestDb, TestTickets } from "./test.types";

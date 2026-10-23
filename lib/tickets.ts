@@ -86,6 +86,7 @@ interface TicketDbModule {
   setTicketTriage(...args: unknown[]): unknown;
   snoozeTicket(...args: unknown[]): boolean;
   touchThread(...args: unknown[]): unknown;
+  clearThreadHelperPing(threadTs: string): void;
   unclaimTicket(...args: unknown[]): boolean;
   updatePublicAckTs(...args: unknown[]): boolean;
   updateTicketCardTs(...args: unknown[]): boolean;
@@ -1090,13 +1091,22 @@ async function pingThreadHelper({
   db.touchThread(threadTs, channel, { helperPinged: true });
 
   const ask = `<@${top.userId}> — could you take a look at this one?`;
-  await slackMessages.sendProgramMessage({
-    client,
-    program,
-    channel,
-    threadTs,
-    text: reply.plainDashes(ask),
-  });
+  try {
+    await slackMessages.sendProgramMessage({
+      client,
+      program,
+      channel,
+      threadTs,
+      text: reply.plainDashes(ask),
+    });
+  } catch (error) {
+    try {
+      db.clearThreadHelperPing(threadTs);
+    } catch (clearError) {
+      log.debug("tickets", `could not release helper ping guard for ${threadTs}: ${errorMessage(clearError)}`);
+    }
+    throw error;
+  }
   logDecision(null, true, top.userId);
   return top.userId;
 }

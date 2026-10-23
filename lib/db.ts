@@ -213,6 +213,7 @@ const CACHE_IDLE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const MAX_THREAD_MESSAGES = 20;
 const MAX_USER_TOPICS = 10;
+const MAX_ANSWERED_THREADS = 200;
 
 const MAX_USER_MESSAGES = 12;
 const USER_MESSAGE_WINDOW_MS = 2 * 60 * 60 * 1000;
@@ -222,6 +223,7 @@ let db: DatabaseType | null = null;
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
 const ephemeralThreadMessages = new Map<string, ThreadMessage[]>();
 const ephemeralUserMessages = new Map<string, UserMessage[]>();
+const ephemeralAnsweredThreads: Array<{ question: string; channel: string; thread_ts: string }> = [];
 
 interface Statement<Row> {
   get(...bindings: unknown[]): Row;
@@ -315,6 +317,8 @@ function open(filename = (process.env.ORRY_DB_PATH ?? process.env.RIVET_DB_PATH)
   backfillResolvedCredits(db);
   backfillLastHumanReply(db);
   db.exec(POST_MIGRATION_SCHEMA);
+  // Older versions persisted these questions; keep the related-thread index ephemeral.
+  db.exec("DELETE FROM answered_threads");
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   log.info("db", `opened ${filename}`);
   return db;
@@ -369,6 +373,10 @@ function touchThread(threadTs: string, channel: string | null = null, fields: Re
          helper_pinged = MAX(threads.helper_pinged, excluded.helper_pinged),
          updated_at    = excluded.updated_at`,
   ).run(threadTs, channel, fields.seeded ? 1 : 0, fields.orrySpoke ? 1 : 0, fields.helperPinged ? 1 : 0, now());
+}
+
+function clearThreadHelperPing(threadTs: string) {
+  query("UPDATE threads SET helper_pinged = 0 WHERE thread_ts = ?").run(threadTs);
 }
 
 function getThread(threadTs: string) {
@@ -1114,6 +1122,7 @@ function close() {
   if (db) db.close();
   db = null;
   ephemeralThreadMessages.clear();
+  ephemeralAnsweredThreads.length = 0;
 }
 
 function saveSourceText(name: string, text: string) {
@@ -1938,27 +1947,14 @@ function recordAnsweredThread({ question, channel, threadTs }: Record<string, un
   if (!question || !channel || !threadTs) return;
   const cleanQ = String(question).trim();
   if (!cleanQ) return;
-  try {
-    query("INSERT INTO answered_threads (question, channel, thread_ts, created_at) VALUES (?, ?, ?, ?)").run(
-      cleanQ,
-      channel,
-      threadTs,
-      now(),
-    );
-  } catch (err: unknown) {
-    log.debug("db", `recordAnsweredThread failed: ${errorMessage(err)}`);
-  }
+  ephemeralAnsweredThreads.push({ question: cleanQ, channel: String(channel), thread_ts: String(threadTs) });
+  if (ephemeralAnsweredThreads.length > MAX_ANSWERED_THREADS)
+    ephemeralAnsweredThreads.splice(0, ephemeralAnsweredThreads.length - MAX_ANSWERED_THREADS);
 }
 
 function getRecentAnsweredThreads(limit = 100) {
-  try {
-    return query(
-      "SELECT id, question, channel, thread_ts, created_at FROM answered_threads ORDER BY created_at DESC LIMIT ?",
-    ).all(limit);
-  } catch (err: unknown) {
-    log.debug("db", `getRecentAnsweredThreads failed: ${errorMessage(err)}`);
-    return [];
-  }
+  const count = Math.max(0, Math.trunc(limit));
+  return count === 0 ? [] : ephemeralAnsweredThreads.slice(-count).reverse();
 }
 
 function getLearnedFactsWithThreads(limit = 100) {
@@ -1988,6 +1984,7 @@ export = {
   claimMessage,
   wasAnswered,
   touchThread,
+  clearThreadHelperPing,
   getThread,
   addThreadMessage,
   getThreadMessages,
