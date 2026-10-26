@@ -8,12 +8,10 @@ import { completeSignIn } from "@/lib/auth/flow";
 import { OidcError } from "@/lib/auth/oidc";
 import { getProvider, redirectUri } from "@/lib/auth/providers";
 import { safeReturnPath } from "@/lib/security";
-import { oneTimePasswordEnabled } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  if (oneTimePasswordEnabled()) return redirectTo("/sign-in?m=unavailable");
   const q = req.nextUrl.searchParams;
   const st = decode.oauth(req.cookies.get(cookieNames.oauth)?.value);
   const done = (path: string) => {
@@ -63,18 +61,15 @@ export async function GET(req: NextRequest) {
       clearCookie(res, cookieNames.invite);
       return res;
     }
-    case "roster":
-    case "offline": {
-      const res = done("/no-access?m=" + out.code);
-      setShort(res, cookieNames.flash, encode.flash({ m: out.code, sid: out.slackId }), 60_000);
-      clearCookie(res, cookieNames.invite);
-      return res;
-    }
     case "no_slack":
     case "bad_slack":
       return done("/sign-in?m=noslack");
     case "no_account":
       return done("/sign-in?m=noaccount");
+    case "request_pending":
+      return done("/sign-in?m=request_pending");
+    case "request_denied":
+      return done("/sign-in?m=request_denied");
     case "off":
       return done("/sign-in?m=off");
     case "sub_mismatch":

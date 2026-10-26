@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { oneTimePasswordEnabled } from "@/lib/auth/config";
+import { primaryProviderId } from "@/lib/auth/providers";
 import { getSession } from "@/lib/session";
 import { AuthCard } from "../AuthCard";
 
@@ -20,7 +21,9 @@ const MSG: Record<string, string> = {
   retry: "That sign-in took too long or started in another tab. Try again.",
   failed: "The answer from Hack Club could not be checked, so you are not signed in. Try again.",
   cancelled: "Sign-in was cancelled.",
-  unavailable: "One-time sign-in is not configured on this site yet.",
+  unavailable: "Sign-in is not configured on this site yet.",
+  request_pending: "Your access request is waiting for an organizer to review it.",
+  request_denied: "An organizer denied this access request. Contact an organizer if you think this is a mistake.",
   used: "That one-time password has already been used. Ask an organizer for a new one-time password.",
   offline: "Orry could not verify access right now. Try again later.",
   exists: "You already have an account. Sign in as usual.",
@@ -36,6 +39,7 @@ export default async function SignInPage({
   if (!m && (await getSession())) redirect("/board");
   const msg = MSG[m];
   const oneTime = oneTimePasswordEnabled();
+  const provider = primaryProviderId();
 
   return (
     <>
@@ -45,8 +49,20 @@ export default async function SignInPage({
             {msg}
           </p>
         ) : null}
+        {provider ? (
+          <>
+            <p>Sign in with your Hack Club account. An organizer must approve new dashboard access.</p>
+            <form method="post" action="/api/auth/start">
+              <input type="hidden" name="provider" value={provider} />
+              <button className="btn pri" type="submit">
+                {provider === "hca" ? "Continue with Hack Club" : "Continue with dev sign-in"}
+              </button>
+            </form>
+          </>
+        ) : null}
         {oneTime ? (
           <form method="post" action="/api/auth/one-time">
+            {provider ? <p>Or use the one-time password.</p> : null}
             <label htmlFor="password">One-time password</label>
             <input
               id="password"
@@ -60,9 +76,9 @@ export default async function SignInPage({
               Sign in
             </button>
           </form>
-        ) : (
+        ) : !provider ? (
           <p role="status">{MSG.unavailable}</p>
-        )}
+        ) : null}
       </AuthCard>
     </>
   );

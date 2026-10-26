@@ -5,6 +5,7 @@ import { getDb, now } from "../db";
 export const EVENT_KINDS = [
   "invite_created", "invite_cancelled", "invite_used",
   "sign_in", "sign_in_refused", "sign_out",
+  "access_requested", "access_approved", "access_denied",
   "account_off", "account_on", "role_changed", "sessions_revoked",
   "bootstrap", "ticket_view", "ticket_reveal"
 ] as const;

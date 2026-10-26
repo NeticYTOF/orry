@@ -9,8 +9,8 @@ vi.mock("../lib/data", async () => {
 import { account, advance, count, fresh, identity, roster, sub } from "./auth-helpers";
 import { completeSignIn } from "../lib/auth/flow";
 import { checkSession } from "../lib/auth/guard";
-import { accountBySlack, createSession, insertInvite, inviteById, inviteByToken } from "../lib/auth/store";
-import { bootstrapOrganizer, cancelInvite, createInvite, resendInvite, setRole, setStatus, signOutEverywhere, TeamError } from "../lib/auth/team";
+import { accountBySlack, createSession, insertAccount, insertInvite, inviteById, inviteByToken } from "../lib/auth/store";
+import { bootstrapOrganizer, cancelInvite, createInvite, decideAccessRequest, resendInvite, setRole, setStatus, signOutEverywhere, TeamError } from "../lib/auth/team";
 import { sha256 } from "../lib/auth/crypto";
 import { getDb } from "../lib/db";
 import { IDLE_MS, ABSOLUTE_MS } from "../lib/auth/config";
@@ -89,60 +89,73 @@ describe("invite acceptance", () => {
   });
 });
 
-describe("both locks: an invite-made account AND Orry's roster (L23)", () => {
-  it("invite valid but not on the roster: account is made, no session", async () => {
+describe("dashboard access approvals", () => {
+  it("a valid organizer invite grants access even when Orry roster lookup fails", async () => {
     const { id } = invite(QUINN);
-    const out = await completeSignIn(identity(QUINN), { inviteId: id });
-    expect(out).toMatchObject({ ok: false, code: "roster" });
-    expect(accountBySlack(QUINN)).not.toBeNull();
-    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(0);
-    /* signing in later is still refused while they are off the roster */
-    expect(await completeSignIn(identity(QUINN))).toMatchObject({ ok: false, code: "roster" });
-    roster.helper.add(QUINN);
-    expect((await completeSignIn(identity(QUINN))).ok).toBe(true);
-  });
-
-  it("on the roster but no account: refused", async () => {
-    expect(await completeSignIn(identity(JUNO))).toMatchObject({ ok: false, code: "no_account" });
-    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(0);
-  });
-
-  it("Orry cannot be asked: fail closed, the invite stays pending", async () => {
-    const { id } = invite(SAM);
     roster.down = true;
-    expect(await completeSignIn(identity(SAM), { inviteId: id })).toMatchObject({ ok: false, code: "offline" });
-    expect(inviteById(id)!.state).toBe("pending");
-    account(JUNO);
-    expect(await completeSignIn(identity(JUNO))).toMatchObject({ ok: false, code: "offline" });
+    const out = await completeSignIn(identity(QUINN), { inviteId: id });
+    expect(out.ok).toBe(true);
+    expect(accountBySlack(QUINN)).toMatchObject({ status: "on", role: "helper" });
   });
 
-  it("a person removed from the roster loses access within 5 minutes", async () => {
+  it("unknown people submit one pending request; only organizer approval creates an account", async () => {
+    const out = await completeSignIn(identity(JUNO));
+    expect(out).toMatchObject({ ok: false, code: "request_pending" });
+    expect(count("SELECT COUNT(*) AS n FROM access_requests WHERE status = 'pending' AND slack_id = ?", JUNO)).toBe(1);
+    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(0);
+    expect(await completeSignIn(identity(PAT, sub(JUNO)))).toMatchObject({ ok: false, code: "sub_mismatch" });
+    const request = getDb().prepare("SELECT id FROM access_requests WHERE slack_id = ?").get(JUNO) as { id: number };
+    decideAccessRequest(pat, request.id, "approve");
+    expect(accountBySlack(JUNO)).toMatchObject({ status: "on", role: "helper", hcaSub: sub(JUNO) });
+    expect((await completeSignIn(identity(JUNO))).ok).toBe(true);
+  });
+
+  it("denied requests remain denied on later sign-ins", async () => {
+    await completeSignIn(identity(JUNO));
+    const request = getDb().prepare("SELECT id FROM access_requests WHERE slack_id = ?").get(JUNO) as { id: number };
+    decideAccessRequest(pat, request.id, "deny");
+    expect(await completeSignIn(identity(JUNO))).toMatchObject({ ok: false, code: "request_denied" });
+  });
+
+  it("roster removal and roster outages do not revoke dashboard-approved sessions", async () => {
     account(JUNO);
     const out = await completeSignIn(identity(JUNO));
     if (!out.ok) throw new Error("sign-in failed");
     roster.helper.delete(JUNO);
-    advance(4 * 60_000);
-    expect((await checkSession(out.token)).ok).toBe(true); /* still inside the 5-minute window */
-    advance(60_000);
-    expect(await checkSession(out.token)).toMatchObject({ ok: false, reason: "roster" });
-    expect(count("SELECT COUNT(*) AS n FROM sessions")).toBe(0);
-  });
-
-  it("a cached role lasts up to 15 minutes when Orry cannot be asked, then access pauses", async () => {
-    account(JUNO);
-    const out = await completeSignIn(identity(JUNO));
-    if (!out.ok) throw new Error("sign-in failed");
     roster.down = true;
-    advance(6 * 60_000);
-    expect(await checkSession(out.token)).toMatchObject({ ok: true, roleStale: true });
     advance(10 * 60_000);
-    expect(await checkSession(out.token)).toMatchObject({ ok: false, reason: "offline" });
-    roster.down = false;
-    expect((await checkSession(out.token)).ok).toBe(true); /* back once Orry answers */
+    expect((await checkSession(out.token)).ok).toBe(true);
   });
 });
 
 describe("sign-in checks", () => {
+  it("binds the configured owner Slack ID as organizer on first Hack Club sign-in", async () => {
+    const prior = process.env.ORRY_SITE_OTP_SLACK_ID;
+    process.env.ORRY_SITE_OTP_SLACK_ID = "U0OWNER001";
+    try {
+      const out = await completeSignIn(identity("U0OWNER001"));
+      expect(out).toMatchObject({ ok: true, account: { role: "organizer", status: "on", hcaSub: sub("U0OWNER001") } });
+      expect(count("SELECT COUNT(*) AS n FROM access_events WHERE kind = 'bootstrap' AND subject_slack_id = ?", "U0OWNER001")).toBe(1);
+      expect(await completeSignIn(identity("U0OWNER001", "changed-sub"))).toMatchObject({ ok: false, code: "sub_mismatch" });
+    } finally {
+      if (prior === undefined) delete process.env.ORRY_SITE_OTP_SLACK_ID;
+      else process.env.ORRY_SITE_OTP_SLACK_ID = prior;
+    }
+  });
+
+  it("upgrades the owner's one-time bootstrap account to their verified Hack Club identity", async () => {
+    const prior = process.env.ORRY_SITE_OTP_SLACK_ID;
+    process.env.ORRY_SITE_OTP_SLACK_ID = "U0OWNER001";
+    insertAccount({ slackId: "U0OWNER001", hcaSub: `otp:${"a".repeat(64)}`, role: "helper", createdBy: null });
+    try {
+      const out = await completeSignIn(identity("U0OWNER001"));
+      expect(out).toMatchObject({ ok: true, account: { role: "organizer", hcaSub: sub("U0OWNER001") } });
+    } finally {
+      if (prior === undefined) delete process.env.ORRY_SITE_OTP_SLACK_ID;
+      else process.env.ORRY_SITE_OTP_SLACK_ID = prior;
+    }
+  });
+
   it("needs a Slack ID in the right shape", async () => {
     account(JUNO);
     expect(await completeSignIn(identity(null))).toMatchObject({ ok: false, code: "no_slack" });
@@ -281,9 +294,8 @@ describe("guard rails (L25)", () => {
     await expect(createInvite(pat, { user: "sand-finch", role: "helper", days: 7 })).resolves.toMatchObject({ handle: "sand-finch" });
   });
 
-  it("create warns when the person is not on Orry's roster; refuses people who have an account or an open invite", async () => {
+  it("creates explicit access invites and refuses people who have an account or an open invite", async () => {
     const q = await createInvite(pat, { user: "@quartz-hare", role: "helper", days: 7 });
-    expect(q.warning).toMatch(/not on Orry's helper list/);
     await expect(createInvite(pat, { user: "quartz-hare", role: "helper", days: 7 })).rejects.toMatchObject({ code: "has_invite" });
     account(JUNO);
     await expect(createInvite(pat, { user: "pixel-otter", role: "helper", days: 7 })).rejects.toMatchObject({ code: "has_account" });

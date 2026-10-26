@@ -8,13 +8,13 @@ import { Who } from "@/components/shell/Who";
 import { recentEvents } from "@/lib/auth/events";
 import { fmtDay, fmtRelative, fmtWhen } from "@/lib/auth/format";
 import { peopleFor } from "@/lib/auth/roster";
-import { listAccounts, listInvites, shownState } from "@/lib/auth/store";
+import { listAccounts, listInvites, listPendingAccessRequests, shownState } from "@/lib/auth/store";
 import { teamCounts } from "@/lib/auth/team";
 import { now } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { AdminGate } from "./AdminGate";
 import { eventSentence } from "./events";
-import { InviteModal, InviteRowActions, PersonRowActions } from "./TeamClient";
+import { AccessRequestActions, InviteModal, InviteRowActions, PersonRowActions } from "./TeamClient";
 
 export const metadata: Metadata = { title: "Team and invites" };
 export const dynamic = "force-dynamic";
@@ -34,17 +34,19 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
   const t = now();
   const accounts = listAccounts();
+  const requests = listPendingAccessRequests();
   const invites = listInvites(t - 30 * 86_400_000);
   const events = recentEvents(20);
   const c = teamCounts();
   const people = await peopleFor([
-    ...accounts.map(a => a.slackId), ...invites.map(i => i.slackId), ...invites.map(i => i.createdBy),
+    ...accounts.map(a => a.slackId), ...requests.map(r => r.slackId), ...invites.map(i => i.slackId), ...invites.map(i => i.createdBy),
     ...events.map(e => e.actorSlackId), ...events.map(e => e.subjectSlackId)
   ]);
   const P = (id: string) => people.get(id) ?? { id, handle: id, name: id, known: false };
 
   const tabs: TabDef[] = [
     { key: "roster", label: "Roster", n: accounts.length },
+    { key: "requests", label: "Requests", n: requests.length || null },
     { key: "invites", label: "Invites", n: c.openInvites || null },
     { key: "activity", label: "Activity" }
   ];
@@ -94,6 +96,28 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "requests" ? (
+        <section className="panel" aria-labelledby="h-requests">
+          <div className="panel-h"><h2 id="h-requests">Access requests</h2></div>
+          <div className="panel-b tight">
+            {requests.length === 0 ? <p className="empty-note">No pending access requests.</p> : (
+              <div className="tbl-scroll" tabIndex={0} role="region" aria-label="Pending access requests">
+                <table className="tbl ad-tbl">
+                  <thead><tr><th scope="col">Person</th><th scope="col">Requested</th><th scope="col" className="ad-actcol">Decision</th></tr></thead>
+                  <tbody>{requests.map(r => (
+                    <tr key={r.id}>
+                      <th scope="row"><Who p={P(r.slackId)} /></th>
+                      <td>{fmtWhen(r.createdAt, t)}</td>
+                      <td><AccessRequestActions id={r.id} label={P(r.slackId).known ? P(r.slackId).name : "@" + P(r.slackId).handle} /></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
       ) : null}

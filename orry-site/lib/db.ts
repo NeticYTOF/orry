@@ -67,6 +67,18 @@ const MIGRATIONS: string[] = [
     locked_until INTEGER NOT NULL
   );
   `,
+  `
+  CREATE TABLE access_requests (
+    id          INTEGER PRIMARY KEY,
+    slack_id    TEXT NOT NULL UNIQUE,
+    hca_sub     TEXT NOT NULL UNIQUE,
+    status      TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied')),
+    created_at  INTEGER NOT NULL,
+    reviewed_at INTEGER,
+    reviewed_by TEXT
+  );
+  CREATE INDEX access_requests_pending ON access_requests (status, created_at);
+  `,
 ];
 
 export function dbPath(): string {

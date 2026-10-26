@@ -15,9 +15,11 @@ export type Invite = {
 };
 /** The state people see: "expired" is computed from expires_at, never stored. */
 export type InviteShownState = InviteState | "expired";
+export type AccessRequest = { id: number; slackId: string; hcaSub: string; status: "pending" | "approved" | "denied"; createdAt: number; reviewedAt: number | null; reviewedBy: string | null };
 
 type AccountRow = { id: number; slack_id: string; hca_sub: string | null; role: Role; status: "on" | "off"; created_at: number; created_by: string | null; last_sign_in_at: number | null };
 type InviteRow = { id: number; slack_id: string; role: Role; created_by: string; created_at: number; expires_at: number; state: InviteState; used_at: number | null };
+type AccessRequestRow = { id: number; slack_id: string; hca_sub: string; status: AccessRequest["status"]; created_at: number; reviewed_at: number | null; reviewed_by: string | null };
 
 const toAccount = (r: AccountRow | undefined): Account | null => r ? {
   id: r.id, slackId: r.slack_id, hcaSub: r.hca_sub, role: r.role, status: r.status,
@@ -27,6 +29,26 @@ const toInvite = (r: InviteRow | undefined): Invite | null => r ? {
   id: r.id, slackId: r.slack_id, role: r.role, createdBy: r.created_by, createdAt: r.created_at,
   expiresAt: r.expires_at, state: r.state, usedAt: r.used_at
 } : null;
+const toAccessRequest = (r: AccessRequestRow | undefined): AccessRequest | null => r ? { id: r.id, slackId: r.slack_id, hcaSub: r.hca_sub, status: r.status, createdAt: r.created_at, reviewedAt: r.reviewed_at, reviewedBy: r.reviewed_by } : null;
+
+/* ---------------- access requests ---------------- */
+
+export function accessRequestBySlack(slackId: string): AccessRequest | null {
+  return toAccessRequest(getDb().prepare("SELECT * FROM access_requests WHERE slack_id = ?").get(slackId) as AccessRequestRow | undefined);
+}
+export function accessRequestBySub(hcaSub: string): AccessRequest | null {
+  return toAccessRequest(getDb().prepare("SELECT * FROM access_requests WHERE hca_sub = ?").get(hcaSub) as AccessRequestRow | undefined);
+}
+export function accessRequestById(id: number): AccessRequest | null {
+  return toAccessRequest(getDb().prepare("SELECT * FROM access_requests WHERE id = ?").get(id) as AccessRequestRow | undefined);
+}
+export function listPendingAccessRequests(): AccessRequest[] {
+  return (getDb().prepare("SELECT * FROM access_requests WHERE status = 'pending' ORDER BY created_at, id").all() as AccessRequestRow[]).map(r => toAccessRequest(r)!);
+}
+export function insertAccessRequest(slackId: string, hcaSub: string): number {
+  const r = getDb().prepare("INSERT INTO access_requests (slack_id, hca_sub, status, created_at) VALUES (?, ?, 'pending', ?)").run(slackId, hcaSub, now());
+  return Number(r.lastInsertRowid);
+}
 
 /* ---------------- accounts ---------------- */
 

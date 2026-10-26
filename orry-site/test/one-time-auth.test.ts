@@ -45,7 +45,7 @@ it("accepts only a configured password and burns it atomically after one login",
   if (!first.ok) return;
   const session = sessionByToken(first.token);
   expect(session).not.toBeNull();
-  expect(accountById(session!.accountId)?.role).toBe("helper");
+  expect(accountById(session!.accountId)?.role).toBe("organizer");
   expect(redeemOneTimePassword("test-one-time-code")).toEqual({ ok: false, reason: "used" });
   expect(Number((getDb().prepare("SELECT COUNT(*) AS n FROM used_one_time_passwords").get() as { n: number }).n)).toBe(
     1,

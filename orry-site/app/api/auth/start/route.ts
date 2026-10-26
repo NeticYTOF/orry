@@ -9,13 +9,11 @@ import { devAccount } from "@/lib/auth/dev-idp";
 import { getProvider, primaryProviderId, redirectUri } from "@/lib/auth/providers";
 import { inviteById, shownState } from "@/lib/auth/store";
 import { originAllowed, safeReturnPath } from "@/lib/security";
-import { oneTimePasswordEnabled } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   if (!originAllowed(req.headers)) return redirectTo("/sign-in?m=failed");
-  if (oneTimePasswordEnabled()) return redirectTo("/sign-in?m=unavailable");
   let form: FormData;
   try {
     form = await req.formData();

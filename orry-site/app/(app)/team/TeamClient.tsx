@@ -78,7 +78,7 @@ export function InviteForm() {
   const [days, setDays] = useState("7");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ link: string; warning: string | null; handle: string } | null>(null);
+  const [result, setResult] = useState<{ link: string; handle: string } | null>(null);
   const [opts, setOpts] = useState<Array<{ handle: string; name: string }>>([]);
   const timer = useRef<number | undefined>(undefined);
   const linkRef = useRef<HTMLElement>(null);
@@ -107,7 +107,7 @@ export function InviteForm() {
     if (!ok) { setError(String(data.message ?? "That did not work.")); return; }
     const inv = data.invite as { id: number; handle: string };
     linkStore.set(inv.id, String(data.link));
-    setResult({ link: String(data.link), warning: (data.warning as string | null) ?? null, handle: inv.handle });
+    setResult({ link: String(data.link), handle: inv.handle });
     setUser("");
     router.refresh();
     window.setTimeout(() => linkRef.current?.focus(), 0);
@@ -140,7 +140,6 @@ export function InviteForm() {
             <p><b>Invite ready.</b> It is shown only once.</p>
             <code id="invLink" tabIndex={-1} ref={linkRef}>{result.link}</code>
             <button className="btn sm" type="button" id="invCopy" onClick={() => copy(result.link)}>Copy link</button>
-            {result.warning ? <p className="ad-warn">{result.warning}</p> : null}
           </>
         ) : null}
       </div>
@@ -184,6 +183,24 @@ export function PersonRowActions({ id, role, on, label }: { id: number; role: "h
       )}
     </>
   );
+}
+
+export function AccessRequestActions({ id, label }: { id: number; label: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  async function decide(decision: "approve" | "deny") {
+    if (busy) return;
+    setBusy(true);
+    const r = await post(`/api/team/access-requests/${id}`, { decision });
+    setBusy(false);
+    if (!r.ok) { toast(String(r.data.message ?? "That did not work.")); return; }
+    toast(decision === "approve" ? `${label} can sign in now.` : `${label}'s request was denied.`);
+    router.refresh();
+  }
+  return <span className="ad-acts">
+    <button className="txt-link" type="button" disabled={busy} onClick={() => decide("approve")}>Approve<span className="vh">: {label}</span></button>
+    <button className="txt-link" type="button" disabled={busy} onClick={() => decide("deny")}>Deny<span className="vh">: {label}</span></button>
+  </span>;
 }
 
 /* ---------- invite rows ---------- */

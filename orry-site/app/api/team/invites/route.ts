@@ -11,6 +11,6 @@ const Body = z.object({ user: z.string().min(1).max(80), role: z.enum(["helper",
 export async function POST(req: Request) {
   return organizerAction(req, Body, async (s, b) => {
     const inv = await createInvite({ slackId: s.slackId, role: s.role }, b);
-    return { invite: { id: inv.id, slackId: inv.slackId, handle: inv.handle, role: inv.role, expiresAt: inv.expiresAt }, link: `${baseUrl()}/invite/${inv.token}`, warning: inv.warning };
+    return { invite: { id: inv.id, slackId: inv.slackId, handle: inv.handle, role: inv.role, expiresAt: inv.expiresAt }, link: `${baseUrl()}/invite/${inv.token}` };
   });
 }

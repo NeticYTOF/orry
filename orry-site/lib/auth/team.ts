@@ -4,9 +4,8 @@ import { getDataSource } from "../data";
 import { getDb, now, tx } from "../db";
 import { INVITE_DAYS, INVITES_PER_DAY, OPEN_INVITES_MAX, SLACK_ID_RE } from "./config";
 import { logEvent } from "./events";
-import { rosterRole } from "./roster";
 import {
-  accountById, accountBySlack, cancelInviteRow, countActiveOrganizers, countInvitesBy, countOpenInvites, countOrganizerAccounts,
+  accessRequestById, accountById, accountBySlack, cancelInviteRow, countActiveOrganizers, countInvitesBy, countOpenInvites, countOrganizerAccounts,
   deleteSessionsForAccount, insertAccount, insertInvite, inviteById, openInviteFor, type Role
 } from "./store";
 
@@ -20,7 +19,7 @@ function mustOrganize(a: Actor) {
   if (a.role !== "organizer") throw new TeamError("forbidden", "Only organizers can do this.", 403);
 }
 
-export type CreatedInvite = { id: number; token: string; slackId: string; handle: string; role: Role; expiresAt: number; warning: string | null };
+export type CreatedInvite = { id: number; token: string; slackId: string; handle: string; role: Role; expiresAt: number };
 
 /** Creates an invite for a Slack username (or ID). The token is returned once and never stored. */
 export async function createInvite(actor: Actor, input: { user: string; role: Role; days: number }): Promise<CreatedInvite> {
@@ -45,19 +44,28 @@ export async function createInvite(actor: Actor, input: { user: string; role: Ro
   if (existing?.status === "off") throw new TeamError("account_off", `@${person.handle} has an account that is turned off. Turn it on in People instead.`);
   if (openInviteFor(person.id)) throw new TeamError("has_invite", `@${person.handle} already has an open invite. Cancel it or use Send again.`);
 
-  /* Warn, not block: the invite works only once they are on Orry's roster too (L23). */
-  const r = await rosterRole(person.id);
-  const warning = r === null
-    ? "Orry could not be asked whether they are on the helper list. They need to be on it to get in."
-    : r === "public" ? `@${person.handle} is not on Orry's helper list yet. The invite works, but they will not get in until they are on it.` : null;
-
   return tx(() => {
     if (countOpenInvites() >= OPEN_INVITES_MAX) throw new TeamError("too_many_open", `There are already ${OPEN_INVITES_MAX} open invites. Cancel some first.`, 429);
     if (countInvitesBy(actor.slackId, now() - 86_400_000) >= INVITES_PER_DAY) throw new TeamError("daily_limit", `You made ${INVITES_PER_DAY} invites in the last day. Try again tomorrow.`, 429);
     const { id, token } = insertInvite({ slackId: person!.id, role: input.role, createdBy: actor.slackId, days: input.days });
     logEvent("invite_created", actor.slackId, { subject: person!.id, reason: input.role });
     const inv = inviteById(id)!;
-    return { id, token, slackId: person!.id, handle: person!.handle, role: input.role, expiresAt: inv.expiresAt, warning };
+    return { id, token, slackId: person!.id, handle: person!.handle, role: input.role, expiresAt: inv.expiresAt };
+  });
+}
+
+export function decideAccessRequest(actor: Actor, id: number, decision: "approve" | "deny"): void {
+  mustOrganize(actor);
+  tx(() => {
+    const request = accessRequestById(id);
+    if (!request) throw new TeamError("not_found", "That access request does not exist.", 404);
+    if (request.status !== "pending") throw new TeamError("not_pending", "That request has already been reviewed.", 409);
+    const account = accountBySlack(request.slackId);
+    if (decision === "approve" && account) throw new TeamError("account_exists", "That person already has an account. Manage it in People instead.", 409);
+    const t = now();
+    if (decision === "approve") insertAccount({ slackId: request.slackId, hcaSub: request.hcaSub, role: "helper", createdBy: actor.slackId, createdAt: t });
+    getDb().prepare("UPDATE access_requests SET status = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ? AND status = 'pending'").run(decision === "approve" ? "approved" : "denied", t, actor.slackId, id);
+    logEvent(decision === "approve" ? "access_approved" : "access_denied", actor.slackId, { subject: request.slackId });
   });
 }
 
