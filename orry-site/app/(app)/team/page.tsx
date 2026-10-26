@@ -1,5 +1,5 @@
-/* Team and invites (PLAN 7.6, mockup #/team). Organizers only. Three tabs that are real links (?tab=): Roster, Invites,
-   Activity. Only the open tab is rendered. "Invite someone" and the row actions that need a confirmation are modals. */
+/* Team and invites (PLAN 7.6, mockup #/team). Organizers only. Four tabs that are real links (?tab=): Roster, Requests,
+   Invites and Activity. Only the open tab is rendered. "Invite someone" and the row actions that need a confirmation are modals. */
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { PageHead } from "@/components/ui/PageHead";
@@ -57,7 +57,10 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       <PageHead
         kicker="Organizers"
         title={<><span className="big">{c.canSignIn}</span> {c.canSignIn === 1 ? "person can" : "people can"} sign in</>}
-        side={<InviteModal />}
+        side={<>
+          <TabNav label="Team sections" tabs={tabs} current={tab} href={k => `/team?tab=${k}`} />
+          <InviteModal />
+        </>}
       />
 
       <div className="stats" role="group" aria-label="Access numbers">
@@ -66,8 +69,6 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         <div className="stat"><span className="stat-k">Turned off</span><span className="stat-v">{c.off}</span></div>
         <div className="stat"><span className="stat-k">Signed in today</span><span className="stat-v">{c.signedInToday}</span><span className="stat-s">of {c.canSignIn}</span></div>
       </div>
-
-      <div className="ad-tabs"><TabNav label="Team sections" tabs={tabs} current={tab} href={k => `/team?tab=${k}`} /></div>
 
       {tab === "roster" ? (
         <section className="panel" aria-labelledby="h-ppl2">
