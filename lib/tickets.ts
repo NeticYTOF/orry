@@ -676,33 +676,6 @@ async function syncSupportTicketUI(
       synced = false;
     }
   }
-  return synced && (await syncTicketReactions(client, ticket, prog));
-}
-
-async function syncTicketReactions(
-  client: SlackClient,
-  ticket: Ticket,
-  program: Program | null = null,
-): Promise<boolean> {
-  const open = config.ticketOpenReaction;
-  const done = config.ticketResolvedReaction;
-  if (!client?.reactions?.add || !ticket?.thread_ts || !ticket?.channel || (!open && !done)) return true;
-  if (!ticketSurfaces(program || programs.get(ticket.program_id)).thread) return true;
-  let synced = true;
-  const closed = CLOSED.includes(ticket.status);
-  const want = closed ? done : open;
-  const drop = closed ? open : done;
-  const at = { channel: ticket.channel, timestamp: ticket.thread_ts };
-  if (want)
-    await client.reactions.add({ ...at, name: want }).catch((e) => {
-      synced = false;
-      recordSlackSyncFailure("reaction", ticket, e);
-    });
-  if (drop && client.reactions.remove)
-    await client.reactions.remove({ ...at, name: drop }).catch((e) => {
-      synced = false;
-      recordSlackSyncFailure("reaction", ticket, e);
-    });
   return synced;
 }
 
@@ -912,7 +885,6 @@ async function ensureSupportTicket(options: EnsureSupportTicketOptions): Promise
     }
   }
   const fresh = db.getTicket(ticket.id);
-  if (client) void syncTicketReactions(client, fresh, prog);
   if (client && !fresh.card_ts && ticketSurfaces(prog).organizer && getOrganizerChannel(prog, wsId)) {
     await postCard({
       prog,

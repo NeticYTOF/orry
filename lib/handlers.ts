@@ -973,15 +973,6 @@ function parseMacroTrigger(text: string): MacroTrigger | null {
   return { trigger };
 }
 
-async function reactToMacroMessage(client: SlackClient, event: HandlerEvent, name: string): Promise<void> {
-  if (!client?.reactions?.add) return;
-  try {
-    await client.reactions.add({ channel: event.channel, timestamp: event.ts, name });
-  } catch (e: unknown) {
-    log.debug("macros", `reaction failed for ${event.ts}: ${errorMessage(e)}`);
-  }
-}
-
 function findMacro(programId: string, trigger: string): MacroRow | null {
   const bare = trigger.slice(1);
   const candidates = macros.list(programId).filter((row: MacroRow) => String(row.trigger || "").slice(1) === bare);
@@ -1035,7 +1026,6 @@ async function handleMacroTrigger({
 
   if (!db.claimMessage(event.ts, event.channel)) return true;
   if (!macro || !macro.enabled) {
-    await reactToMacroMessage(client, event, "question");
     const enabled = macros
       .list(program.id, { enabledOnly: true })
       .slice(0, 5)
@@ -1055,9 +1045,7 @@ async function handleMacroTrigger({
         actorId: event.user,
         client,
       });
-  if (sent?.ok) {
-    await reactToMacroMessage(client, event, "white_check_mark");
-  } else {
+  if (!sent?.ok) {
     log.warn(
       "macros",
       `send failed for ${parsed.trigger} in ${event.channel}/${event.thread_ts}: ${sent?.error || "unknown error"}`,

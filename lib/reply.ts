@@ -479,15 +479,6 @@ async function flagForHumans(
     if (prog.posture === "passive") return;
   }
 
-  const reaction = config.escalateReaction;
-  if (reaction && !(prog && prog.shadowMode === true)) {
-    try {
-      await client.reactions?.add?.({ channel, timestamp: messageTs, name: reaction });
-    } catch (error: unknown) {
-      log.debug("respond", `could not flag for humans: ${errorMessage(error)}`);
-    }
-  }
-
   try {
     const tickets = require("./tickets");
     await tickets.escalateTicket({
@@ -506,32 +497,13 @@ async function flagForHumans(
   }
 }
 
-async function seedFeedbackReactions(client: SlackClient, channel: string, messageTs: string) {
-  if (!messageTs) return;
-  const reactions = config.feedbackReactions || [];
-  if (!client || !channel || !messageTs || reactions.length === 0) return;
-  for (const name of reactions) {
-    client.reactions.add({ channel, timestamp: messageTs, name }).catch((error: unknown) => {
-      log.debug("respond", `could not seed reaction ${name}: ${errorMessage(error)}`);
-    });
-  }
+async function seedFeedbackReactions(_client: SlackClient, _channel: string, _messageTs: string) {
+  return;
 }
 
-const AMBIENT_REACTION = "thinking_face";
-
-// Marks an ambient program question with thinking_face. Returns false when the
-// reaction could not be added, and the caller then stays silent.
-async function reactAmbientUncertain(client: SlackClient, channel: string, messageTs: string): Promise<boolean> {
-  if (!client?.reactions?.add || !channel || !messageTs) return false;
-  try {
-    await client.reactions.add({ channel, timestamp: messageTs, name: AMBIENT_REACTION });
-    return true;
-  } catch (error: unknown) {
-    const message = errorMessage(error);
-    if (message.includes("already_reacted")) return true;
-    log.warn("respond", `could not add ${AMBIENT_REACTION}, staying silent: ${message}`);
-    return false;
-  }
+// Kept as a no-op for callers that still use the old feedback hook.
+async function reactAmbientUncertain(_client: SlackClient, _channel: string, _messageTs: string): Promise<boolean> {
+  return false;
 }
 
 export = {

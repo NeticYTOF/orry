@@ -343,10 +343,9 @@ async function replyFromCache({
   const cacheProgramId = program ? program.id : null;
 
   const text = reply.withReplySignature(`${assumptionLine(result)}${result.answer}`, program);
-  let postedTs: string | null = null;
   try {
     const slackMessages = require("./slackMessages");
-    const res = await slackMessages.sendProgramMessage({
+    await slackMessages.sendProgramMessage({
       client,
       program,
       channel,
@@ -354,13 +353,11 @@ async function replyFromCache({
       text: reply.plainDashes(reply.withReplySignature(result.answer, program)),
       blocks: reply.plainDashesInBlocks(reply.blocksFor(text, { program, channel, threadTs })),
     });
-    postedTs = res.ts;
   } catch (error: unknown) {
     log.debug("respond", `cached post failed, falling through: ${errorMessage(error)}`);
     return null;
   }
 
-  await reply.seedFeedbackReactions(client, channel, postedTs);
   context.addToThread(threadTs, "assistant", result.answer, null, channel);
   context.updateUserHistory(userId, question, true);
   db.recordMetric("answer_docs", Date.now() - startedAt, null, cacheProgramId);
@@ -456,8 +453,6 @@ async function publishReply({
   text,
   blocks,
   program,
-  seededTs,
-  seed = true,
   silencedBefore = null,
 }: {
   client: SlackClient;
@@ -467,8 +462,6 @@ async function publishReply({
   text: string;
   blocks?: unknown[] | null;
   program: ProgramLike | null;
-  seededTs?: string | null;
-  seed?: boolean;
   silencedBefore?: { muted: boolean; takeover: boolean } | null;
 }) {
   const postedTs = await reply.finalize(client, channel, threadTs, placeholder, text, {
@@ -476,7 +469,6 @@ async function publishReply({
     blocks,
     silencedBefore,
   });
-  if (seed && postedTs !== seededTs) await reply.seedFeedbackReactions(client, channel, postedTs);
   return postedTs;
 }
 
@@ -776,19 +768,17 @@ async function recentChannelContext({
   seedClient,
   channel,
   messageTs,
-  threadTs,
 }: {
   seedClient: SlackClient | null;
   channel: string;
   messageTs: string | null;
-  threadTs: string;
 }) {
-  if (!seedClient || messageTs !== threadTs) return [];
+  if (!seedClient || !messageTs) return [];
   try {
     return await context.recentChannelMessages(
       seedClient,
       channel,
-      messageTs || threadTs,
+      messageTs,
       config.slack.botUserId,
       RECENT_CHANNEL_CONTEXT,
     );
@@ -1010,7 +1000,7 @@ async function respond({
     userId,
     channel,
     threadMessages,
-    recentMessages: await recentChannelContext({ seedClient, channel, messageTs, threadTs }),
+    recentMessages: await recentChannelContext({ seedClient, channel, messageTs }),
   });
   trace.set({ classifyMs: Date.now() - classifyStartedAt });
   trace.set({
@@ -1100,7 +1090,6 @@ async function respond({
         placeholder: Promise.resolve(null),
         text: MENTION_FALLBACK,
         program: prog,
-        seed: false,
       });
       context.addToThread(threadTs, "assistant", MENTION_FALLBACK, null, channel);
     }
@@ -1151,27 +1140,9 @@ async function respond({
   };
   const placeholder = (): Promise<string | null> => placeholderPromise || Promise.resolve(null);
 
-  let seededTs: string | null = null;
-  let seeded = false;
-  let seedTask: Promise<void | null> | null = null;
-  const seedOnce = (promise: Promise<string | null>) => {
-    if (seeded) return;
-    seeded = true;
-    seedTask = promise
-      .then((ts) => {
-        if (!ts) return null;
-        seededTs = ts;
-        return reply.seedFeedbackReactions(client, channel, ts);
-      })
-      .catch((error: unknown) => log.debug("respond", `placeholder reaction setup failed: ${errorMessage(error)}`));
-  };
-  const waitForSeed = async () => {
-    if (seedTask) await seedTask;
-  };
-
   if (isAddressed) {
     placeholderTimer = setTimeout(() => {
-      seedOnce(ensurePlaceholder());
+      void ensurePlaceholder();
     }, PLACEHOLDER_DELAY_MS);
   }
 
@@ -1215,7 +1186,7 @@ async function respond({
           placeholderTimer = null;
         }
         if (firstTextMs === null) firstTextMs = Date.now() - startedAt;
-        seedOnce(ensurePlaceholder());
+        void ensurePlaceholder();
         streamer.write(clean);
       }
     : null;
@@ -1342,7 +1313,6 @@ async function respond({
   const clarification = ruleClarification || specificClarification;
   if (!pendingQuestion && kind === "program" && clarification) {
     const text = `${CLARIFICATION_PREFIX}${clarification}`;
-    await waitForSeed();
     await publishReply({
       silencedBefore,
       client,
@@ -1351,7 +1321,6 @@ async function respond({
       placeholder: placeholder(),
       text: reply.withReplySignature(text, prog),
       program: prog,
-      seededTs,
     });
     context.addToThread(threadTs, "assistant", text, null, channel, workspaceId);
     db.recordMetric("fallback", Date.now() - startedAt, "clarification", programId);
@@ -1363,7 +1332,6 @@ async function respond({
 
   if (action === "reply") {
     const text = reply.withReplySignature(`${assumptionLine(result)}${result.answer}`, prog);
-    await waitForSeed();
     await publishReply({
       silencedBefore,
       client,
@@ -1373,7 +1341,6 @@ async function respond({
       text,
       blocks: reply.blocksFor(text, { program: prog, channel, threadTs }),
       program: prog,
-      seededTs,
     });
     recordSpokenReply({
       threadTs,
@@ -1393,7 +1360,6 @@ async function respond({
   if (action === "reply_chat" || action === "escalate_and_reply_chat") {
     if (action === "escalate_and_reply_chat") await handOff();
     if (threadTs) db.recordAnsweredThread({ question: trimmed, channel, threadTs });
-    await waitForSeed();
     await publishReply({
       silencedBefore,
       client,
@@ -1402,7 +1368,6 @@ async function respond({
       placeholder: placeholder(),
       text: reply.withReplySignature(result.answer, prog),
       program: prog,
-      seededTs,
     });
     recordSpokenReply({
       threadTs,
@@ -1436,7 +1401,6 @@ async function respond({
         trace.finish({ finalAction: "silence", reason: "subjectless" });
         return true;
       }
-      await waitForSeed();
       await publishReply({
         silencedBefore,
         client,
@@ -1445,8 +1409,6 @@ async function respond({
         placeholder: placeholder(),
         text,
         program: prog,
-        seededTs,
-        seed: false,
       });
       context.addToThread(threadTs, "assistant", text, null, channel);
       context.updateUserHistory(userId, trimmed, false);
@@ -1479,7 +1441,6 @@ async function respond({
       programFact,
       question: trimmed,
     });
-    await waitForSeed();
     await publishReply({
       silencedBefore,
       client,
@@ -1488,8 +1449,6 @@ async function respond({
       placeholder: placeholder(),
       text,
       program: prog,
-      seededTs,
-      seed: false,
     });
     context.addToThread(threadTs, "assistant", text, null, channel);
     context.updateUserHistory(userId, trimmed, false);
@@ -1499,12 +1458,10 @@ async function respond({
   }
 
   if (action === "react") {
-    // Ambient program question nobody addressed and the corpus cannot answer:
-    // a quiet thinking_face on the user's message, never public text.
+    // Ambient unanswered questions stay quiet; Orry does not add reactions.
     await reply.discardPlaceholder(client, channel, placeholder());
-    const reacted = await reply.reactAmbientUncertain(client, channel, messageTs || "");
-    db.recordMetric("silent", Date.now() - startedAt, reacted ? "ambient_react" : "ambient_react_failed", programId);
-    trace.finish({ finalAction: "react", reason: plan.reason });
+    db.recordMetric("silent", Date.now() - startedAt, "ambient_silent", programId);
+    trace.finish({ finalAction: "silence", reason: plan.reason });
     return false;
   }
 
